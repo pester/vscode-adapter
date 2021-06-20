@@ -1,13 +1,11 @@
 import * as vscode from 'vscode'
 import { PesterTestController } from './pesterTestController'
-import { TestController } from './testController'
 
 export async function activate(context: vscode.ExtensionContext) {
   const powershellExtension = await getPowershellExtension(context)
   if (!powershellExtension) {return}
 
   context.subscriptions.push(
-    vscode.test.registerTestController(new TestController()),
     vscode.test.registerTestController(await PesterTestController.create(context,powershellExtension)),
   );
 }
