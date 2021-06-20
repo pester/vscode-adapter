@@ -324,7 +324,3 @@ try {
 # }
 
 # $testSuiteInfo | ConvertTo-Json -Depth 100
-
-
-#FIXME: Remove this and have a proper signal for no further objects to the pipe, like wait for close maybe
-sleep 1
