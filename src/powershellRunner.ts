@@ -2,6 +2,7 @@ import NodePowershell = require('node-powershell');
 import { randomBytes } from 'crypto'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 
+/** Invokes a powershell script and provides the object outputs as JSON serialized objects */
 export class PowerShellRunner {
     constructor(
         private readonly shell = new NodePowershell({
@@ -12,6 +13,7 @@ export class PowerShellRunner {
             .slice(0, 10)
             .replace('[^A-Za-z0-9]',''),
         private readonly replyServerPromise = DotnetNamedPipeServer.create(pipeName),
+        // It would be nice if we could use a file descriptor like fd3, doesn't appear possible in dotnet yet though: https://github.com/dotnet/runtime/issues/26559
         private replyServer: DotnetNamedPipeServer | undefined = undefined
     ){}
 
@@ -25,36 +27,45 @@ export class PowerShellRunner {
         // NPS environment variable is used as a workaround to specify which powershell to use since node-powershell doesn't provide a constructor
         process.env.NPS = psExePath
         const item = new PowerShellRunner()
-        const replyServer = await item.replyServerPromise
-        await replyServer.listen()
+        // TODO: Refactor this into a getter
+        item.replyServer = await item.replyServerPromise
+        await item.replyServer.listen()
         console.log(`Powershell runner listening on pipe ${item.pipeName}`)
         return item
     }
 
-    /** Executes a Powershell Command and returns the output as a string */
-    async execPwshCommand(command: string, args?: string[], sendPipeName?: boolean) {
+    /** Executes a Powershell Command and returns the output as objects */
+    // TODO: Allow for a handler to handle the returned objects
+    async execPwshCommand(command: string, args?: string[]) {
+        const result = new Array<Object>()
+        // The script will reply with objects to this pipe output. This is sort of like adding another stdout fd.
+        // TODO: Move the pipe handling into this rather than require to script to implement it
+        this.replyServer!.onDidReceiveObject(
+            returnObject => result.push(returnObject)
+        )
+
         await this.shell.addCommand(command)
         if (args) {
             for (let arg of args) {
                 await this.shell.addArgument(arg)
             }
-            if (sendPipeName) {
-                await this.shell.addParameter({PipeName: this.pipeName})
-            }
         }
+        await this.shell.addParameter({PipeName: this.pipeName})
+
         try {
-            const result = await this.shell.invoke()
+            const output = await this.shell.invoke()
+            if (output) {console.log("Pwsh Host Output: " + output)}
             return result
         } catch (err) {
             // TODO: VSCode Error
             console.log(err)
-            return ''
+            return Array<Object>()
         }
     }
 
     /** Executes a Powershell Script and returns the script output as a string */
-    async execPwshScriptFile(path: string, args?: string[], sendPipeName?: boolean) {
-        return this.execPwshCommand(`. ${path}`, args, sendPipeName)
+    async execPwshScriptFile(path: string, args?: string[]) {
+        return this.execPwshCommand(`. ${path}`, args)
     }
     //
     // public async ExecPwshScriptFile(

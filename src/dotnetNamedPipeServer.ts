@@ -3,22 +3,32 @@ import { createServer, Server } from 'net'
 import { platform, tmpdir } from 'os'
 import { join } from 'path'
 import { createInterface } from 'readline'
+import { EventEmitter } from 'vscode'
 
 /** Provides a simple client listener to a .NET named pipe. This is useful as a IPC method to child processes like a Powershell Script */
 export class DotnetNamedPipeServer {
     private listener!: Server
+    // We will use this emitter to notify any subscribers of new objects to process
+    // TODO: Tighten up the types here
+    // TODO: Optionally skip the json processing?
+    // TODO: Make this not depend on vscode and use a general eventEmitter, then make an inherited class that is vscode specific
+    private _onDidReceiveObject = new EventEmitter<Object>();
+    get onDidReceiveObject() {
+		return this._onDidReceiveObject.event
+	}
+
     constructor(
         public name: string,
     ) {}
 
-    /** Initialize a named pipe with the specified name. Returns a promise that completes when the server is ready */
+    /** Initialize a named pipe server with the specified name. Returns a promise that completes when the server is ready */
     static async create(name: string) {
         const item = new DotnetNamedPipeServer(name)
         item.listener = createServer(stream => {
             const readLineClient = createInterface(stream)
             readLineClient.on("line", line => {
-                // TODO: Wire back into json processor
-                console.log(line)
+                const returnedObject = JSON.parse(line)
+                item._onDidReceiveObject.fire(returnedObject)
             })
         })
         return item
