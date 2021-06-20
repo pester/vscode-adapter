@@ -5,7 +5,7 @@ import { join } from 'path'
 import { createInterface } from 'readline'
 import { EventEmitter } from 'vscode'
 
-/** Provides a simple client listener to a .NET named pipe. This is useful as a IPC method to child processes like a Powershell Script */
+/** Provides a simple server listener to a .NET named pipe. This is useful as a IPC method to child processes like a Powershell Script */
 export class DotnetNamedPipeServer {
     private listener!: Server
     // We will use this emitter to notify any subscribers of new objects to process
