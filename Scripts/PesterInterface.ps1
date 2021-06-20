@@ -244,7 +244,6 @@ $runResult = Invoke-Pester -Configuration $config
 
 if ($TestsOnly) {
     $testResult = $runResult.Tests
-
     $testFilteredResult = if (-not $Discovery) {
         #If discovery was not run, its easy to filter the results
         $testResult | Where-Object Executed
@@ -261,28 +260,29 @@ if ($TestsOnly) {
     } else {
         $testResult
     }
-
     [Array]$testObjects = $testFilteredResult | ForEach-Object {
         New-TestObject $PSItem
     }
-
-
 
 try {
     # This will replace the standard Out-Default and allow us to tee json results to a named pipe for the extension to pick up.
     $SCRIPT:client = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
     $client.Connect(5000)
+    $client.IsConnected
+    Write-Host -Fore Magenta "IsConnected: $($client.IsConnected) ServerInstances: $($client.NumberOfServerInstances)"
     $writer = [System.IO.StreamWriter]::new($client)
-
     $testObjects.foreach{
         [string]$jsonObject = ConvertTo-Json $PSItem -Compress -Depth 1
         if ($PipeName) {
+            Write-Host -fore green "Writing to pipe: $jsonObject"
             $writer.WriteLine($jsonObject)
         }
     }
     # DO NOT USE THE PIPELINE, it will unwrap the array and cause a problem with single-item results
 
 } catch {throw} finally {
+    $writer.flush()
+    $writer.dispose()
     $client.Close()
 }
 
@@ -324,3 +324,7 @@ try {
 # }
 
 # $testSuiteInfo | ConvertTo-Json -Depth 100
+
+
+#FIXME: Remove this and have a proper signal for no further objects to the pipe, like wait for close maybe
+sleep 1

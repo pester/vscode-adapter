@@ -12,7 +12,7 @@ export class DotnetNamedPipeServer {
     // TODO: Tighten up the types here
     // TODO: Optionally skip the json processing?
     // TODO: Make this not depend on vscode and use a general eventEmitter, then make an inherited class that is vscode specific
-    private _onDidReceiveObject = new EventEmitter<Object>();
+    public _onDidReceiveObject = new EventEmitter<Object>();
     get onDidReceiveObject() {
 		return this._onDidReceiveObject.event
 	}
@@ -27,6 +27,7 @@ export class DotnetNamedPipeServer {
         item.listener = createServer(stream => {
             const readLineClient = createInterface(stream)
             readLineClient.on("line", line => {
+                console.log("Named Pipe Server received message:",line)
                 const returnedObject = JSON.parse(line)
                 item._onDidReceiveObject.fire(returnedObject)
             })

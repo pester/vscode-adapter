@@ -2,6 +2,17 @@ import NodePowershell = require('node-powershell');
 import { randomBytes } from 'crypto'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 
+
+/** Represents the return result of a powershell script */
+export class PowershellRunnerResult {
+    constructor(
+        public result?: Object[],
+        public output?: string,
+        public err?: string
+    ) {}
+}
+
+
 /** Invokes a powershell script and provides the object outputs as JSON serialized objects */
 export class PowerShellRunner {
     constructor(
@@ -40,7 +51,7 @@ export class PowerShellRunner {
         const result = new Array<Object>()
         // The script will reply with objects to this pipe output. This is sort of like adding another stdout fd.
         // TODO: Move the pipe handling into this rather than require to script to implement it
-        this.replyServer!.onDidReceiveObject(
+        let receiveObjectEventHandler = this.replyServer!.onDidReceiveObject(
             returnObject => result.push(returnObject)
         )
 
@@ -55,11 +66,22 @@ export class PowerShellRunner {
         try {
             const output = await this.shell.invoke()
             if (output) {console.log("Pwsh Host Output: " + output)}
-            return result
+            receiveObjectEventHandler.dispose()
+            return new PowershellRunnerResult(
+                result,
+                output,
+                undefined
+            )
+
         } catch (err) {
             // TODO: VSCode Error
             console.log(err)
-            return Array<Object>()
+            receiveObjectEventHandler.dispose()
+            return new PowershellRunnerResult(
+                undefined,
+                undefined,
+                err
+            )
         }
     }
 

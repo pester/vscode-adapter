@@ -197,8 +197,9 @@ export class PesterTestController implements vscode.TestController<TestData> {
         // Lazy initialize the powershell runner so the filewatcher-based test finder works quickly
         const runner = await this.powerShellRunner
         // TODO: Need validation here
-        const result:T[] = await runner.execPwshScriptFile(scriptPath,scriptArgs) as T[]
-        console.log('Objects received from Pester',result)
+        const runnerResult = await runner.execPwshScriptFile(scriptPath,scriptArgs)
+        console.log('Objects received from Pester',runnerResult.result)
+        const result:T[] = runnerResult.result as T[]
 
         // TODO: Refactor this using class-transformer https://github.com/typestack/class-transformer
 
