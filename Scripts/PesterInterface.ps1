@@ -274,7 +274,6 @@ try {
     $testObjects.foreach{
         [string]$jsonObject = ConvertTo-Json $PSItem -Compress -Depth 1
         if ($PipeName) {
-            Write-Host -fore green "Writing to pipe: $jsonObject"
             $writer.WriteLine($jsonObject)
         }
     }

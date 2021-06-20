@@ -1,0 +1,12 @@
+branches:
+  - main
+  - another
+ci: true
+debug: true
+dryRun: true
+# repositoryUrl: — no need, will use from git origin
+tagFormat: '${version}'
+
+# Global plugin options (will be passed to all plugins)
+preset: 'conventionalcommits'
+gitlabUrl: 'http://gitlab.your-domain.com/'
