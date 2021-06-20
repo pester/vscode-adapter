@@ -230,7 +230,7 @@ $config = New-PesterConfiguration @{
         PassThru = $true
     }
     Output = @{
-        Verbosity = 'None'
+        Verbosity = 'Detailed'
     }
 }
 if ($paths.Count) {
@@ -276,7 +276,6 @@ try {
 
     $testObjects.foreach{
         [string]$jsonObject = ConvertTo-Json $PSItem -Compress -Depth 1
-        Write-Output $jsonObject
         if ($PipeName) {
             $writer.WriteLine($jsonObject)
         }
