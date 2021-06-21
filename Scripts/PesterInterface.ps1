@@ -204,14 +204,14 @@ function New-TestObject ([Test]$Test) {
 }
 
 
-function Get-TestParents {
+function Get-TestItemParents {
     <#
     .SYNOPSIS
     Returns any parents not already known, top-down first, so that a hierarchy can be created in a streaming manner
     #>
     param (
         #Test to fetch parents of. For maximum efficiency this should be done one test at a time and then stack processed
-        [Parameter(Mandatory,ValueFromPipeline)][Pester.Test[]]$Test,
+        [Parameter(Mandatory,ValueFromPipeline)]$Test,
         [HashSet[Pester.Block]]$KnownParents = [HashSet[Pester.Block]]::new()
     )
 
@@ -221,14 +221,16 @@ function Get-TestParents {
     }
     process {
         foreach ($TestItem in $Test) {
-            if ($TestItem -isnot [Pester.Test]) {
-                throw "Expected $($TestItem.Name) to be a Test but it was $($TestItem.gettype())"
+            if ($TestItem -isnot [Pester.Test] -or [Pester.Block]) {
+                throw "Expected $($TestItem.Name) to be a Test or Block but it was $($TestItem.gettype())"
             }
             if ($TestItem.Block.count -ne 1) {
                 throw "Test did not have exactly one ancestor. This should not happen and is a bug."
             }
             $ancestors = [Stack[Pester.Block]]::new()
-            $ancestors.push($TestItem.Block)
+            #Different for test vs suite
+            $baseAncestor = if ($TestItem.Block) {$TestItem.Block} else {$TestItem.Parent}
+            $ancestors.push($baseAncestor)
             do {
                 $thisAncestor = $ancestors.Pop()
                 if (-not $KnownParents.Add($thisAncestor)) {
@@ -314,7 +316,7 @@ function Invoke-Main {
     if (-not $TestsOnly) {
         #Emit the scaffolding objects
         # TODO: Make this streaming with Pester Output Plugin
-        [Pester.Block[]]$testSuites = Get-TestParents $runResult.Tests
+        [Pester.Block[]]$testSuites = Get-TestItemParents $runResult.Tests
 
         $testObjects.InsertRange(0,($testSuites.foreach{New-SuiteObject $PSItem}))
     }
