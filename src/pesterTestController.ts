@@ -98,14 +98,12 @@ export class WorkspaceTestRoot {
  * Its resolveHandler will run the DiscoverTests.ps1 script on the file it represents to discover the Context/Describe/It blocks within.
  * */
 export class TestFile {
-    constructor(public file: string) {}
     public static create(testFilePath: vscode.Uri, ps: PesterTestController) {
         const item = vscode.test.createTestItem<TestFile, TestData>({
             id: testFilePath.toString(),
             label: testFilePath.path.split('/').pop()!,
             uri: testFilePath
         })
-        item.data = new TestFile(testFilePath.fsPath)
         item.resolveHandler = async token => {
             token.onCancellationRequested(() => {
                 item.status = vscode.TestItemStatus.Pending
