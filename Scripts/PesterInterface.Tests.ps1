@@ -26,7 +26,7 @@ Describe 'PesterInterface' {
         BeforeEach {
             $SCRIPT:baseMock = [PSCustomObject]@{
                 PSTypeName = 'Test'
-                ExpandedPath = $null
+                Path = 'Describe','Context','It'
                 ScriptBlock = @{
                     File = 'C:\Path\To\Pester\File'
                 }
@@ -34,38 +34,33 @@ Describe 'PesterInterface' {
             }
         }
         It 'basic path' {
-            $baseMock.ExpandedPath = 'Describe.Context.It'
             New-TestItemId -AsString $baseMock |
-                Should -Be $($baseMock.ScriptBlock.File,$baseMock.ExpandedPath -join '>>')
+                Should -Be $($baseMock.ScriptBlock.File,($baseMock.Path -join '>>') -join '>>')
         }
         It 'Array testcase' {
-            $baseMock.ExpandedPath = 'Describe.Context.It'
             $baseMock.Data = @('test')
             New-TestItemId -AsString $baseMock |
-                Should -Be $($baseMock.ScriptBlock.File,$baseMock.ExpandedPath,'_=test' -join '>>')
+                Should -Be $($baseMock.ScriptBlock.File,($baseMock.Path -join '>>'),'_=test' -join '>>')
         }
         It 'Hashtable testcase one key' {
-            $baseMock.ExpandedPath = 'Describe.Context.It'
             $baseMock.Data = @{Name='Pester'}
             New-TestItemId -AsString $baseMock |
-                Should -Be $($baseMock.ScriptBlock.File,$baseMock.ExpandedPath,'Name=Pester' -join '>>')
+                Should -Be $($baseMock.ScriptBlock.File,($baseMock.Path -join '>>'),'Name=Pester' -join '>>')
         }
         It 'Hashtable testcase multiple key' {
-            $baseMock.ExpandedPath = 'Describe.Context.It'
             $baseMock.Data = @{Name='Pester';Data='Something'}
             New-TestItemId -AsString $baseMock |
-                Should -Be $($baseMock.ScriptBlock.File,$baseMock.ExpandedPath,'Data=Something>>Name=Pester' -join '>>')
+                Should -Be $($baseMock.ScriptBlock.File,($baseMock.Path -join '>>'),'Data=Something>>Name=Pester' -join '>>')
         }
         It 'Works without file' {
             $baseMock.Scriptblock.File = $null
-            $baseMock.ExpandedPath = 'Describe.Context.It'
             $baseMock.Data = @{Name='Pester';Data='Something'}
             New-TestItemId -AsString $baseMock |
-                Should -Be $($baseMock.ExpandedPath,'Data=Something>>Name=Pester' -join '>>')
+                Should -Be $(($baseMock.Path -join '>>'),'Data=Something>>Name=Pester' -join '>>')
         }
         It 'Works with Pester.Block' {
             $Block = Import-Clixml $Mocks/Block.clixml
-            New-TestItemId $Block -AsString | Should -Be 'Describe Nested Foreach giraffe>>Kind=Animal>>Name=giraffe>>Symbol=🦒'
+            New-TestItemId $Block -AsString | Should -Be 'Describe Nested Foreach <name>>>Kind=Animal>>Name=giraffe>>Symbol=🦒'
         }
     }
 
