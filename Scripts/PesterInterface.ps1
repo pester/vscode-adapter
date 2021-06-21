@@ -120,7 +120,8 @@ function New-TestItemId {
             $null -ne ($_.PSTypeNames -match '(Pester\.)?(Block|Test)$')
         })]$Test,
         $TestIdDelimiter = '>>',
-        [Parameter(DontShow)][Switch]$AsString
+        [Parameter(DontShow)][Switch]$AsString,
+        [Parameter(DontShow)][Switch]$AsHash
     )
     process {
         if ($Test.Path -match $TestIdDelimiter) {
@@ -138,25 +139,27 @@ function New-TestItemId {
 
         $TestID = @(
             $Test.ScriptBlock.File
-            $Test.ExpandedPath
+            # Can NOT Use expandedPath here, because when test runs it extrapolates
+            $Test.Path
             $DataItems
         ).Where{$PSItem} -join '>>'
 
 
-        if ($AsString) {
-            return $TestID
-        }
-
         if (-not $TestID) {throw 'A test ID was not generated. This is a bug.'}
 
-        #Clever: https://www.reddit.com/r/PowerShell/comments/dr3taf/does_powershell_have_a_native_command_to_hash_a/
-        #TODO: This should probably be a helper function
-        Write-Debug "Non-Hashed Test ID for $($Test.ExpandedPath): $TestID"
-        return (Get-FileHash -InputStream (
-            [IO.MemoryStream]::new(
-                [Text.Encoding]::UTF8.GetBytes($TestID)
-            )
-        ) -Algorithm SHA256).hash
+        if ($AsHash) {
+            #Clever: https://www.reddit.com/r/PowerShell/comments/dr3taf/does_powershell_have_a_native_command_to_hash_a/
+            #TODO: This should probably be a helper function
+            Write-Debug "Non-Hashed Test ID for $($Test.ExpandedPath): $TestID"
+            return (Get-FileHash -InputStream (
+                [IO.MemoryStream]::new(
+                    [Text.Encoding]::UTF8.GetBytes($TestID)
+                )
+            ) -Algorithm SHA256).hash
+        }
+
+        # -AsString is now the default, keeping for other existing references
+        return $TestID
 
     }
 }

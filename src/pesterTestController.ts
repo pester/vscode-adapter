@@ -98,12 +98,14 @@ export class WorkspaceTestRoot {
  * Its resolveHandler will run the DiscoverTests.ps1 script on the file it represents to discover the Context/Describe/It blocks within.
  * */
 export class TestFile {
+    constructor(public file: string) {}
     public static create(testFilePath: vscode.Uri, ps: PesterTestController) {
         const item = vscode.test.createTestItem<TestFile, TestData>({
             id: testFilePath.toString(),
             label: testFilePath.path.split('/').pop()!,
             uri: testFilePath
         })
+        item.data = new TestFile(testFilePath.fsPath)
         item.resolveHandler = async token => {
             token.onCancellationRequested(() => {
                 item.status = vscode.TestItemStatus.Pending
@@ -121,6 +123,7 @@ export class TestFile {
             }
             item.status = vscode.TestItemStatus.Resolved
         }
+        // TODO: Populate Test Data with an object that makes this runnable
         item.debuggable = false
         item.runnable = false
         item.status = vscode.TestItemStatus.Pending
@@ -257,34 +260,39 @@ export class PesterTestController implements vscode.TestController<TestData> {
         )
 
         for (const testRequestItem of request.tests) {
-            const testResult = pesterTestRunResultLookup.get(testRequestItem.id)
-            if (!testResult) {
-                throw 'No Test Results were found in the test request. This should not happen and is probably a bug.'
-            }
-            // TODO: Test for blank or invalid result
-            if (!testResult.result) {
-                throw `No test result found for ${testResult.id}. This is probably a bug in the PesterInterface script`
-            }
+            try {
+                const testResult = pesterTestRunResultLookup.get(testRequestItem.id)
+                if (!testResult) {
+                    throw 'No Test Results were found in the test request. This should not happen and is probably a bug.'
+                }
+                // TODO: Test for blank or invalid result
+                if (!testResult.result) {
+                    throw `No test result found for ${testResult.id}. This is probably a bug in the PesterInterface script`
+                }
 
-            run.setState(testRequestItem, testResult.result, testResult.duration)
+                run.setState(testRequestItem, testResult.result, testResult.duration)
 
-            // TODO: This is clumsy and should be a constructor/method on the TestData type perhaps
-            const message = testResult.message && testResult.expected && testResult.actual
-                ? vscode.TestMessage.diff(
-                        testResult.message,
-                        testResult.expected,
-                        testResult.actual
+                // TODO: This is clumsy and should be a constructor/method on the TestData type perhaps
+                const message = testResult.message && testResult.expected && testResult.actual
+                    ? vscode.TestMessage.diff(
+                            testResult.message,
+                            testResult.expected,
+                            testResult.actual
+                        )
+                    : new vscode.TestMessage(testResult.message)
+                if (testResult.targetFile != undefined && testResult.targetLine != undefined) {
+                    message.location = new vscode.Location(
+                        vscode.Uri.file(testResult.targetFile),
+                        new vscode.Position(testResult.targetLine, 0)
                     )
-                : new vscode.TestMessage(testResult.message)
-            if (testResult.targetFile != undefined && testResult.targetLine != undefined) {
-                message.location = new vscode.Location(
-                    vscode.Uri.file(testResult.targetFile),
-                    new vscode.Position(testResult.targetLine, 0)
-                )
+                }
+                if (message.message) {
+                    run.appendMessage(testRequestItem, message)
+                }
+            } catch (err) {
+                console.log(err)
             }
-            if (message.message) {
-                run.appendMessage(testRequestItem, message)
-            }
+
 
             // TODO: Add error metadata
         }
