@@ -6,7 +6,7 @@ using namespace Pester
 [CmdletBinding()]
 param(
     #Path(s) to search for tests. Paths can also contain line numbers (e.g. /path/to/file:25)
-    [Parameter(Mandatory,ValueFromRemainingArguments)][String[]]$Path,
+    [Parameter(ValueFromRemainingArguments)][String[]]$Path = $PWD,
     #Only return "It" Test Results and not the resulting hierarcy
     [Switch]$TestsOnly,
     #Only return the test information, don't actually run them
@@ -14,7 +14,9 @@ param(
     #Only load the functions but don't execute anything. Used for testing.
     [Parameter(DontShow)][Switch]$LoadFunctionsOnly,
     #If specified, emit the output objects as a flattened json to the specified named pipe handle. Used for IPC to the extension
-    [String]$PipeName
+    [String]$PipeName,
+    #If specified just emit the json to stdout instead of the pipe
+    [Switch]$PassThru
 )
 
 $VerbosePreference = 'Ignore'
@@ -34,14 +36,17 @@ enum ResultStatus {
     NotRun #Pester Specific, this should be ignored
 }
 
+
+# TODO: Deduplicate with New-TestObject
+# TODO: Extrapolate testcases?
 function New-SuiteObject ([Block]$Block) {
     [PSCustomObject]@{
         type = 'suite'
-        id = $Block.ScriptBlock.File + ':' + $Block.StartLine
+        id = New-TestItemId $Block
         file = $Block.ScriptBlock.File
         line = $Block.StartLine - 1
-        label = $Block.Name
-        children = [List[Object]]@()
+        label = Expand-TestCaseName $Block
+        parent = New-TestItemId $Block.Parent
     }
 }
 
@@ -53,7 +58,7 @@ function Merge-TestData () {
     param(
         [Parameter(Mandatory,ValueFromPipeline)]
         [ValidateScript({
-            [bool]($_.PSTypeNames -match '^(Pester\.)?Test$')
+            [bool]($_.PSTypeNames -match '(Pester\.)?(Test|Block)$')
         })]$Test
     )
     #TODO: Nested Describe/Context Foreach?
@@ -90,7 +95,7 @@ function Expand-TestCaseName {
     param(
         [Parameter(Mandatory,ValueFromPipeline)]
         [ValidateScript({
-            [bool]($_.PSTypeNames -match '^(Pester\.)?Test$')
+            [bool]($_.PSTypeNames -match '(Pester\.)?[Block|Test]$')
         })]$Test
     )
     process {
@@ -118,7 +123,7 @@ function New-TestItemId {
     param(
         [Parameter(Mandatory,ValueFromPipeline)]
         [ValidateScript({
-            $null -ne ($_.PSTypeNames -match '^(Pester\.)?Test$')
+            $null -ne ($_.PSTypeNames -match '(Pester\.)?(Block|Test)$')
         })]$Test,
         $TestIdDelimiter = '>>',
         [Parameter(DontShow)][Switch]$AsString
@@ -168,6 +173,14 @@ function New-TestObject ([Test]$Test) {
             $Actual = $matches['Actual']
         }
     }
+    if ($Test.Parent -and -not $Test.Parent.IsRoot) {
+        $Parent = New-TestItemId $Test.Parent
+    } elseif ($Test -is [Pester.Test] -and $Test.Block) {
+        $Parent = New-TestItemId $Test.Block
+    } else {
+        throw "Item $($Test.Name) is a test but doesn't have an ancestor. This is a bug."
+    }
+
     # TypeScript does not validate these data types, so numbers must be expressly stated so they don't get converted to strings
     [PSCustomObject]@{
         type = 'test'
@@ -183,8 +196,11 @@ function New-TestObject ([Test]$Test) {
         actual = $Actual
         targetFile = $Test.ErrorRecord.TargetObject.File
         targetLine = [int]$Test.ErrorRecord.TargetObject.Line -1
+        parent = $Parent
         #TODO: Severity. Failed = Error Skipped = Warning
     }
+
+
 }
 
 
@@ -200,10 +216,10 @@ function Get-TestParents {
     )
 
     begin {
+        #If any ancestors are detected, we want to emit them in reverse order (top-first), hence why this stack is here
         [Stack[Pester.Block]]$NewParents = [Stack[Pester.Block]]::new()
     }
     process {
-        #If any ancestors are detected, we want to emit them in reverse order (top-first), hence why this stack is here
         foreach ($TestItem in $Test) {
             if ($TestItem -isnot [Pester.Test]) {
                 throw "Expected $($TestItem.Name) to be a Test but it was $($TestItem.gettype())"
@@ -236,61 +252,44 @@ function Get-TestParents {
     }
 }
 
-function fold ($children, $Block) {
-    foreach ($b in $Block.Blocks) {
-        $o = (New-SuiteObject $b)
-        $children.Add($o)
-        fold $o.children $b
-    }
-
-    $hashset = [HashSet[string]]::new()
-    foreach ($t in $Block.Tests) {
-        $key = "$($t.ExpandedPath):$($t.StartLine)"
-        if ($hashset.Contains($key)) {
-            continue
-        }
-        $children.Add((New-TestObject $t))
-        $hashset.Add($key) | Out-Null
-    }
-    $hashset.Clear() | Out-Null
-}
-
 #endregion Functions
-if ($LoadFunctionsOnly) {return}
 
-# These should be unique which is why we use a hashset
-$paths = [HashSet[string]]::new()
-$lines = [HashSet[string]]::new()
+#Main Function
+function Invoke-Main {
+    # These should be unique which is why we use a hashset
+    $paths = [HashSet[string]]::new()
+    $lines = [HashSet[string]]::new()
 
-# Including both the path and the line speeds up the script by limiting the discovery surface
-$Path.foreach{
-    if ($PSItem -match '(?<Path>.+?):(?<Line>\d+)$') {
-        [void]$paths.Add($matches['Path'])
-        [void]$lines.Add($PSItem)
-    } else {
-        [void]$paths.Add($PSItem)
+    # Including both the path and the line speeds up the script by limiting the discovery surface
+    # Specifying just the line will still scan all files
+    $Path.foreach{
+        if ($PSItem -match '(?<Path>.+?):(?<Line>\d+)$') {
+            [void]$paths.Add($matches['Path'])
+            [void]$lines.Add($PSItem)
+        } else {
+            [void]$paths.Add($PSItem)
+        }
     }
-}
 
-$config = New-PesterConfiguration @{
-    Run = @{
-        SkipRun = [bool]$Discovery
-        PassThru = $true
+    $config = New-PesterConfiguration @{
+        Run = @{
+            SkipRun = [bool]$Discovery
+            PassThru = $true
+        }
+        Output = @{
+            Verbosity = 'Detailed'
+        }
     }
-    Output = @{
-        Verbosity = 'Detailed'
+    if ($paths.Count) {
+        $config.Run.Path = [string[]]$paths #Cast to string array is required or it will error
     }
-}
-if ($paths.Count) {
-    $config.Run.Path = [string[]]$paths #Cast to string array is required or it will error
-}
-if ($lines.Count) {
-    $config.Filter.Line = [string[]]$lines #Cast to string array is required or it will error
-}
+    if ($lines.Count) {
+        $config.Filter.Line = [string[]]$lines #Cast to string array is required or it will error
+    }
 
-$runResult = Invoke-Pester -Configuration $config
+    $runResult = Invoke-Pester -Configuration $config
 
-if ($TestsOnly) {
+
     $testResult = $runResult.Tests
     $testFilteredResult = if (-not $Discovery) {
         #If discovery was not run, its easy to filter the results
@@ -308,8 +307,21 @@ if ($TestsOnly) {
     } else {
         $testResult
     }
-    [Array]$testObjects = $testFilteredResult | ForEach-Object {
+    [Collections.ArrayList]$testObjects = $testFilteredResult | ForEach-Object {
         New-TestObject $PSItem
+    }
+
+    if (-not $TestsOnly) {
+        #Emit the scaffolding objects
+        # TODO: Make this streaming with Pester Output Plugin
+        [Pester.Block[]]$testSuites = Get-TestParents $runResult.Tests
+
+        $testObjects.InsertRange(0,($testSuites.foreach{New-SuiteObject $PSItem}))
+    }
+
+    #Skip writing to pipe if passthru is specified
+    if ($PassThru) {
+        ConvertTo-Json $TestObjects -Depth 1;return
     }
 
     try {
@@ -319,6 +331,8 @@ if ($TestsOnly) {
         $client.IsConnected
         Write-Host -Fore Magenta "IsConnected: $($client.IsConnected) ServerInstances: $($client.NumberOfServerInstances)"
         $writer = [System.IO.StreamWriter]::new($client)
+
+
         $testObjects.foreach{
             [string]$jsonObject = ConvertTo-Json $PSItem -Compress -Depth 1
             if ($PipeName) {
@@ -332,41 +346,7 @@ if ($TestsOnly) {
         $writer.dispose()
         $client.Close()
     }
-} else {
-    #Alternate tree process.
-    #Build a hierarchy in reverse, first looping through tests, then building
-
 }
 
-# TODO: Hierarchical return
-# if ($lines) {
-#     #Only return the tests that were filtered
-#     $lines.foreach{
-#         if ($PSItem -match '(?<Path>.+?):(?<Line>\d+)$') { #Should always be true for lines
-#             $runResult.tests
-#         } else {
-#             throw "An incorrect line specification was provided: $PSItem"
-#         }
-#     }
-# }
-
-# $testSuiteInfo = [PSCustomObject]@{
-#     type = 'suite'
-#     id = 'root'
-#     label = 'Pester'
-#     children = [Collections.Generic.List[Object]]@()
-# }
-
-# foreach ($file in $runResult.Containers.Blocks) {
-#     $fileSuite = [PSCustomObject]@{
-#         type = 'suite'
-#         id = $file.BlockContainer.Item.FullName
-#         file = $file.BlockContainer.Item.FullName
-#         label = $file.BlockContainer.Item.Name
-#         children = [Collections.Generic.List[Object]]@()
-#     }
-#     $testSuiteInfo.children.Add($fileSuite)
-#     fold $fileSuite.children $file
-# }
-
-# $testSuiteInfo | ConvertTo-Json -Depth 100
+#Run Main function
+if (-not $LoadFunctionsOnly) {Invoke-Main}

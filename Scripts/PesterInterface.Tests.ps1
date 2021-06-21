@@ -3,6 +3,7 @@ Describe 'PesterInterface' {
     BeforeAll{
         $SCRIPT:testScript = Resolve-Path "$PSScriptRoot/PesterInterface.ps1"
         $SCRIPT:testDataPath = Resolve-Path "$PSScriptRoot/../sample"
+        $SCRIPT:Mocks = Resolve-Path $testDataPath/Tests/Mocks
     }
 
     Context 'VerifyResults' {
@@ -14,7 +15,7 @@ Describe 'PesterInterface' {
         }
         It 'Sample1 Single File' {
             shouldReturnTestCount 31 @(
-                Resolve-Path "$PSScriptRoot/../sample/Tests/Basic.Tests.ps1"
+                Resolve-Path "$testDataPath/Tests/Basic.Tests.ps1"
             )
         }
     }
@@ -60,6 +61,11 @@ Describe 'PesterInterface' {
             $baseMock.Data = @{Name='Pester'}
             New-TestItemId -AsString $baseMock | Should -Be 'C:\my\test>>Describe>>Context>>It <Name>>>Name=Pester'
         }
+
+        It 'Works with Pester.Block' {
+            $Block = Import-Clixml $Mocks/Block.clixml
+            New-TestItemId $Block -AsString | Should -Be 'Describe Nested Foreach <name>>>Kind=Animal>>Name=giraffe>>Symbol=🦒'
+        }
     }
 
     Context "Expand-TestCaseName" {
@@ -91,6 +97,11 @@ Describe 'PesterInterface' {
             $baseMock.Name = 'Array <Data> TestCase <Name>'
             $baseMock.Data = @{Name='pester';Data='aCoolTest'}
             Expand-TestCaseName $baseMock | Should -Be 'Array aCoolTest TestCase pester'
+        }
+
+        It 'Works with Pester.Block' {
+            $Block = Import-Clixml $Mocks/Block.clixml
+            Expand-TestCaseName $Block | Should -Be 'Describe Nested Foreach giraffe'
         }
     }
 }

@@ -62,6 +62,16 @@ Describe 'Describe Nested Foreach <name>' -ForEach @(
             Name = 'Pester2'
         }
     )
+
+    Context 'Context Nested Foreach <name> <ContextValue>' -Foreach @(
+        @{ ContextValue = 'Test1' }
+        @{ ContextValue = 'Test2' }
+    ) {
+        It 'Describe Context Nested Array <name> <contextvalue> <_>' -TestCases @(
+            'Test1'
+            'Test2'
+        ) {$true}
+    }
 }
 
 # Edge cases that may occur during editing

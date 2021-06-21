@@ -1,0 +1,627 @@
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04">
+  <Obj RefId="0">
+    <TN RefId="0">
+      <T>Pester.Block</T>
+      <T>System.Object</T>
+    </TN>
+    <ToString>[+] Describe Nested Foreach &lt;name&gt;</ToString>
+    <Props>
+      <S N="Name">Describe Nested Foreach &lt;name&gt;</S>
+      <Obj N="Path" RefId="1">
+        <TN RefId="1">
+          <T>System.Collections.Generic.List`1[[System.String, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]</T>
+          <T>System.Object</T>
+        </TN>
+        <LST>
+          <S>Describe Nested Foreach &lt;name&gt;</S>
+        </LST>
+      </Obj>
+      <Obj N="Data" RefId="2">
+        <TN RefId="2">
+          <T>System.Collections.Hashtable</T>
+          <T>System.Object</T>
+        </TN>
+        <DCT>
+          <En>
+            <S N="Key">Name</S>
+            <S N="Value">giraffe</S>
+          </En>
+          <En>
+            <S N="Key">Symbol</S>
+            <S N="Value">_xD83E__xDD92_</S>
+          </En>
+          <En>
+            <S N="Key">Kind</S>
+            <S N="Value">Animal</S>
+          </En>
+        </DCT>
+      </Obj>
+      <S N="ExpandedName">Describe Nested Foreach giraffe</S>
+      <S N="ExpandedPath">Describe Nested Foreach giraffe</S>
+      <Obj N="Blocks" RefId="3">
+        <TN RefId="3">
+          <T>System.Collections.Generic.List`1[[Pester.Block, Pester, Version=5.2.2.0, Culture=neutral, PublicKeyToken=null]]</T>
+          <T>System.Object</T>
+        </TN>
+        <LST />
+      </Obj>
+      <Obj N="Tests" RefId="4">
+        <TN RefId="4">
+          <T>System.Collections.Generic.List`1[[Pester.Test, Pester, Version=5.2.2.0, Culture=neutral, PublicKeyToken=null]]</T>
+          <T>System.Object</T>
+        </TN>
+        <LST>
+          <Obj RefId="5">
+            <TN RefId="5">
+              <T>Pester.Test</T>
+              <T>System.Object</T>
+            </TN>
+            <ToString>[+] Returns _xD83E__xDD92_</ToString>
+            <Props>
+              <S N="Name">Returns &lt;symbol&gt;</S>
+              <Obj N="Path" RefId="6">
+                <TNRef RefId="1" />
+                <LST>
+                  <S>Describe Nested Foreach &lt;name&gt;</S>
+                  <S>Returns &lt;symbol&gt;</S>
+                </LST>
+              </Obj>
+              <Nil N="Data" />
+              <S N="ExpandedName">Returns _xD83E__xDD92_</S>
+              <S N="ExpandedPath">Describe Nested Foreach giraffe.Returns _xD83E__xDD92_</S>
+              <S N="Result">Passed</S>
+              <Obj N="ErrorRecord" RefId="7">
+                <TN RefId="6">
+                  <T>System.Collections.Generic.List`1[[System.Object, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]</T>
+                  <T>System.Object</T>
+                </TN>
+                <LST />
+              </Obj>
+              <B N="StandardOutput">true</B>
+              <TS N="Duration">PT0.0013703S</TS>
+              <S N="ItemType">Test</S>
+              <S N="Id"></S>
+              <SBK N="ScriptBlock"> $true </SBK>
+              <Nil N="Tag" />
+              <B N="Focus">false</B>
+              <B N="Skip">false</B>
+              <S N="Block">[+] Describe Nested Foreach &lt;name&gt;</S>
+              <B N="First">true</B>
+              <B N="Last">false</B>
+              <B N="Include">false</B>
+              <B N="Exclude">false</B>
+              <B N="Explicit">false</B>
+              <B N="ShouldRun">true</B>
+              <I32 N="StartLine">47</I32>
+              <B N="Executed">true</B>
+              <DT N="ExecutedAt">2021-06-20T18:15:09.6696985-07:00</DT>
+              <B N="Passed">true</B>
+              <B N="Skipped">false</B>
+              <TS N="UserDuration">PT0.0002997S</TS>
+              <TS N="FrameworkDuration">PT0.0010706S</TS>
+              <Nil N="PluginData" />
+              <Nil N="FrameworkData" />
+            </Props>
+          </Obj>
+          <Obj RefId="8">
+            <TNRef RefId="5" />
+            <ToString>[+] Has kind Animal</ToString>
+            <Props>
+              <S N="Name">Has kind &lt;kind&gt;</S>
+              <Obj N="Path" RefId="9">
+                <TNRef RefId="1" />
+                <LST>
+                  <S>Describe Nested Foreach &lt;name&gt;</S>
+                  <S>Has kind &lt;kind&gt;</S>
+                </LST>
+              </Obj>
+              <Nil N="Data" />
+              <S N="ExpandedName">Has kind Animal</S>
+              <S N="ExpandedPath">Describe Nested Foreach giraffe.Has kind Animal</S>
+              <S N="Result">Passed</S>
+              <Obj N="ErrorRecord" RefId="10">
+                <TNRef RefId="6" />
+                <LST />
+              </Obj>
+              <B N="StandardOutput">true</B>
+              <TS N="Duration">PT0.0012612S</TS>
+              <S N="ItemType">Test</S>
+              <S N="Id"></S>
+              <SBK N="ScriptBlock"> $true </SBK>
+              <Nil N="Tag" />
+              <B N="Focus">false</B>
+              <B N="Skip">false</B>
+              <S N="Block">[+] Describe Nested Foreach &lt;name&gt;</S>
+              <B N="First">false</B>
+              <B N="Last">false</B>
+              <B N="Include">false</B>
+              <B N="Exclude">false</B>
+              <B N="Explicit">false</B>
+              <B N="ShouldRun">true</B>
+              <I32 N="StartLine">49</I32>
+              <B N="Executed">true</B>
+              <DT N="ExecutedAt">2021-06-20T18:15:09.671112-07:00</DT>
+              <B N="Passed">true</B>
+              <B N="Skipped">false</B>
+              <TS N="UserDuration">PT0.000283S</TS>
+              <TS N="FrameworkDuration">PT0.0009782S</TS>
+              <Nil N="PluginData" />
+              <Nil N="FrameworkData" />
+            </Props>
+          </Obj>
+          <Obj RefId="11">
+            <TNRef RefId="5" />
+            <ToString>[+] Nested Hashtable TestCase Animal test</ToString>
+            <Props>
+              <S N="Name">Nested Hashtable TestCase &lt;kind&gt; &lt;name&gt;</S>
+              <Obj N="Path" RefId="12">
+                <TNRef RefId="1" />
+                <LST>
+                  <S>Describe Nested Foreach &lt;name&gt;</S>
+                  <S>Nested Hashtable TestCase &lt;kind&gt; &lt;name&gt;</S>
+                </LST>
+              </Obj>
+              <Obj N="Data" RefId="13">
+                <TNRef RefId="2" />
+                <DCT>
+                  <En>
+                    <S N="Key">Name</S>
+                    <S N="Value">test</S>
+                  </En>
+                </DCT>
+              </Obj>
+              <S N="ExpandedName">Nested Hashtable TestCase Animal test</S>
+              <S N="ExpandedPath">Describe Nested Foreach giraffe.Nested Hashtable TestCase Animal test</S>
+              <S N="Result">Passed</S>
+              <Obj N="ErrorRecord" RefId="14">
+                <TNRef RefId="6" />
+                <LST />
+              </Obj>
+              <B N="StandardOutput">true</B>
+              <TS N="Duration">PT0.0014348S</TS>
+              <S N="ItemType">Test</S>
+              <S N="Id">51</S>
+              <SBK N="ScriptBlock"> $true </SBK>
+              <Nil N="Tag" />
+              <B N="Focus">false</B>
+              <B N="Skip">false</B>
+              <S N="Block">[+] Describe Nested Foreach &lt;name&gt;</S>
+              <B N="First">false</B>
+              <B N="Last">false</B>
+              <B N="Include">false</B>
+              <B N="Exclude">false</B>
+              <B N="Explicit">false</B>
+              <B N="ShouldRun">true</B>
+              <I32 N="StartLine">51</I32>
+              <B N="Executed">true</B>
+              <DT N="ExecutedAt">2021-06-20T18:15:09.6724192-07:00</DT>
+              <B N="Passed">true</B>
+              <B N="Skipped">false</B>
+              <TS N="UserDuration">PT0.0003259S</TS>
+              <TS N="FrameworkDuration">PT0.0011089S</TS>
+              <Nil N="PluginData" />
+              <Nil N="FrameworkData" />
+            </Props>
+          </Obj>
+          <Obj RefId="15">
+            <TNRef RefId="5" />
+            <ToString>[+] Nested Array TestCase Animal Test</ToString>
+            <Props>
+              <S N="Name">Nested Array TestCase &lt;kind&gt; &lt;_&gt;</S>
+              <Obj N="Path" RefId="16">
+                <TNRef RefId="1" />
+                <LST>
+                  <S>Describe Nested Foreach &lt;name&gt;</S>
+                  <S>Nested Array TestCase &lt;kind&gt; &lt;_&gt;</S>
+                </LST>
+              </Obj>
+              <S N="Data">Test</S>
+              <S N="ExpandedName">Nested Array TestCase Animal Test</S>
+              <S N="ExpandedPath">Describe Nested Foreach giraffe.Nested Array TestCase Animal Test</S>
+              <S N="Result">Passed</S>
+              <Obj N="ErrorRecord" RefId="17">
+                <TNRef RefId="6" />
+                <LST />
+              </Obj>
+              <B N="StandardOutput">true</B>
+              <TS N="Duration">PT0.001449S</TS>
+              <S N="ItemType">Test</S>
+              <S N="Id">54</S>
+              <SBK N="ScriptBlock"> $true </SBK>
+              <Nil N="Tag" />
+              <B N="Focus">false</B>
+              <B N="Skip">false</B>
+              <S N="Block">[+] Describe Nested Foreach &lt;name&gt;</S>
+              <B N="First">false</B>
+              <B N="Last">false</B>
+              <B N="Include">false</B>
+              <B N="Exclude">false</B>
+              <B N="Explicit">false</B>
+              <B N="ShouldRun">true</B>
+              <I32 N="StartLine">54</I32>
+              <B N="Executed">true</B>
+              <DT N="ExecutedAt">2021-06-20T18:15:09.6739039-07:00</DT>
+              <B N="Passed">true</B>
+              <B N="Skipped">false</B>
+              <TS N="UserDuration">PT0.0003781S</TS>
+              <TS N="FrameworkDuration">PT0.0010709S</TS>
+              <Nil N="PluginData" />
+              <Nil N="FrameworkData" />
+            </Props>
+          </Obj>
+          <Obj RefId="18">
+            <TNRef RefId="5" />
+            <ToString>[+] Nested Multiple Hashtable TestCase Animal Pester1</ToString>
+            <Props>
+              <S N="Name">Nested Multiple Hashtable TestCase &lt;kind&gt; &lt;name&gt;</S>
+              <Obj N="Path" RefId="19">
+                <TNRef RefId="1" />
+                <LST>
+                  <S>Describe Nested Foreach &lt;name&gt;</S>
+                  <S>Nested Multiple Hashtable TestCase &lt;kind&gt; &lt;name&gt;</S>
+                </LST>
+              </Obj>
+              <Obj N="Data" RefId="20">
+                <TNRef RefId="2" />
+                <DCT>
+                  <En>
+                    <S N="Key">Name</S>
+                    <S N="Value">Pester1</S>
+                  </En>
+                </DCT>
+              </Obj>
+              <S N="ExpandedName">Nested Multiple Hashtable TestCase Animal Pester1</S>
+              <S N="ExpandedPath">Describe Nested Foreach giraffe.Nested Multiple Hashtable TestCase Animal Pester1</S>
+              <S N="Result">Passed</S>
+              <Obj N="ErrorRecord" RefId="21">
+                <TNRef RefId="6" />
+                <LST />
+              </Obj>
+              <B N="StandardOutput">true</B>
+              <TS N="Duration">PT0.008073S</TS>
+              <S N="ItemType">Test</S>
+              <S N="Id">57</S>
+              <SBK N="ScriptBlock"> $true </SBK>
+              <Nil N="Tag" />
+              <B N="Focus">false</B>
+              <B N="Skip">false</B>
+              <S N="Block">[+] Describe Nested Foreach &lt;name&gt;</S>
+              <B N="First">false</B>
+              <B N="Last">false</B>
+              <B N="Include">false</B>
+              <B N="Exclude">false</B>
+              <B N="Explicit">false</B>
+              <B N="ShouldRun">true</B>
+              <I32 N="StartLine">57</I32>
+              <B N="Executed">true</B>
+              <DT N="ExecutedAt">2021-06-20T18:15:09.6754-07:00</DT>
+              <B N="Passed">true</B>
+              <B N="Skipped">false</B>
+              <TS N="UserDuration">PT0.0003789S</TS>
+              <TS N="FrameworkDuration">PT0.0076941S</TS>
+              <Nil N="PluginData" />
+              <Nil N="FrameworkData" />
+            </Props>
+          </Obj>
+          <Obj RefId="22">
+            <TNRef RefId="5" />
+            <ToString>[+] Nested Multiple Hashtable TestCase Animal Pester2</ToString>
+            <Props>
+              <S N="Name">Nested Multiple Hashtable TestCase &lt;kind&gt; &lt;name&gt;</S>
+              <Obj N="Path" RefId="23">
+                <TNRef RefId="1" />
+                <LST>
+                  <S>Describe Nested Foreach &lt;name&gt;</S>
+                  <S>Nested Multiple Hashtable TestCase &lt;kind&gt; &lt;name&gt;</S>
+                </LST>
+              </Obj>
+              <Obj N="Data" RefId="24">
+                <TNRef RefId="2" />
+                <DCT>
+                  <En>
+                    <S N="Key">Name</S>
+                    <S N="Value">Pester2</S>
+                  </En>
+                </DCT>
+              </Obj>
+              <S N="ExpandedName">Nested Multiple Hashtable TestCase Animal Pester2</S>
+              <S N="ExpandedPath">Describe Nested Foreach giraffe.Nested Multiple Hashtable TestCase Animal Pester2</S>
+              <S N="Result">Passed</S>
+              <Obj N="ErrorRecord" RefId="25">
+                <TNRef RefId="6" />
+                <LST />
+              </Obj>
+              <B N="StandardOutput">true</B>
+              <TS N="Duration">PT0.0015562S</TS>
+              <S N="ItemType">Test</S>
+              <S N="Id">57</S>
+              <SBK N="ScriptBlock"> $true </SBK>
+              <Nil N="Tag" />
+              <B N="Focus">false</B>
+              <B N="Skip">false</B>
+              <S N="Block">[+] Describe Nested Foreach &lt;name&gt;</S>
+              <B N="First">false</B>
+              <B N="Last">true</B>
+              <B N="Include">false</B>
+              <B N="Exclude">false</B>
+              <B N="Explicit">false</B>
+              <B N="ShouldRun">true</B>
+              <I32 N="StartLine">57</I32>
+              <B N="Executed">true</B>
+              <DT N="ExecutedAt">2021-06-20T18:15:09.683595-07:00</DT>
+              <B N="Passed">true</B>
+              <B N="Skipped">false</B>
+              <TS N="UserDuration">PT0.000338S</TS>
+              <TS N="FrameworkDuration">PT0.0012182S</TS>
+              <Nil N="PluginData" />
+              <Nil N="FrameworkData" />
+            </Props>
+          </Obj>
+        </LST>
+      </Obj>
+      <S N="Result">Passed</S>
+      <I32 N="FailedCount">0</I32>
+      <I32 N="PassedCount">6</I32>
+      <I32 N="SkippedCount">0</I32>
+      <I32 N="NotRunCount">0</I32>
+      <I32 N="TotalCount">6</I32>
+      <Obj N="ErrorRecord" RefId="26">
+        <TNRef RefId="6" />
+        <LST />
+      </Obj>
+      <TS N="Duration">PT0.3980479S</TS>
+      <S N="Id"></S>
+      <Obj N="Tag" RefId="27">
+        <TNRef RefId="1" />
+        <LST />
+      </Obj>
+      <B N="Focus">false</B>
+      <B N="Skip">false</B>
+      <S N="ItemType">Block</S>
+      <Obj N="BlockContainer" RefId="28">
+        <TN RefId="7">
+          <T>Pester.ContainerInfo</T>
+          <T>System.Object</T>
+        </TN>
+        <ToString>Pester.ContainerInfo</ToString>
+        <Props>
+          <S N="Type">File</S>
+          <Obj N="Item" RefId="29">
+            <S>C:\Users\JGrote\Projects\vscode-adapter\sample\Tests\Basic.Tests.ps1</S>
+            <MS>
+              <S N="PSPath">Microsoft.PowerShell.Core\FileSystem::C:\Users\JGrote\Projects\vscode-adapter\sample\Tests\Basic.Tests.ps1</S>
+              <S N="PSParentPath">Microsoft.PowerShell.Core\FileSystem::C:\Users\JGrote\Projects\vscode-adapter\sample\Tests</S>
+              <S N="PSChildName">Basic.Tests.ps1</S>
+              <S N="PSDrive">C</S>
+              <S N="PSProvider">Microsoft.PowerShell.Core\FileSystem</S>
+              <B N="PSIsContainer">false</B>
+              <S N="UnresolvedPath">C:\Users\JGrote\Projects\vscode-adapter\sample\Tests\Basic.Tests.ps1</S>
+            </MS>
+          </Obj>
+          <Nil N="Data" />
+        </Props>
+      </Obj>
+      <Obj N="Root" RefId="30">
+        <TNRef RefId="0" />
+        <ToString>[ ] Root</ToString>
+        <Props>
+          <S N="Name">Root</S>
+          <Obj N="Path" RefId="31">
+            <TNRef RefId="1" />
+            <LST>
+              <S>Path</S>
+            </LST>
+          </Obj>
+          <Nil N="Data" />
+          <S N="ExpandedName">Root</S>
+          <S N="ExpandedPath">Path</S>
+          <Obj N="Blocks" RefId="32">
+            <TNRef RefId="3" />
+            <LST>
+              <S>[+] Test</S>
+              <S>[-] Basic</S>
+              <S>[+] TestCases</S>
+              <S>[+] Describe Nested Foreach &lt;name&gt;</S>
+              <S>[+] Describe Nested Foreach &lt;name&gt;</S>
+              <S>[ ] Empty Describe</S>
+              <S>[ ] Duplicate Describe</S>
+              <S>[ ] Duplicate Describe</S>
+              <S>[+] Duplicate DescribeWithContext</S>
+            </LST>
+          </Obj>
+          <Obj N="Tests" RefId="33">
+            <TNRef RefId="4" />
+            <LST />
+          </Obj>
+          <S N="Result">NotRun</S>
+          <I32 N="FailedCount">5</I32>
+          <I32 N="PassedCount">26</I32>
+          <I32 N="SkippedCount">0</I32>
+          <I32 N="NotRunCount">0</I32>
+          <I32 N="TotalCount">31</I32>
+          <Obj N="ErrorRecord" RefId="34">
+            <TNRef RefId="6" />
+            <LST />
+          </Obj>
+          <TS N="Duration">PT0.5450942S</TS>
+          <Nil N="Id" />
+          <Nil N="Tag" />
+          <B N="Focus">false</B>
+          <B N="Skip">false</B>
+          <S N="ItemType">Block</S>
+          <Ref N="BlockContainer" RefId="28" />
+          <Ref N="Root" RefId="30" />
+          <B N="IsRoot">true</B>
+          <Nil N="Parent" />
+          <Nil N="EachTestSetup" />
+          <SBK N="OneTimeTestSetup">_x000D__x000A_                    . $action $parameters_x000D__x000A_                    if ($null -ne $setup) {_x000D__x000A_                        . $setup_x000D__x000A_                    }_x000D__x000A_                </SBK>
+          <Nil N="EachTestTeardown" />
+          <Nil N="OneTimeTestTeardown" />
+          <Nil N="EachBlockSetup" />
+          <Nil N="OneTimeBlockSetup" />
+          <Nil N="EachBlockTeardown" />
+          <Nil N="OneTimeBlockTeardown" />
+          <Obj N="Order" RefId="35">
+            <TNRef RefId="6" />
+            <LST>
+              <S>[+] Test</S>
+              <S>[-] Basic</S>
+              <S>[+] TestCases</S>
+              <S>[+] Describe Nested Foreach &lt;name&gt;</S>
+              <S>[+] Describe Nested Foreach &lt;name&gt;</S>
+              <S>[ ] Empty Describe</S>
+              <S>[ ] Duplicate Describe</S>
+              <S>[ ] Duplicate Describe</S>
+              <S>[+] Duplicate DescribeWithContext</S>
+            </LST>
+          </Obj>
+          <B N="Passed">false</B>
+          <B N="First">true</B>
+          <B N="Last">true</B>
+          <Nil N="StandardOutput" />
+          <B N="ShouldRun">true</B>
+          <B N="Executed">true</B>
+          <DT N="ExecutedAt">2021-06-20T18:15:09.290009-07:00</DT>
+          <B N="Exclude">false</B>
+          <B N="Include">false</B>
+          <B N="Explicit">false</B>
+          <TS N="DiscoveryDuration">PT0.0257214S</TS>
+          <TS N="FrameworkDuration">PT0.4670464S</TS>
+          <TS N="UserDuration">PT0.0523264S</TS>
+          <TS N="OwnDuration">-PT2.4483944S</TS>
+          <SBK N="ScriptBlock"></SBK>
+          <I32 N="StartLine">0</I32>
+          <Obj N="FrameworkData" RefId="36">
+            <TNRef RefId="2" />
+            <DCT />
+          </Obj>
+          <Obj N="PluginData" RefId="37">
+            <TNRef RefId="2" />
+            <DCT>
+              <En>
+                <S N="Key">TestRegistry</S>
+                <Obj N="Value" RefId="38">
+                  <TNRef RefId="2" />
+                  <DCT>
+                    <En>
+                      <S N="Key">TestRegistryAdded</S>
+                      <B N="Value">true</B>
+                    </En>
+                    <En>
+                      <S N="Key">TestRegistryContent</S>
+                      <Nil N="Value" />
+                    </En>
+                  </DCT>
+                </Obj>
+              </En>
+              <En>
+                <S N="Key">Mock</S>
+                <Obj N="Value" RefId="39">
+                  <TNRef RefId="2" />
+                  <DCT>
+                    <En>
+                      <S N="Key">Hooks</S>
+                      <Obj N="Value" RefId="40">
+                        <TNRef RefId="6" />
+                        <LST />
+                      </Obj>
+                    </En>
+                    <En>
+                      <S N="Key">Behaviors</S>
+                      <Obj N="Value" RefId="41">
+                        <TNRef RefId="2" />
+                        <DCT />
+                      </Obj>
+                    </En>
+                    <En>
+                      <S N="Key">CallHistory</S>
+                      <Obj N="Value" RefId="42">
+                        <TNRef RefId="2" />
+                        <DCT />
+                      </Obj>
+                    </En>
+                  </DCT>
+                </Obj>
+              </En>
+              <En>
+                <S N="Key">TestDrive</S>
+                <Obj N="Value" RefId="43">
+                  <TNRef RefId="2" />
+                  <DCT>
+                    <En>
+                      <S N="Key">TestDriveContent</S>
+                      <Nil N="Value" />
+                    </En>
+                    <En>
+                      <S N="Key">TestDriveAdded</S>
+                      <B N="Value">true</B>
+                    </En>
+                  </DCT>
+                </Obj>
+              </En>
+            </DCT>
+          </Obj>
+          <I32 N="PendingCount">0</I32>
+          <I32 N="InconclusiveCount">0</I32>
+          <B N="OwnPassed">true</B>
+          <I32 N="OwnTotalCount">0</I32>
+          <I32 N="OwnPassedCount">0</I32>
+          <I32 N="OwnFailedCount">0</I32>
+          <I32 N="OwnSkippedCount">0</I32>
+          <I32 N="OwnPendingCount">0</I32>
+          <I32 N="OwnNotRunCount">0</I32>
+          <I32 N="OwnInconclusiveCount">0</I32>
+        </Props>
+      </Obj>
+      <B N="IsRoot">false</B>
+      <Ref N="Parent" RefId="30" />
+      <Nil N="EachTestSetup" />
+      <Nil N="OneTimeTestSetup" />
+      <Nil N="EachTestTeardown" />
+      <Nil N="OneTimeTestTeardown" />
+      <Nil N="EachBlockSetup" />
+      <Nil N="OneTimeBlockSetup" />
+      <Nil N="EachBlockTeardown" />
+      <Nil N="OneTimeBlockTeardown" />
+      <Obj N="Order" RefId="44">
+        <TNRef RefId="6" />
+        <LST>
+          <Ref RefId="5" />
+          <Ref RefId="8" />
+          <Ref RefId="11" />
+          <Ref RefId="15" />
+          <Ref RefId="18" />
+          <Ref RefId="22" />
+        </LST>
+      </Obj>
+      <B N="Passed">true</B>
+      <B N="First">false</B>
+      <B N="Last">false</B>
+      <Nil N="StandardOutput" />
+      <B N="ShouldRun">true</B>
+      <B N="Executed">true</B>
+      <DT N="ExecutedAt">2021-06-20T18:15:09.6546799-07:00</DT>
+      <B N="Exclude">false</B>
+      <B N="Include">false</B>
+      <B N="Explicit">false</B>
+      <TS N="DiscoveryDuration">PT0S</TS>
+      <TS N="FrameworkDuration">PT0.34697S</TS>
+      <TS N="UserDuration">PT0.0510779S</TS>
+      <TS N="OwnDuration">PT0.3829034S</TS>
+      <SBK N="ScriptBlock">_x000D__x000A_    It 'Returns &lt;symbol&gt;' { $true }_x000D__x000A__x000D__x000A_    It 'Has kind &lt;kind&gt;' { $true }_x000D__x000A__x000D__x000A_    It 'Nested Hashtable TestCase &lt;kind&gt; &lt;name&gt;' { $true } -TestCases @{_x000D__x000A_        Name = 'test'_x000D__x000A_    }_x000D__x000A_    It 'Nested Array TestCase &lt;kind&gt; &lt;_&gt;' { $true } -TestCases @(_x000D__x000A_        'Test'_x000D__x000A_    )_x000D__x000A_    It 'Nested Multiple Hashtable TestCase &lt;kind&gt; &lt;name&gt;' { $true } -TestCases @(_x000D__x000A_        @{_x000D__x000A_            Name = 'Pester1'_x000D__x000A_        }_x000D__x000A_        @{_x000D__x000A_            Name = 'Pester2'_x000D__x000A_        }_x000D__x000A_    )_x000D__x000A_</SBK>
+      <I32 N="StartLine">43</I32>
+      <Nil N="FrameworkData" />
+      <Nil N="PluginData" />
+      <I32 N="PendingCount">0</I32>
+      <I32 N="InconclusiveCount">0</I32>
+      <B N="OwnPassed">true</B>
+      <I32 N="OwnTotalCount">6</I32>
+      <I32 N="OwnPassedCount">6</I32>
+      <I32 N="OwnFailedCount">0</I32>
+      <I32 N="OwnSkippedCount">0</I32>
+      <I32 N="OwnPendingCount">0</I32>
+      <I32 N="OwnNotRunCount">0</I32>
+      <I32 N="OwnInconclusiveCount">0</I32>
+    </Props>
+  </Obj>
+</Objs>
