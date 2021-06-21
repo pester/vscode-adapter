@@ -1,4 +1,3 @@
-$OutputEncoding = [Text.Encoding]::UTF8
 Describe 'PesterInterface' {
     BeforeAll{
         $SCRIPT:testScript = Resolve-Path "$PSScriptRoot/PesterInterface.ps1"
@@ -9,12 +8,12 @@ Describe 'PesterInterface' {
     Context 'VerifyResults' {
         BeforeAll {
             function shouldReturnTestCount($ShouldHaveCount,$Paths) {
-                $result = & $testScript -TestsOnly -Discovery $Paths
+                $result = & $testScript -TestsOnly -PassThru -Discovery $Paths -PipeName 'fake'
                 $result | ConvertFrom-Json | Should -HaveCount $ShouldHaveCount
             }
         }
         It 'Sample1 Single File' {
-            shouldReturnTestCount 31 @(
+            shouldReturnTestCount 39 @(
                 Resolve-Path "$testDataPath/Tests/Basic.Tests.ps1"
             )
         }
@@ -73,15 +72,12 @@ Describe 'PesterInterface' {
             . $testScript 'fakepath' -LoadFunctionsOnly
         }
         BeforeEach {
-            $SCRIPT:baseMock = [PSCustomObject]@{
-                PSTypeName = 'Test'
-                Name = 'Pester'
-                Data = $null
-            }
+            $SCRIPT:baseMock = New-MockObject -Type Pester.Test
+            $BaseMock.Name = 'Pester'
         }
         It 'Fails with wrong type' {
             $fake = [PSCustomObject]@{Name='Pester';PSTypeName='NotATest'}
-            {Expand-TestCaseName -Test $fake} | Should -Throw '*did not return a result of true*'
+            {Expand-TestCaseName -Test $fake} | Should -Throw '*is not a Pester Test or Pester Block*'
         }
         It 'Works with Array testcase' {
             $baseMock.Name = 'Array TestCase <_>'

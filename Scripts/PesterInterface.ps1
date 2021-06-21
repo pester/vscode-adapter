@@ -37,19 +37,6 @@ enum ResultStatus {
 }
 
 
-# TODO: Deduplicate with New-TestObject
-# TODO: Extrapolate testcases?
-function New-SuiteObject ([Block]$Block) {
-    [PSCustomObject]@{
-        type = 'suite'
-        id = New-TestItemId $Block
-        file = $Block.ScriptBlock.File
-        line = $Block.StartLine - 1
-        label = Expand-TestCaseName $Block
-        parent = New-TestItemId $Block.Parent
-    }
-}
-
 function Merge-TestData () {
     #Produce a unified test Data object from this object and its parents
     #Merge the local data and block data. Local data takes precedence.
@@ -94,10 +81,11 @@ function Expand-TestCaseName {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory,ValueFromPipeline)]
-        [ValidateScript({
-            [bool]($_.PSTypeNames -match '(Pester\.)?[Block|Test]$')
-        })]$Test
+        $Test
     )
+    begin {
+        Test-IsPesterObject $Test
+    }
     process {
         [String]$Name = $Test.Name.ToString()
 
@@ -163,7 +151,42 @@ function New-TestItemId {
     }
 }
 
-function New-TestObject ([Test]$Test) {
+function Test-IsPesterObject($Test) {
+    #We don't use types here because they might not be loaded yet
+    $AllowedObjectTypes = [String[]]@(
+        'Test'
+        'Block'
+        'Pester.Test'
+        'Pester.Block'
+        'Deserialized.Pester.Test'
+        'Deserialized.Pester.Block'
+    )
+    $AllowedObjectTypes.foreach{
+        if ($PSItem -eq $Test.PSTypeNames[0]) {
+            $MatchesType = $true
+            return
+        }
+    }
+    if (-not $MatchesType) {throw "Provided object is not a Pester Test or Pester Block"}
+}
+
+function New-TestObject ($Test) {
+    Test-IsPesterObject $Test
+
+    #HACK: Block and Parent are equivalent so this simplifies further code
+    if ($Test -is [Pester.Test]) {
+        Add-Member -InputObject $Test -NotePropertyName 'Parent' -NotePropertyValue $Test.Block
+    }
+
+    #Common stuff first
+    $Parent = if ($Test.Parent -and -not $Test.Parent.IsRoot) {
+        New-TestItemId $Test.Parent
+    } elseif ($Test -is [Pester.Block]) {
+        $null
+    } else {
+        throw "Item $($Test.Name) is a test but doesn't have an ancestor. This is a bug."
+    }
+
     if ($Test.ErrorRecord) {
         #TODO: Better handling once pester adds support
         #Reference: https://github.com/pester/Pester/issues/1993
@@ -173,17 +196,11 @@ function New-TestObject ([Test]$Test) {
             $Actual = $matches['Actual']
         }
     }
-    if ($Test.Parent -and -not $Test.Parent.IsRoot) {
-        $Parent = New-TestItemId $Test.Parent
-    } elseif ($Test -is [Pester.Test] -and $Test.Block) {
-        $Parent = New-TestItemId $Test.Block
-    } else {
-        throw "Item $($Test.Name) is a test but doesn't have an ancestor. This is a bug."
-    }
+
 
     # TypeScript does not validate these data types, so numbers must be expressly stated so they don't get converted to strings
     [PSCustomObject]@{
-        type = 'test'
+        type = $Test.ItemType
         id = New-TestItemId $Test
         file = $Test.ScriptBlock.File
         startLine = [int]($Test.StartLine - 1) #Lines are zero-based in vscode
@@ -199,9 +216,9 @@ function New-TestObject ([Test]$Test) {
         parent = $Parent
         #TODO: Severity. Failed = Error Skipped = Warning
     }
-
-
 }
+
+
 
 
 function Get-TestItemParents {
@@ -221,9 +238,7 @@ function Get-TestItemParents {
     }
     process {
         foreach ($TestItem in $Test) {
-            if ($TestItem -isnot [Pester.Test] -or [Pester.Block]) {
-                throw "Expected $($TestItem.Name) to be a Test or Block but it was $($TestItem.gettype())"
-            }
+            Test-IsPesterObject $TestItem
             if ($TestItem.Block.count -ne 1) {
                 throw "Test did not have exactly one ancestor. This should not happen and is a bug."
             }
@@ -309,9 +324,9 @@ function Invoke-Main {
     } else {
         $testResult
     }
-    [Collections.ArrayList]$testObjects = $testFilteredResult | ForEach-Object {
+    [Collections.ArrayList]$testObjects = @($testFilteredResult | ForEach-Object {
         New-TestObject $PSItem
-    }
+    })
 
     if (-not $TestsOnly) {
         #Emit the scaffolding objects
