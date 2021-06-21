@@ -125,9 +125,8 @@ function New-TestItemId {
     )
     process {
         if ($Test.Path -match $TestIdDelimiter) {
-            throw [NotSupportedException]"The pipe character '|' is not supported in test names with this adapter. Please remove all pipes from test/context/describe names"
+            throw [NotSupportedException]"The delimiter $TestIdDelimiter is not supported in test names with this adapter. Please remove all pipes from test/context/describe names"
         }
-
 
         $Data = Merge-TestData $Test
 
@@ -185,6 +184,55 @@ function New-TestObject ([Test]$Test) {
         targetFile = $Test.ErrorRecord.TargetObject.File
         targetLine = [int]$Test.ErrorRecord.TargetObject.Line -1
         #TODO: Severity. Failed = Error Skipped = Warning
+    }
+}
+
+
+function Get-TestParents {
+    <#
+    .SYNOPSIS
+    Returns any parents not already known, top-down first, so that a hierarchy can be created in a streaming manner
+    #>
+    param (
+        #Test to fetch parents of. For maximum efficiency this should be done one test at a time and then stack processed
+        [Parameter(Mandatory,ValueFromPipeline)][Pester.Test[]]$Test,
+        [HashSet[Pester.Block]]$KnownParents = [HashSet[Pester.Block]]::new()
+    )
+
+    begin {
+        [Stack[Pester.Block]]$NewParents = [Stack[Pester.Block]]::new()
+    }
+    process {
+        #If any ancestors are detected, we want to emit them in reverse order (top-first), hence why this stack is here
+        foreach ($TestItem in $Test) {
+            if ($TestItem -isnot [Pester.Test]) {
+                throw "Expected $($TestItem.Name) to be a Test but it was $($TestItem.gettype())"
+            }
+            if ($TestItem.Block.count -ne 1) {
+                throw "Test did not have exactly one ancestor. This should not happen and is a bug."
+            }
+            $ancestors = [Stack[Pester.Block]]::new()
+            $ancestors.push($TestItem.Block)
+            do {
+                $thisAncestor = $ancestors.Pop()
+                if (-not $KnownParents.Add($thisAncestor)) {
+                    #We are good and don't need to go further
+                    continue
+                }
+                #Add this ancestor to new parents
+                $NewParents.Push($thisAncestor)
+
+                # Omit root entries (files/containers) because we currently do per-file discovery.
+                # TODO: Maybe multi-file discovery for efficiency only if "expand all tests" becomes an option in the test window.
+                if ($thisAncestor.Parent -and -not $thisAncestor.Parent.IsRoot) {
+                    #Go a level deeper. All items can have only one parent which is why we popped above. that will skip coming back through the intermediates
+                    $ancestors.push($thisAncestor.Parent)
+                }
+            } while ($ancestors.count -gt 0)
+
+            #Pop out the new parent objects in reverse hierarchy order
+            while ($NewParents.Count -gt 0) {$NewParents.Pop()}
+        }
     }
 }
 
@@ -264,31 +312,30 @@ if ($TestsOnly) {
         New-TestObject $PSItem
     }
 
-try {
-    # This will replace the standard Out-Default and allow us to tee json results to a named pipe for the extension to pick up.
-    $SCRIPT:client = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
-    $client.Connect(5000)
-    $client.IsConnected
-    Write-Host -Fore Magenta "IsConnected: $($client.IsConnected) ServerInstances: $($client.NumberOfServerInstances)"
-    $writer = [System.IO.StreamWriter]::new($client)
-    $testObjects.foreach{
-        [string]$jsonObject = ConvertTo-Json $PSItem -Compress -Depth 1
-        if ($PipeName) {
-            $writer.WriteLine($jsonObject)
+    try {
+        # This will replace the standard Out-Default and allow us to tee json results to a named pipe for the extension to pick up.
+        $SCRIPT:client = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
+        $client.Connect(5000)
+        $client.IsConnected
+        Write-Host -Fore Magenta "IsConnected: $($client.IsConnected) ServerInstances: $($client.NumberOfServerInstances)"
+        $writer = [System.IO.StreamWriter]::new($client)
+        $testObjects.foreach{
+            [string]$jsonObject = ConvertTo-Json $PSItem -Compress -Depth 1
+            if ($PipeName) {
+                $writer.WriteLine($jsonObject)
+            }
         }
+        # DO NOT USE THE PIPELINE, it will unwrap the array and cause a problem with single-item results
+
+    } catch {throw} finally {
+        $writer.flush()
+        $writer.dispose()
+        $client.Close()
     }
-    # DO NOT USE THE PIPELINE, it will unwrap the array and cause a problem with single-item results
-
-} catch {throw} finally {
-    $writer.flush()
-    $writer.dispose()
-    $client.Close()
-}
-
-
 } else {
-
+    #Alternate tree process.
     #Build a hierarchy in reverse, first looping through tests, then building
+
 }
 
 # TODO: Hierarchical return
