@@ -123,7 +123,7 @@ export class TestFile {
         }
         // TODO: Populate Test Data with an object that makes this runnable
         item.debuggable = false
-        item.runnable = false
+        item.runnable = true
         item.status = vscode.TestItemStatus.Pending
         return item
     }
@@ -140,7 +140,7 @@ export class TestIt {
         // There are no child items here so we don't need a resolve handler
         item.status = vscode.TestItemStatus.Resolved
 
-        item.debuggable = true
+        item.debuggable = false
         item.runnable = true
         item.range = new vscode.Range(info.startLine, 0, info.endLine, 0)
         return item
@@ -241,7 +241,13 @@ export class PesterTestController implements vscode.TestController<TestData> {
         }
         // Use a special line format to run the tests
         // +1 because lines are zero based in vscode and 1-based in Powershell
-        const testsToRun = request.tests.map(testItem => {return [testItem.data.file, testItem.data.startLine+1].join(':')})
+        const testsToRun = request.tests.map(testItem => {
+            // HACK: Workaround for TestFile. This should be an exposed getter on TestFile but I can't get it to work right now.
+            if (!testItem.data) {
+                return testItem.uri!.fsPath
+            }
+            return [testItem.data.file, testItem.data.startLine+1].join(':')}
+        )
 
         // TODO: Use a queue instead to line these up like the test example
         for (const testItem of request.tests) {
@@ -257,9 +263,23 @@ export class PesterTestController implements vscode.TestController<TestData> {
             pesterTestRunResultLookup.set(testResultItem.id, testResultItem)
         )
 
+        const requestedTests = request.tests
+
+        // Include all relevant children
+        // TODO: Recurse for multiple levels
         for (const testRequestItem of request.tests) {
+            requestedTests.push(...testRequestItem.children.values())
+        }
+
+        for (const testRequestItem of requestedTests) {
             try {
-                const testResult = pesterTestRunResultLookup.get(testRequestItem.id)
+                // Skip Testfiles
+                // HACK: Should be doing this by class rather than searching for delimiter
+                if (!/>>/.test(testRequestItem.id)) {
+                    continue
+                }
+                let testResult = pesterTestRunResultLookup.get(testRequestItem.id)
+
                 if (!testResult) {
                     throw 'No Test Results were found in the test request. This should not happen and is probably a bug.'
                 }
