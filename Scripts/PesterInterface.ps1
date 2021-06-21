@@ -60,8 +60,14 @@ function Merge-TestData () {
     #If data is not iDictionary array, we will store it as _ to standardize this is a bit
     $Data = [SortedDictionary[string,object]]::new()
 
+    #Block and parent are interchangeable
+    if ($Test -is [Pester.Test]) {
+        Add-Member -InputObject $Test -NotePropertyName 'Parent' -NotePropertyValue $Test.Block -Force
+    }
+
     #This will merge the block data, with the lowest level data taking precedence
-    $DataSources = $Test.Block.Data,$Test.Data
+    #TODO: Use a stack to iterate this
+    $DataSources = ($Test.Parent.Parent.Data,$Test.Parent.Data,$Test.Data).where{$PSItem}
     foreach ($DataItem in $DataSources) {
         if ($DataItem) {
             if ($DataItem -is [IDictionary]) {
@@ -126,18 +132,22 @@ function New-TestItemId {
         #Add a suffix of the testcase/foreach info that should uniquely identify the etst
         #TODO: Maybe use a hash of the serialized object if it is not natively a string?
         #TODO: Or maybe just hash the whole thing. The ID would be somewhat useless for troubleshooting
-        $Data.GetEnumerator() | Foreach-Object {
-            $Test.Path += [String]([String]$PSItem.Key + '=' + [String]$PSItem.Value)
+        $DataItems = $Data.GetEnumerator() | Sort-Object Key | Foreach-Object {
+            [String]([String]$PSItem.Key + '=' + [String]$PSItem.Value)
         }
 
-        #Prepend the filename to the path
-        $Test.Path = ,$Test.ScriptBlock.File + $Test.Path
-        $TestID = $Test.Path.where{$_} -join $TestIdDelimiter
+        $TestID = @(
+            $Test.ScriptBlock.File
+            $Test.ExpandedPath
+            $DataItems
+        ).Where{$PSItem} -join '>>'
 
 
         if ($AsString) {
             return $TestID
         }
+
+        if (-not $TestID) {throw 'A test ID was not generated. This is a bug.'}
 
         #Clever: https://www.reddit.com/r/PowerShell/comments/dr3taf/does_powershell_have_a_native_command_to_hash_a/
         #TODO: This should probably be a helper function
@@ -180,6 +190,7 @@ function New-TestObject ($Test) {
 
     #Common stuff first
     $Parent = if ($Test.Parent -and -not $Test.Parent.IsRoot) {
+        #FIXME: Must be ID
         New-TestItemId $Test.Parent
     } elseif ($Test -is [Pester.Block]) {
         $null
@@ -333,7 +344,7 @@ function Invoke-Main {
         # TODO: Make this streaming with Pester Output Plugin
         [Pester.Block[]]$testSuites = Get-TestItemParents $runResult.Tests
 
-        $testObjects.InsertRange(0,($testSuites.foreach{New-SuiteObject $PSItem}))
+        $testObjects.InsertRange(0,($testSuites.foreach{New-TestObject $PSItem}))
     }
 
     #Skip writing to pipe if passthru is specified
