@@ -232,9 +232,6 @@ function New-TestObject ($Test) {
     }
 }
 
-
-
-
 function Get-TestItemParents {
     <#
     .SYNOPSIS
@@ -242,43 +239,34 @@ function Get-TestItemParents {
     #>
     param (
         #Test to fetch parents of. For maximum efficiency this should be done one test at a time and then stack processed
-        [Parameter(Mandatory,ValueFromPipeline)]$Test,
+        [Parameter(Mandatory,ValueFromPipeline)][Pester.Test[]]$Test,
         [HashSet[Pester.Block]]$KnownParents = [HashSet[Pester.Block]]::new()
     )
 
     begin {
-        #If any ancestors are detected, we want to emit them in reverse order (top-first), hence why this stack is here
         [Stack[Pester.Block]]$NewParents = [Stack[Pester.Block]]::new()
     }
     process {
+
+        # Output all parents that we don't know yet (distinct parents), in order from the top most
+        # to the child most.
         foreach ($TestItem in $Test) {
-            Test-IsPesterObject $TestItem
-            if ($TestItem.Block.count -ne 1) {
-                throw "Test did not have exactly one ancestor. This should not happen and is a bug."
+            $NewParents.Clear()
+            $parent = $TestItem.Block
+
+            while ($null -ne $parent -and -not $parent.IsRoot) {
+                if (-not $KnownParents.Add($parent)) {
+                    # We know this parent, so we must know all of its parents as well.
+                    # We don't need to go further.
+                    break
+                }
+
+                $NewParents.Push($parent)
+                $parent = $parent.Parent
             }
-            $ancestors = [Stack[Pester.Block]]::new()
-            #Different for test vs suite
-            $baseAncestor = if ($TestItem.Block) {$TestItem.Block} else {$TestItem.Parent}
-            $ancestors.push($baseAncestor)
-            do {
-                $thisAncestor = $ancestors.Pop()
-                if (-not $KnownParents.Add($thisAncestor)) {
-                    #We are good and don't need to go further
-                    continue
-                }
-                #Add this ancestor to new parents
-                $NewParents.Push($thisAncestor)
 
-                # Omit root entries (files/containers) because we currently do per-file discovery.
-                # TODO: Maybe multi-file discovery for efficiency only if "expand all tests" becomes an option in the test window.
-                if ($thisAncestor.Parent -and -not $thisAncestor.Parent.IsRoot) {
-                    #Go a level deeper. All items can have only one parent which is why we popped above. that will skip coming back through the intermediates
-                    $ancestors.push($thisAncestor.Parent)
-                }
-            } while ($ancestors.count -gt 0)
-
-            #Pop out the new parent objects in reverse hierarchy order
-            while ($NewParents.Count -gt 0) {$NewParents.Pop()}
+            # Output the unknown parent objects from the top most, to the one closest to our test.
+            foreach ($p in $NewParents) { $p }
         }
     }
 }
