@@ -18,7 +18,7 @@ export class PowerShellExtensionClient {
         return item
     }
 
-    constructor(private context: ExtensionContext, private internalPowerShellExtensionClient: IPowerShellExtensionClient) { }
+    private constructor(private context: ExtensionContext, private internalPowerShellExtensionClient: IPowerShellExtensionClient) { }
 
     private _sessionId: string | undefined
     private get sessionId(): string | undefined {
@@ -41,7 +41,8 @@ export class PowerShellExtensionClient {
      * RegisterExtension
      * https://github.com/PowerShell/vscode-powershell/blob/2d30df76eec42a600f97f2cc28105a9793c9821b/src/features/ExternalApi.ts#L25-L38
      */
-    public RegisterExtension(extensionId: string) {
+    // We do this as part of the constructor so it doesn't have to be public anymore
+    private RegisterExtension(extensionId: string) {
         this.sessionId = this.internalPowerShellExtensionClient.registerExternalExtension(extensionId)
     }
 

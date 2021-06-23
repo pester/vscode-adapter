@@ -1,9 +1,9 @@
-import { CancellationToken, EventEmitter, Extension, ExtensionContext, RelativePattern, test, TestController, TestItemStatus, Uri, workspace } from 'vscode'
-import { TestFile, TestTree } from './pesterTestTree'
+import { CancellationToken, EventEmitter, Extension, ExtensionContext, RelativePattern, test, TestController, TestItem, TestItemStatus, Uri, workspace } from 'vscode'
+import { TestFile, TestRootData, TestTree } from './pesterTestTree'
 import { IPowerShellExtensionClient } from './powershellExtensionClient'
 
 // Create a Test Controller for Pester which can be used to interface with the Pester APIs
-export function CreatePesterTestController(
+export async function CreatePesterTestController(
     powershellExtension: Extension<IPowerShellExtensionClient>,
     context: ExtensionContext,
     id: string = 'Pester'
@@ -13,6 +13,8 @@ export function CreatePesterTestController(
     testRoot.label = id
     // This will trigger resolveChildrenHandler on startup
     testRoot.status = TestItemStatus.Pending
+    // We sort of abuse this data storage for semi-singletons like the PowershellRunner
+    testRoot.data = await TestRootData.create(context,powershellExtension)
 
     // Wire up testController handlers to the methods defined in our new class
     // For pester, this gets called on startup, so we use it to start watching for pester files using vscode
@@ -65,13 +67,29 @@ async function watchWorkspaces(testController: TestController, token: Cancellati
         const files = await workspace.findFiles(pattern)
         for (const file of files) {
             console.log("Detected Pester File: ",file.fsPath)
-            // getOrCreateFile(testController, file)
+            getOrCreateFile(testController, file)
         }
         testController.root.status = TestItemStatus.Resolved
     }
 }
 
+function getOrCreateFile(controller: TestController, uri: Uri): TestItem<TestFile> {
+    const existing = controller.root.children.get(uri.toString());
+    if (existing) {
+        return existing;
+    }
 
+    const file = controller.createTestItem(
+        uri.toString(),
+        uri.path.split('/').pop()!,
+        controller.root,
+        uri,
+        new TestFile()
+    );
+
+    file.status = TestItemStatus.Pending;
+    return file;
+}
 
 
 // /**
@@ -150,8 +168,8 @@ async function watchWorkspaces(testController: TestController, token: Cancellati
 //         // const pseClient = await PowerShellExtensionClient.create(context, psextension)
 //         // const pseDetails = await pseClient.GetVersionDetails();
 //         // // Node-Powershell will auto-append the .exe for some reason so we have to strip it first.
-//         // const psExePath = pseDetails.exePath.replace(new RegExp('\.exe$'), '')
-//         const psExePath = 'pwsh'
+//         // const psExePath = pseDetails
+//         const psExePath = 'pwsh'.exePath.replace(new RegExp('\.exe$'), '')
 
 //         // This returns a promise so that the runner can be lazy initialized later when Pester Tests actually need to be run
 //         const powerShellRunner = PowerShellRunner.create(psExePath)

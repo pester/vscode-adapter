@@ -15,7 +15,7 @@ export class PowershellRunnerResult {
 
 /** Invokes a powershell script and provides the object outputs as JSON serialized objects */
 export class PowerShellRunner {
-    constructor(
+    private constructor(
         private readonly shell = new NodePowershell({
             noProfile: true,
         }),

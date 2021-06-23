@@ -1,12 +1,13 @@
 
 /** Represents a test result returned from pester, serialized into JSON */
 
-import { TestItem, TestResultState, Uri } from "vscode"
-
+import { Extension, ExtensionContext, TestItem, TestResultState, Uri } from "vscode"
+import { IExternalPowerShellDetails, IPowerShellExtensionClient, PowerShellExtensionClient } from "./powershellExtensionClient"
+import { PowerShellRunner } from "./powershellRunner"
 /** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
  * types and organization types such as suites
  */
-export type TestTree = TestItemOptions | TestRunResult | TestDefinition
+export type TestTree = TestItemOptions | TestRunResult | TestDefinition | TestRootData
 
 /** The type used to represent a test run from the Pester runner, with additional status data */
 export interface TestRunResult extends TestItem {
@@ -36,13 +37,38 @@ export interface TestItemOptions {
 /** A union that represents all types of TestItems related to Pester */
 export type TestData = TestDefinition
 
+/** Stores data for the test root, such as the shared Powershell Runner. It will derive all needed info from the Powershell Extension */
+export class TestRootData {
+    private constructor(
+        public testExtensionContext: ExtensionContext,
+        public powerShellExtension: Extension<IPowerShellExtensionClient>,
+        public powerShellExtensionClient: PowerShellExtensionClient,
+        public powerShellRunner: PowerShellRunner,
+        public psVersionDetails: IExternalPowerShellDetails
+    ) {}
+
+    public static async create(testExtensionContext: ExtensionContext, powerShellExtension: Extension<IPowerShellExtensionClient>) {
+        const pseClient = await PowerShellExtensionClient.create(testExtensionContext,powerShellExtension)
+        const psVersionDetails = await pseClient.GetVersionDetails()
+        //HACK: We need to remove .exe from the path because Node-Powershell will add it on
+        const psExePath = psVersionDetails.exePath.replace(new RegExp('\.exe$'), '')
+        const pseRunner = await PowerShellRunner.create(psExePath)
+        return new TestRootData(
+            testExtensionContext,
+            powerShellExtension,
+            pseClient,
+            pseRunner,
+            psVersionDetails
+        )
+    }
+}
+
 
 // /**
 //  * Represents a Pester Test file, typically named .tests.ps1.
 //  * Its resolveHandler will run the DiscoverTests.ps1 script on the file it represents to discover the Context/Describe/It blocks within.
 //  * */
 export class TestFile {
-
 
     // public static create(testFilePath: Uri, ps: PesterTestController) {
     //     const item = test.createTestItem<TestFile, TestData>({
