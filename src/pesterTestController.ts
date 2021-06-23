@@ -22,15 +22,17 @@ export async function CreatePesterTestController(
     // when the user clicks on a file they want to run tests from.
     // TODO: Setting to just scan everything, useful for other views
     testController.resolveChildrenHandler = (item, token) => {
+        // Indicates initial startup of the extension, so scan for files that match the pester extension
         if (item === testRoot) {
             try {
                 watchWorkspaces(testController, token)
             } catch (err) {
                 throw new Error(err)
             }
+            return
         }
         if (item.data instanceof TestFile) {
-            throw new Error('Not Implemented (TODO)')
+            console.log(`Discovering children of ${item.uri?.fsPath}`)
         }
         // TODO: Watch for unsaved document changes and try invoke-pester on scriptblock
     }
@@ -84,6 +86,7 @@ function getOrCreateFile(controller: TestController, uri: Uri): TestItem<TestFil
         uri.path.split('/').pop()!,
         controller.root,
         uri,
+        // Tes
         new TestFile()
     );
 
