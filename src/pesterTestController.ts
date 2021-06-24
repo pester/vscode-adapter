@@ -1,5 +1,5 @@
 import { CancellationToken, EventEmitter, Extension, ExtensionContext, RelativePattern, test, TestController, TestItem, TestItemStatus, Uri, workspace } from 'vscode'
-import { TestFile, TestRootData, TestTree } from './pesterTestTree'
+import { CreateTestOptions, TestFile, TestRootContext, TestTree } from './pesterTestTree'
 import { IPowerShellExtensionClient } from './powershellExtensionClient'
 
 // Create a Test Controller for Pester which can be used to interface with the Pester APIs
@@ -14,13 +14,15 @@ export async function CreatePesterTestController(
     // This will trigger resolveChildrenHandler on startup
     testRoot.status = TestItemStatus.Pending
     // We sort of abuse this data storage for semi-singletons like the PowershellRunner
-    testRoot.data = await TestRootData.create(context,powershellExtension)
+    testRoot.data = await TestRootContext.create(testController,context,powershellExtension)
 
     // Wire up testController handlers to the methods defined in our new class
     // For pester, this gets called on startup, so we use it to start watching for pester files using vscode
     // We don't use pester to do initial scans because it is too heavyweight, we want to lazy load it later
     // when the user clicks on a file they want to run tests from.
     // TODO: Setting to just scan everything, useful for other views
+
+    // Any testitem that goes to pending will flow through this method now
     testController.resolveChildrenHandler = (item, token) => {
         // Indicates initial startup of the extension, so scan for files that match the pester extension
         if (item === testRoot) {
@@ -31,8 +33,18 @@ export async function CreatePesterTestController(
             }
             return
         }
+        // We use data as a sort of "type proxy" because we can't really test type on generics directly
         if (item.data instanceof TestFile) {
-            console.log(`Discovering children of ${item.uri?.fsPath}`)
+            // Run Pester and get tests
+            const testFile = item.data as TestFile
+            console.log('Discovering Tests: ',item.id)
+            const discoveredTests = testFile.discoverTests().then(tests => {
+                for (const testItem of tests) {
+                    const newItem = createTestItem<never>(testController,testItem)
+                    console.log(newItem)
+                }
+            })
+
         }
         // TODO: Watch for unsaved document changes and try invoke-pester on scriptblock
     }
@@ -42,6 +54,17 @@ export async function CreatePesterTestController(
     }
 
     return testController
+}
+
+/** Overload of {@link TestController.createTestItem} that accepts options */
+export function createTestItem<TChild>(testController: TestController, options: CreateTestOptions) {
+    return testController.createTestItem<TChild>(
+        options.id,
+        options.label,
+        options.parent,
+        options.uri,
+        options.data
+    )
 }
 
 /** Starts up filewatchers for each workspace to identify pester files */
@@ -58,9 +81,10 @@ async function watchWorkspaces(testController: TestController, token: Cancellati
         // TODO: Maybe have each test register its own filewatcher?
         const contentChange = new EventEmitter<Uri>()
 
-        // TODO: testWatcher.onDidCreate(uri => getOrCreateFile(controller, uri))
+        testWatcher.onDidCreate(uri => getOrCreateFile(testController, uri))
+        testWatcher.onDidDelete(uri => testController.root.children.get(uri.toString())?.dispose());
         // TODO: testWatcher.onDidChange(uri => contentChange.fire(uri));
-        // TODO: testWatcher.onDidDelete(uri => testRoot.children.get(uri.toString())?.dispose());
+
         token.onCancellationRequested(() => {
             testController.root.status = TestItemStatus.Pending
             testWatcher.dispose()
@@ -86,8 +110,7 @@ function getOrCreateFile(controller: TestController, uri: Uri): TestItem<TestFil
         uri.path.split('/').pop()!,
         controller.root,
         uri,
-        // Tes
-        new TestFile()
+        new TestFile(uri,controller)
     );
 
     file.status = TestItemStatus.Pending;
