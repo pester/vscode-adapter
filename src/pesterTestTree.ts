@@ -2,7 +2,7 @@
 /** Represents a test result returned from pester, serialized into JSON */
 
 import { join } from "path"
-import { Extension, ExtensionContext, TestController, TestItem, TestItemStatus, TestResultState, Uri } from "vscode"
+import { Extension, ExtensionContext, TestController, TestItem, TestResultState, Uri } from "vscode"
 import { IExternalPowerShellDetails, IPowerShellExtensionClient, PowerShellExtensionClient } from "./powershellExtensionClient"
 import { PowerShellRunner } from "./powershellRunner"
 /** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
@@ -30,7 +30,7 @@ export class TestFile {
             uri,
             new TestFile(controller, uri) //Mostly a stub for type identification and methods
         );
-        file.status = TestItemStatus.Pending;
+        file.canResolveChildren = true
         return file;
     }
 
