@@ -6,16 +6,15 @@ Describe 'PesterInterface' {
     }
 
     Context 'VerifyResults' {
-        BeforeAll {
-            function shouldReturnTestCount($ShouldHaveCount,$Paths) {
-                $result = & $testScript -TestsOnly -PassThru -Discovery $Paths -PipeName 'fake'
-                $result | ConvertFrom-Json | Should -HaveCount $ShouldHaveCount
-            }
+        It 'Basic.Tests Discovery' {
+            $paths = "$testDataPath/Tests/Basic.Tests.ps1"
+            $result = & $testScript -PassThru -Discovery $Paths -PipeName 'fake'
+            $result | ConvertFrom-Json | Should -HaveCount 52
         }
-        It 'Sample1 Single File' {
-            shouldReturnTestCount 39 @(
-                Resolve-Path "$testDataPath/Tests/Basic.Tests.ps1"
-            )
+        It 'Basic.Tests Discovery TestsOnly' {
+            $paths = "$testDataPath/Tests/Basic.Tests.ps1"
+            $result = & $testScript -TestsOnly -PassThru -Discovery $Paths -PipeName 'fake'
+            $result | ConvertFrom-Json | Should -HaveCount 39
         }
     }
 
