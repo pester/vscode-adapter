@@ -1,4 +1,4 @@
-import { Disposable, Extension, ExtensionContext, RelativePattern, test, TestController, TestItemStatus, workspace } from 'vscode'
+import { Disposable, Extension, ExtensionContext, RelativePattern, test, TestController, workspace } from 'vscode'
 import { TestDefinition, TestFile, TestRootContext } from './pesterTestTree'
 import { IPowerShellExtensionClient } from './powershellExtensionClient'
 
@@ -59,7 +59,7 @@ export async function CreatePesterTestController(
     }
 
     // This will trigger resolveChildrenHandler on startup
-    testRoot.status = TestItemStatus.Pending
+    testRoot.canResolveChildren = true
 
     return testController
 }
@@ -111,7 +111,6 @@ async function watchWorkspaces(testController: TestController, disposable: Dispo
             console.log("Detected Pester File: ",file.fsPath)
             TestFile.getOrCreate(testController, file)
         }
-        testController.root.status = TestItemStatus.Resolved
     }
 }
 
