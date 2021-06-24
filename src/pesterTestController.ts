@@ -1,5 +1,5 @@
-import { CancellationToken, EventEmitter, Extension, ExtensionContext, RelativePattern, test, TestController, TestItem, TestItemStatus, Uri, workspace } from 'vscode'
-import { CreateTestOptions, TestFile, TestRootContext, TestTree } from './pesterTestTree'
+import { Disposable, Extension, ExtensionContext, RelativePattern, test, TestController, TestItemStatus, workspace } from 'vscode'
+import { TestDefinition, TestFile, TestRootContext } from './pesterTestTree'
 import { IPowerShellExtensionClient } from './powershellExtensionClient'
 
 // Create a Test Controller for Pester which can be used to interface with the Pester APIs
@@ -8,13 +8,14 @@ export async function CreatePesterTestController(
     context: ExtensionContext,
     id: string = 'Pester'
 ) {
-    const testController = test.createTestController<TestTree>('pesterTestController')
+    // A pester test controller should only have testfiles at its root, whether physical files or in-progress documents
+    const testController = test.createTestController<TestFile>('pesterTestController')
     const testRoot = testController.root
     testRoot.label = id
-    // This will trigger resolveChildrenHandler on startup
-    testRoot.status = TestItemStatus.Pending
+
     // We sort of abuse this data storage for semi-singletons like the PowershellRunner
     testRoot.data = await TestRootContext.create(testController,context,powershellExtension)
+
 
     // Wire up testController handlers to the methods defined in our new class
     // For pester, this gets called on startup, so we use it to start watching for pester files using vscode
@@ -23,11 +24,11 @@ export async function CreatePesterTestController(
     // TODO: Setting to just scan everything, useful for other views
 
     // Any testitem that goes to pending will flow through this method now
-    testController.resolveChildrenHandler = (item, token) => {
+    testController.resolveChildrenHandler = (item) => {
         // Indicates initial startup of the extension, so scan for files that match the pester extension
         if (item === testRoot) {
             try {
-                watchWorkspaces(testController, token)
+                watchWorkspaces(testController, context.subscriptions)
             } catch (err) {
                 throw new Error(err)
             }
@@ -36,15 +37,19 @@ export async function CreatePesterTestController(
         // We use data as a sort of "type proxy" because we can't really test type on generics directly
         if (item.data instanceof TestFile) {
             // Run Pester and get tests
-            const testFile = item.data as TestFile
             console.log('Discovering Tests: ',item.id)
-            const discoveredTests = testFile.discoverTests().then(tests => {
+            const discoveredTests = item.data.discoverTests().then(tests => {
                 for (const testItem of tests) {
-                    const newItem = createTestItem<never>(testController,testItem)
-                    console.log(newItem)
+                    const parent = testController.root.children.get(testItem.parent) ?? testController.root
+                    testController.createTestItem<TestDefinition>(
+                        testItem.id,
+                        testItem.label,
+                        parent,
+                        testItem.uri,
+                        testItem
+                    )
                 }
             })
-
         }
         // TODO: Watch for unsaved document changes and try invoke-pester on scriptblock
     }
@@ -53,22 +58,38 @@ export async function CreatePesterTestController(
         throw new Error('Not Implemented (TODO)')
     }
 
+    // This will trigger resolveChildrenHandler on startup
+    testRoot.status = TestItemStatus.Pending
+
     return testController
 }
 
-/** Overload of {@link TestController.createTestItem} that accepts options */
-export function createTestItem<TChild>(testController: TestController, options: CreateTestOptions) {
-    return testController.createTestItem<TChild>(
-        options.id,
-        options.label,
-        options.parent,
-        options.uri,
-        options.data
-    )
-}
+// /** Overload of {@link TestController.createTestItem} that accepts options
+//  * @template T - The type of the testItem data
+//  * @template TParent - What parents are allowed to exist.
+//  */
+// export function createTestItem<T = TestTree, TParent = TestTree>(
+//     testController: TestController,
+//     options: TestItemOptions<T, TParent>
+// ) {
+//     return testController.createTestItem<T>(
+//         options.id,
+//         options.label,
+//         options.parent,
+//         options.uri,
+//         options.data
+//     )
+// }
 
-/** Starts up filewatchers for each workspace to identify pester files */
-async function watchWorkspaces(testController: TestController, token: CancellationToken) {
+
+/**
+ * Starts up filewatchers for each workspace to identify pester files and add them to the test controller root
+ *
+ * @param {TestController} testController - The test controller to initiate watching on
+ * @param {Disposable[]} [disposable=[]] - An array to store disposables from the watchers, usually \
+{@link ExtensionContext.subscriptions} to auto-dispose the watchers on unload or cancel
+ */
+async function watchWorkspaces(testController: TestController, disposable: Disposable[] = []) {
     if (!workspace.workspaceFolders) {
         // TODO: Register event to look for when a workspace folder is added
         console.log('No workspace folders detected.')
@@ -79,43 +100,22 @@ async function watchWorkspaces(testController: TestController, token: Cancellati
         const testWatcher = workspace.createFileSystemWatcher(pattern)
         // Test files will subscribe to this and update themselves if they see a change
         // TODO: Maybe have each test register its own filewatcher?
-        const contentChange = new EventEmitter<Uri>()
 
-        testWatcher.onDidCreate(uri => getOrCreateFile(testController, uri))
-        testWatcher.onDidDelete(uri => testController.root.children.get(uri.toString())?.dispose());
+        testWatcher.onDidCreate(uri => TestFile.getOrCreate(testController, uri),undefined,disposable)
+        testWatcher.onDidDelete(uri => testController.root.children.get(uri.toString())?.dispose(),undefined,disposable)
+        // const contentChange = new EventEmitter<Uri>()
         // TODO: testWatcher.onDidChange(uri => contentChange.fire(uri));
-
-        token.onCancellationRequested(() => {
-            testController.root.status = TestItemStatus.Pending
-            testWatcher.dispose()
-        })
 
         const files = await workspace.findFiles(pattern)
         for (const file of files) {
             console.log("Detected Pester File: ",file.fsPath)
-            getOrCreateFile(testController, file)
+            TestFile.getOrCreate(testController, file)
         }
         testController.root.status = TestItemStatus.Resolved
     }
 }
 
-function getOrCreateFile(controller: TestController, uri: Uri): TestItem<TestFile> {
-    const existing = controller.root.children.get(uri.toString());
-    if (existing) {
-        return existing;
-    }
 
-    const file = controller.createTestItem(
-        uri.toString(),
-        uri.path.split('/').pop()!,
-        controller.root,
-        uri,
-        new TestFile(uri,controller)
-    );
-
-    file.status = TestItemStatus.Pending;
-    return file;
-}
 
 
 // /**

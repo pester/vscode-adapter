@@ -2,16 +2,75 @@
 /** Represents a test result returned from pester, serialized into JSON */
 
 import { join } from "path"
-import { Extension, ExtensionContext, TestController, TestItem, TestResultState, Uri } from "vscode"
+import { Extension, ExtensionContext, TestController, TestItem, TestItemStatus, TestResultState, Uri } from "vscode"
 import { IExternalPowerShellDetails, IPowerShellExtensionClient, PowerShellExtensionClient } from "./powershellExtensionClient"
 import { PowerShellRunner } from "./powershellRunner"
 /** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
  * types and organization types such as suites
  */
-export type TestTree = CreateTestOptions | TestRunResult | TestDefinition | TestRootContext
+export type TestTree = TestFile | TestDefinition | TestRunResult
+
+/** Represents an individual Pester .tests.ps1 file, or an active document in the editor. This is just a stub to be used
+ * for type identification later, the real work is done in {@link PesterTestController.getOrCreateFile()}
+*/
+export class TestFile {
+
+    private constructor(private readonly controller: TestController<TestFile>, private readonly uri: Uri) {}
+
+    /** Creates a managed TestItem entry in the controller if it doesn't exist, or returns the existing object if it does already exist */
+    static getOrCreate(controller: TestController<TestFile>, uri: Uri): TestItem<TestFile> {
+        const existing = controller.root.children.get(uri.toString())
+        if (existing) {
+            return existing
+        }
+        const file = controller.createTestItem<TestFile>(
+            uri.toString(),
+            uri.path.split('/').pop()!,
+            controller.root,
+            uri,
+            new TestFile(controller, uri) //Mostly a stub for type identification and methods
+        );
+        file.status = TestItemStatus.Pending;
+        return file;
+    }
+
+    async discoverTests() {
+        // HACK: Because the managed controller data type is returned as an <any>, we need to type assert it back to a TestRootContext
+        // so that the return type is inferred correctly
+        const testRootContext: TestRootContext = this.controller.root.data
+        return await testRootContext.discoverPesterTests([this.uri.fsPath], false)
+    }
+}
+
+/**
+ * Options for calling the createTestItem function This is the minimum required for createTestItem.
+ * @template TParent - What types this TestItem is allowed to have as a parent. TestFile should always have the controller root as a parent
+ * @template TChild - What types this TestItem can have as a child. Leaf TestItems like test cases should specify 'never'
+ */
+export interface TestItemOptions<T, TParent = any> {
+    /** Uniquely identifies the test. Can be anything but must be unique to the controller */
+    id: string
+    /** A label for the testItem. This is how it will appear in the test, explorer pane */
+    label: string
+    /** Which test item is the parent of this item. You can specify the test controller root here */
+    parent: string
+    /** A resource URI that matches the physical location of this test */
+    uri?: Uri
+    /** Custom data that never leaves this test */
+    data?: T
+}
+
+/** Represents a test that has been discovered by Pester. TODO: Separate suite definition maybe? */
+export interface TestDefinition extends TestItemOptions<TestTree, TestTree> {
+    startLine: number
+    endLine: number
+    file: string
+    description?: string
+    error?: string
+}
 
 /** The type used to represent a test run from the Pester runner, with additional status data */
-export interface TestRunResult extends TestItem {
+export interface TestRunResult extends TestItemOptions<TestTree, TestTree> {
     result: TestResultState
     duration: number
     message: string
@@ -21,30 +80,30 @@ export interface TestRunResult extends TestItem {
     targetLine: number
 }
 
-export interface TestDefinition extends CreateTestOptions {
-    startLine: number
-    endLine: number
-    file: string
-    description?: string
-    error?: string
-}
 
-/**
- * Options for creating a managed test item
- *
- */
-export interface CreateTestOptions {
-    /** Uniquely identifies the test. Can be anything but must be unique to the controller */
-    id: string
-    /** A label for the testItem. This is how it will appear in the test explorer pane */
-    label: string
-    /** Which test item is the parent of this item. You can specify the test controller root here */
-    parent: TestItem<any>
-    /** A resource URI that matches the physical location of this test */
-    uri?: Uri
-    /** Custom data that never leaves this test */
-    data?: any
-}
+// /** Represents an "It" statement block in Pester which roughly correlates to a Test Case or set of Cases */
+// function createTestCase(
+//     ctrl: TestController,
+//     options: TestDefinition
+// ) {
+//     options.uri = Uri.file(options.file)
+//     const item = createTestItem<TestDefinition>(ctrl,options)
+
+//     // Pester resolves at the file-level so we don't need to sub-resolve
+//     item.status = TestItemStatus.Resolved
+
+//     item.debuggable = false
+//     item.runnable = true
+//     item.range = new Range(options.startLine, 0, options.endLine, 0)
+//     return item
+// }
+
+
+
+
+
+
+
 
 /** A union that represents all types of TestItems related to Pester */
 export type TestData = TestDefinition
@@ -57,10 +116,11 @@ export class TestRootContext {
         public powerShellExtensionClient: PowerShellExtensionClient,
         public powerShellRunner: Promise<PowerShellRunner>,
         public psVersionDetails: IExternalPowerShellDetails,
-        public testController: TestController
+        public testController: TestController<TestRootContext>
     ) {}
 
     public static async create(testController: TestController,testExtensionContext: ExtensionContext, powerShellExtension: Extension<IPowerShellExtensionClient>) {
+        //TODO: Lazy load this at Pester Test Invocation
         const pseClient = await PowerShellExtensionClient.create(testExtensionContext,powerShellExtension)
         const psVersionDetails = await pseClient.GetVersionDetails()
         //HACK: We need to remove .exe from the path because Node-Powershell will add it on
@@ -110,7 +170,7 @@ export class TestRootContext {
 
     /** Retrieve Pester Test information without actually running them */
     async discoverPesterTests(path: string[], testsOnly?: boolean) {
-        return this.getPesterTests<TestTree>(path, false, testsOnly)
+        return this.getPesterTests<TestDefinition>(path, true, testsOnly)
     }
     /** Run Pester Tests and retrieve the results */
     async runPesterTests(path: string[], testsOnly?: boolean) {
@@ -125,63 +185,49 @@ export class TestRootContext {
 //  * Its resolveHandler will run the DiscoverTests.ps1 script on the file it represents to discover the Context/Describe/It blocks within.
 //  * */
 // TODO: Should be an interface to implement from the controller side
-export class TestFile {
-    constructor(
-        private readonly uri: Uri,
-        private readonly testController: TestController
-    ) {
-
-    }
-    async discoverTests() {
-        return await this.testController.root.data.discoverPesterTests([this.uri.fsPath], true)
-    }
-
-    // public static create(testFilePath: Uri, ps: PesterTestController) {
-    //     const item = test.createTestItem<TestFile, TestData>({
-    //         id: testFilePath.toString(),
-    //         label: testFilePath.path.split('/').pop()!,
-    //         uri: testFilePath
-    //     })
-    //     item.resolveHandler = async token => {
-    //         token.onCancellationRequested(() => {
-    //             item.status = vscode.TestItemStatus.Pending
-    //         })
-    //         const fsPath = testFilePath.fsPath
-    //         const fileTests = await ps.discoverPesterTests([fsPath], true)
-    //         for (const testItem of fileTests) {
-    //             try {
-    //                 item.addChild(
-    //                     TestIt.create(testItem)
-    //                 )
-    //             } catch (err) {
-    //                 vscode.window.showErrorMessage(err.message)
-    //             }
-    //         }
-    //         item.status = vscode.TestItemStatus.Resolved
-    //     }
-    //     // TODO: Populate Test Data with an object that makes this runnable
-    //     item.debuggable = false
-    //     item.runnable = true
-    //     item.status = vscode.TestItemStatus.Pending
-    //     return item
-    // }
-}
-
-// /** Represents an "It" statement block in Pester which roughly correlates to a Test Case or set of Cases */
-// export class TestIt {
-//     public static create(
-//         ctrl: TestController
-//         info: TestDefinition
+// export class TestFile {
+//     constructor(
+//         private readonly uri: Uri,
+//         private readonly testController: TestController<TestFile>
 //     ) {
-//         info.uri = Uri.file(info.file)
-//         const item = createTestItem<TestIt>(ctrl info)
 
-//         // There are no child items here so we don't need a resolve handler
-//         item.status = vscode.TestItemStatus.Resolved
-
-//         item.debuggable = false
-//         item.runnable = true
-//         item.range = new vscode.Range(info.startLine, 0, info.endLine, 0)
-//         return item
 //     }
+//     async discoverTests() {
+//         // HACK: Because the managed controller data type is returned as an <any>, we need to type assert it back to a TestRootContext
+//         // so that the return type is inferred correctly
+//         const testRootContext: TestRootContext = this.testController.root.data
+
+//         return await testRootContext.discoverPesterTests([this.uri.fsPath], false)
+//     }
+
+//     // public static create(testFilePath: Uri, ps: PesterTestController) {
+//     //     const item = test.createTestItem<TestFile, TestData>({
+//     //         id: testFilePath.toString(),
+//     //         label: testFilePath.path.split('/').pop()!,
+//     //         uri: testFilePath
+//     //     })
+//     //     item.resolveHandler = async token => {
+//     //         token.onCancellationRequested(() => {
+//     //             item.status = vscode.TestItemStatus.Pending
+//     //         })
+//     //         const fsPath = testFilePath.fsPath
+//     //         const fileTests = await ps.discoverPesterTests([fsPath], true)
+//     //         for (const testItem of fileTests) {
+//     //             try {
+//     //                 item.addChild(
+//     //                     TestIt.create(testItem)
+//     //                 )
+//     //             } catch (err) {
+//     //                 vscode.window.showErrorMessage(err.message)
+//     //             }
+//     //         }
+//     //         item.status = vscode.TestItemStatus.Resolved
+//     //     }
+//     //     // TODO: Populate Test Data with an object that makes this runnable
+//     //     item.debuggable = false
+//     //     item.runnable = true
+//     //     item.status = vscode.TestItemStatus.Pending
+//     //     return item
+//     // }
 // }
+
