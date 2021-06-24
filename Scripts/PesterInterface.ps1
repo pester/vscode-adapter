@@ -310,6 +310,8 @@ function Invoke-Main {
 
 
     $testResult = $runResult.Tests
+    if ($testResult.count -le 0) {return}
+
     $testFilteredResult = if (-not $Discovery) {
         #If discovery was not run, its easy to filter the results
         $testResult | Where-Object Executed
