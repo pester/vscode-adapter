@@ -1,4 +1,4 @@
-import { Disposable, Extension, ExtensionContext, RelativePattern, test, TestController, workspace } from 'vscode'
+import { Disposable, Extension, ExtensionContext, RelativePattern, test, TestController, TestItem, workspace } from 'vscode'
 import { TestDefinition, TestFile, TestRootContext } from './pesterTestTree'
 import { IPowerShellExtensionClient } from './powershellExtensionClient'
 
@@ -38,16 +38,22 @@ export async function CreatePesterTestController(
         if (item.data instanceof TestFile) {
             // Run Pester and get tests
             console.log('Discovering Tests: ',item.id)
-            const discoveredTests = item.data.discoverTests().then(tests => {
+            item.data.discoverTests().then(tests => {
+                // Use a lookup as a temporary hierarchy workaround until a recursive lookup can be made
+                // TODO: A recursive child lookup is going to be needed now that things have switched to objects rather than IDs
+                const testItemLookup = new Map<string, TestItem<TestDefinition>>()
+
                 for (const testItem of tests) {
-                    const parent = testController.root.children.get(testItem.parent) ?? testController.root
-                    testController.createTestItem<TestDefinition>(
+                    // Default to the testFile if a deeper hierarchy is not found
+                    const parent = testItemLookup.get(testItem.parent) ?? item
+                    const newTestItem = testController.createTestItem<TestDefinition>(
                         testItem.id,
                         testItem.label,
                         parent,
                         testItem.uri,
                         testItem
                     )
+                    testItemLookup.set(newTestItem.id, newTestItem)
                 }
             })
         }

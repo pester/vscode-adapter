@@ -40,7 +40,7 @@ Describe 'TestCases' {
     )
 }
 
-Describe 'Describe Nested Foreach <name>' -ForEach @(
+Describe 'Describe Nested Foreach <name> <symbol>' -ForEach @(
     @{ Name = 'cactus'; Symbol = '🌵'; Kind = 'Plant' }
     @{ Name = 'giraffe'; Symbol = '🦒'; Kind = 'Animal' }
 ) {
@@ -54,7 +54,7 @@ Describe 'Describe Nested Foreach <name>' -ForEach @(
     It 'Nested Array TestCase <kind> <_>' { $true } -TestCases @(
         'Test'
     )
-    It 'Nested Multiple Hashtable TestCase <kind> <name>' { $true } -TestCases @(
+    It 'Nested Multiple Hashtable TestCase <kind> <name> <symbol>' { $true } -TestCases @(
         @{
             Name = 'Pester1'
         }
