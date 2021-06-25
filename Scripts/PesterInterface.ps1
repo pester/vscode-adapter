@@ -183,6 +183,15 @@ function Test-IsPesterObject($Test) {
     if (-not $MatchesType) {throw "Provided object is not a Pester Test or Pester Block"}
 }
 
+function Get-DurationString($Test) {
+    if (-not ($Test.UserDuration -and $Test.FrameworkDuration)) {return}
+    $p = Get-Module Pester
+    & ($p) {
+        $Test = $args[0]
+        "({0}|{1})" -f (Get-HumanTime $Test.UserDuration), (Get-HumanTime $Test.FrameworkDuration)
+    } $Test
+}
+
 function New-TestObject ($Test) {
     Test-IsPesterObject $Test
 
@@ -211,7 +220,6 @@ function New-TestObject ($Test) {
         }
     }
 
-
     # TypeScript does not validate these data types, so numbers must be expressly stated so they don't get converted to strings
     [PSCustomObject]@{
         type = $Test.ItemType
@@ -222,12 +230,15 @@ function New-TestObject ($Test) {
         label = Expand-TestCaseName $Test
         result = [ResultStatus]$Test.Result
         duration = $Test.UserDuration.TotalMilliseconds #I don't think anyone is doing sub-millisecond code performance testing in Powershell :)
+        durationDetail = Get-DurationString $Test
         message = $Message
         expected = $Expected
         actual = $Actual
         targetFile = $Test.ErrorRecord.TargetObject.File
         targetLine = [int]$Test.ErrorRecord.TargetObject.Line -1
         parent = $Parent
+        tags = $Test.Tag.Where{$PSItem} -join ', '
+
         #TODO: Severity. Failed = Error Skipped = Warning
     }
 }

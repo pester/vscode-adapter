@@ -56,6 +56,7 @@ export async function CreatePesterTestController(
                         testItem
                     )
                     newTestItem.range = new Range(testItem.startLine,0,testItem.endLine,0)
+                    newTestItem.description = testItem.tags ? testItem.tags : undefined
                     testItemLookup.set(newTestItem.id, newTestItem)
                 }
             })

@@ -69,6 +69,7 @@ export interface TestDefinition extends TestItemOptions<TestTree, TestTree> {
     file: string
     description?: string
     error?: string
+    tags?: string
 }
 
 /** The type used to represent a test run from the Pester runner, with additional status data */
@@ -80,6 +81,7 @@ export interface TestResult extends TestItemOptions<TestTree, TestTree> {
     actual: string
     targetFile: string
     targetLine: number
+    description?: string
 }
 
 /** Stores data for the test root, such as the shared Powershell Runner. It will derive all needed info from the Powershell Extension */

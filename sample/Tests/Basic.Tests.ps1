@@ -1,6 +1,6 @@
 
-Context 'Test' {
-    It 'test' {
+Context 'Test' -Tag 'ContextTag','ContextTag2' {
+    It 'test' -Tag 'ItTag' {
         $true
     }
 }
