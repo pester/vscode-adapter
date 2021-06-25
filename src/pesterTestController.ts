@@ -143,6 +143,7 @@ export async function CreatePesterTestController(
                 if (message.message) {
                     run.appendMessage(testRequestItem, message)
                 }
+
             } catch (err) {
                 console.log(err)
             }
