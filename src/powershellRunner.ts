@@ -89,6 +89,7 @@ export class PowerShellRunner {
     async execPwshScriptFile(path: string, args?: string[]) {
         return this.execPwshCommand(`. ${path}`, args)
     }
+    // TODO: Remove this if we choose not to reimplement our own runner instead of using node-powershell
     //
     // public async ExecPwshScriptFile(
     //     scriptFilePath: string,
