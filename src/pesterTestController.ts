@@ -67,7 +67,6 @@ export async function CreatePesterTestController(
 
     testController.runHandler = async (request, token) => {
         const run = testController.createTestRun<TestTree>(request)
-
         // TODO: Maybe? Determine if a child of a summary block is excluded
         // TODO: Check if a child of a describe/context can be excluded, for now add warning that child hidden tests may still run
         // TODO: De-Duplicate children that can be consolidated into a higher line, this is probably not necessary.
@@ -76,6 +75,13 @@ export async function CreatePesterTestController(
         }
 
         for (const testItem of request.tests) {
+            // Do a discovery on empty test files first. TODO: Probably a way to consolidate this with the runner so it doesn't run Pester twice
+            if ((testItem.data instanceof TestFile) && testItem.children.size === 0) {
+                // TODO: Fix when API stabilizes
+                await window.showWarningMessage('TEMPORARY: You must expand a test file at least once before you run it')
+                run.end()
+                return
+            }
             run.setState(testItem,TestResultState.Queued)
         }
 
@@ -89,7 +95,7 @@ export async function CreatePesterTestController(
             run.setState(testItem,TestResultState.Running)
         }
         const testRootContext = testController.root.data as TestRootContext
-        const pesterTestRunResult = await testRootContext.runPesterTests(testsToRun, true)
+        const pesterTestRunResult = await testRootContext.runPesterTests(testsToRun, false)
 
 
         // Make this easier to query by putting the IDs in a map so we dont have to iterate an array constantly.
@@ -110,7 +116,6 @@ export async function CreatePesterTestController(
         for (const testRequestItem of requestedTests) {
             try {
                 // Skip Testfiles
-                // HACK: Should be doing this by class rather than searching for delimiter
                 if (testRequestItem.data instanceof TestFile) {
                     continue
                 }
