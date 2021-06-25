@@ -76,6 +76,7 @@ export interface TestDefinition extends TestItemOptions<TestTree, TestTree> {
 export interface TestResult extends TestItemOptions<TestTree, TestTree> {
     result: TestResultState
     duration: number
+    durationDetail: string
     message: string
     expected: string
     actual: string
@@ -111,6 +112,7 @@ export class TestRootContext {
             testController
         )
     }
+
 
 
     /** Fetch the Pester Test json information for a particular path(s) */
