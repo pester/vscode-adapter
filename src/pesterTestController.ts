@@ -1,6 +1,8 @@
 import { Disposable, Extension, ExtensionContext, Location, Position, Range, RelativePattern, test, TestController, TestItem, TestMessage, TestResultState, Uri, window, workspace } from 'vscode'
-import { TestDefinition, TestFile, TestResult, TestRootContext, TestTree } from './pesterTestTree'
+import { TestData, TestFile, TestResult, TestRootContext } from './pesterTestTree'
 import { IPowerShellExtensionClient } from './powershellExtensionClient'
+
+export const TestControllerData = new WeakMap<TestItem, TestRootContext>()
 
 // Create a Test Controller for Pester which can be used to interface with the Pester APIs
 export async function CreatePesterTestController(
@@ -11,12 +13,15 @@ export async function CreatePesterTestController(
     // A pester test controller should only have testfiles at its root, whether physical files or in-progress documents
     // The generic type in this case represents the possible test item types that can be stored and would need to be updated
     // when a run starts
-    const testController = test.createTestController<TestTree>('pesterTestController')
+    const testController = test.createTestController('pesterTestController')
     const testRoot = testController.root
     testRoot.label = id
 
     // We sort of abuse this data storage for semi-singletons like the PowershellRunner
-    testRoot.data = await TestRootContext.create(testController,context,powershellExtension)
+    TestControllerData.set(
+        testRoot,
+        await TestRootContext.create(testController,context,powershellExtension)
+    )
 
 
     // Wire up testController handlers to the methods defined in our new class
@@ -36,27 +41,29 @@ export async function CreatePesterTestController(
             }
             return
         }
+        const testItem = TestData.get(item)
+        if (!testItem) {throw new Error('No matching testItem data found. This is a bug')}
         // We use data as a sort of "type proxy" because we can't really test type on generics directly
-        if (item.data instanceof TestFile) {
+        if (testItem instanceof TestFile) {
             // Run Pester and get tests
             console.log('Discovering Tests: ',item.id)
-            item.data.discoverTests().then(tests => {
+            testItem.discoverTests().then(tests => {
                 // Use a lookup as a temporary hierarchy workaround until a recursive lookup can be made
                 // TODO: A recursive child lookup is going to be needed now that things have switched to objects rather than IDs
-                const testItemLookup = new Map<string, TestItem<TestDefinition>>()
+                const testItemLookup = new Map<string, TestItem>()
 
                 for (const testItem of tests) {
                     // Default to the testFile if a deeper hierarchy is not found
                     const parent = testItemLookup.get(testItem.parent) ?? item
-                    const newTestItem = testController.createTestItem<TestDefinition>(
+                    const newTestItem = testController.createTestItem(
                         testItem.id,
                         testItem.label,
                         parent,
-                        testItem.uri,
-                        testItem
+                        testItem.uri
                     )
                     newTestItem.range = new Range(testItem.startLine,0,testItem.endLine,0)
                     newTestItem.description = testItem.tags ? testItem.tags : undefined
+                    TestData.set(newTestItem, testItem)
                     testItemLookup.set(newTestItem.id, newTestItem)
                 }
             })
@@ -66,7 +73,7 @@ export async function CreatePesterTestController(
     }
 
     testController.runHandler = async (request, token) => {
-        const run = testController.createTestRun<TestTree>(request)
+        const run = testController.createTestRun(request)
         // TODO: Maybe? Determine if a child of a summary block is excluded
         // TODO: Check if a child of a describe/context can be excluded, for now add warning that child hidden tests may still run
         // TODO: De-Duplicate children that can be consolidated into a higher line, this is probably not necessary.
@@ -75,8 +82,10 @@ export async function CreatePesterTestController(
         }
 
         for (const testItem of request.tests) {
+            const testData = TestData.get(testItem)
+            if (!testData) {throw new Error("testItem not found in testData. This is a bug.")}
             // Do a discovery on empty test files first. TODO: Probably a way to consolidate this with the runner so it doesn't run Pester twice
-            if ((testItem.data instanceof TestFile) && testItem.children.size === 0) {
+            if ((testData instanceof TestFile) && testItem.children.size === 0) {
                 // TODO: Fix when API stabilizes
                 await window.showWarningMessage('TEMPORARY: You must expand a test file at least once before you run it')
                 run.end()
@@ -85,16 +94,19 @@ export async function CreatePesterTestController(
             run.setState(testItem,TestResultState.Queued)
         }
 
-        const testsToRun = request.tests.map(testItem => testItem.data.startLine
-            ? [testItem.data.file, testItem.data.startLine+1].join(':')
-            : testItem.data.file
-        )
+        const testsToRun: string[] = []
+        request.tests.map(testItem => {
+            const testData = TestData.get(testItem)
+            if (!testData) {throw new Error("testItem not found in testData. This is a bug.")}
+            const testLine = testData.startLine
+            ? [testData.file, testData.startLine+1].join(':')
+            : testData.file
+            testsToRun.push(testLine)
+        })
 
         // TODO: Use a queue instead to line these up like the test example
-        for (const testItem of request.tests) {
-            run.setState(testItem,TestResultState.Running)
-        }
-        const testRootContext = testController.root.data as TestRootContext
+        request.tests.map(testItem => run.setState(testItem,TestResultState.Running))
+        const testRootContext = TestControllerData.get(testController.root)!
         const pesterTestRunResult = await testRootContext.runPesterTests(testsToRun, false)
 
 
@@ -116,7 +128,7 @@ export async function CreatePesterTestController(
         for (const testRequestItem of requestedTests) {
             try {
                 // Skip Testfiles
-                if (testRequestItem.data instanceof TestFile) {
+                if (TestData.get(testRequestItem) instanceof TestFile) {
                     continue
                 }
                 let testResult = pesterTestRunResultLookup.get(testRequestItem.id)

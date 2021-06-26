@@ -3,6 +3,7 @@
 
 import { join } from "path"
 import { Extension, ExtensionContext, TestController, TestItem, TestResultState, Uri } from "vscode"
+import { TestControllerData } from "./pesterTestController"
 import { IExternalPowerShellDetails, IPowerShellExtensionClient, PowerShellExtensionClient } from "./powershellExtensionClient"
 import { PowerShellRunner } from "./powershellRunner"
 
@@ -33,9 +34,9 @@ export class TestFile {
             uri.toString(),
             uri.path.split('/').pop()!,
             controller.root,
-            uri,
-            new TestFile(controller, uri) //Mostly a stub for type identification and methods
-        );
+            uri
+        )
+        TestData.set(file, new TestFile(controller, uri))
         file.canResolveChildren = true
         return file;
     }
@@ -43,7 +44,7 @@ export class TestFile {
     async discoverTests() {
         // HACK: Because the managed controller data type is returned as an <any>, we need to type assert it back to a TestRootContext
         // so that the return type is inferred correctly
-        const testRootContext: TestRootContext = this.controller.root.data
+        const testRootContext: TestRootContext = TestControllerData.get(this.controller.root)!
         return await testRootContext.discoverPesterTests([this.uri.fsPath], false)
     }
 }
@@ -53,7 +54,7 @@ export class TestFile {
  * @template TParent - What types this TestItem is allowed to have as a parent. TestFile should always have the controller root as a parent
  * @template TChild - What types this TestItem can have as a child. Leaf TestItems like test cases should specify 'never'
  */
-export interface TestItemOptions<T, TParent = any> {
+export interface TestItemOptions {
     /** Uniquely identifies the test. Can be anything but must be unique to the controller */
     id: string
     /** A label for the testItem. This is how it will appear in the test, explorer pane */
@@ -62,12 +63,10 @@ export interface TestItemOptions<T, TParent = any> {
     parent: string
     /** A resource URI that matches the physical location of this test */
     uri?: Uri
-    /** Custom data that never leaves this test */
-    data?: T
 }
 
 /** Represents a test that has been discovered by Pester. TODO: Separate suite definition maybe? */
-export interface TestDefinition extends TestItemOptions<TestTree, TestTree> {
+export interface TestDefinition extends TestItemOptions {
     startLine: number
     endLine: number
     file: string
@@ -76,8 +75,10 @@ export interface TestDefinition extends TestItemOptions<TestTree, TestTree> {
     tags?: string
 }
 
+export class TestDefinition {}
+
 /** The type used to represent a test run from the Pester runner, with additional status data */
-export interface TestResult extends TestItemOptions<TestTree, TestTree> {
+export interface TestResult extends TestItemOptions {
     result: TestResultState
     duration: number
     durationDetail: string
@@ -97,7 +98,7 @@ export class TestRootContext {
         public powerShellExtensionClient: PowerShellExtensionClient,
         public powerShellRunner: Promise<PowerShellRunner>,
         public psVersionDetails: IExternalPowerShellDetails,
-        public testController: TestController<TestRootContext>
+        public testController: TestController
     ) {}
 
     public static async create(testController: TestController,testExtensionContext: ExtensionContext, powerShellExtension: Extension<IPowerShellExtensionClient>) {
@@ -116,8 +117,6 @@ export class TestRootContext {
             testController
         )
     }
-
-
 
     /** Fetch the Pester Test json information for a particular path(s) */
     async getPesterTests<T>(path: string[], discoveryOnly?: boolean, testsOnly?: boolean) {

@@ -17,7 +17,7 @@
 			"outFiles": [
 				"${workspaceFolder}/out/**/*.js"
 			],
-			"preLaunchTask": "npm: watch",
+			"preLaunchTask": "npm: compile",
 			"smartStep": true,
 			"skipFiles": [
 				"C:/users/jgrote/AppData/Local/Programs/Microsoft VS Code Insiders/**/*.js",
