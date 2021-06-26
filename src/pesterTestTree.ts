@@ -5,6 +5,10 @@ import { join } from "path"
 import { Extension, ExtensionContext, TestController, TestItem, TestResultState, Uri } from "vscode"
 import { IExternalPowerShellDetails, IPowerShellExtensionClient, PowerShellExtensionClient } from "./powershellExtensionClient"
 import { PowerShellRunner } from "./powershellRunner"
+
+/** An association of test classes to their managed TestItem equivalents. Use this for custom data/metadata about a test */
+export const TestData = new WeakMap<TestItem, TestTree>()
+
 /** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
  * types and organization types such as suites
  */
@@ -15,17 +19,17 @@ export type TestTree = TestFile | TestDefinition
 */
 export class TestFile {
 
-    private constructor(private readonly controller: TestController<TestFile>, private readonly uri: Uri) {}
+    private constructor(private readonly controller: TestController, private readonly uri: Uri) {}
     get file() {return this.uri.fsPath}
     get startLine() {return undefined}
 
     /** Creates a managed TestItem entry in the controller if it doesn't exist, or returns the existing object if it does already exist */
-    static getOrCreate(controller: TestController<TestFile>, uri: Uri): TestItem<TestFile> {
+    static getOrCreate(controller: TestController, uri: Uri): TestItem {
         const existing = controller.root.children.get(uri.toString())
         if (existing) {
             return existing
         }
-        const file = controller.createTestItem<TestFile>(
+        const file = controller.createTestItem(
             uri.toString(),
             uri.path.split('/').pop()!,
             controller.root,
