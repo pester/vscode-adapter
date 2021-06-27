@@ -1,5 +1,6 @@
 import NodePowershell = require('node-powershell');
 import { randomBytes } from 'crypto'
+import { commands, debug, DebugConfiguration, workspace } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 
 
@@ -47,47 +48,88 @@ export class PowerShellRunner {
 
     /** Executes a Powershell Command and returns the output as objects */
     // TODO: Allow for a handler to handle the returned objects
-    async execPwshCommand(command: string, args?: string[]) {
+    async execPwshCommand(command: string, args?: string[], isDebug?: boolean) {
         const result = new Array<Object>()
         // The script will reply with objects to this pipe output. This is sort of like adding another stdout fd.
         // TODO: Move the pipe handling into this rather than require to script to implement it
         let receiveObjectEventHandler = this.replyServer!.onDidReceiveObject(
-            returnObject => result.push(returnObject)
+            returnObject => {
+                console.log("Named Pipe rcvd: ", returnObject)
+                result.push(returnObject)
+            }
         )
 
-        await this.shell.addCommand(command)
-        if (args) {
-            for (let arg of args) {
-                await this.shell.addArgument(arg)
+        if (isDebug) {
+            const debugConfig: DebugConfiguration = {
+                request: "launch",
+                type: "PowerShell",
+                name: "PowerShell Launch Pester Tests",
+                script: command,
+                args: args,
+                // We use the PSIC, not the vscode native debug console
+                internalConsoleOptions: "neverOpen",
+                // TODO: Update this deprecation to match with the paths in the arg?
+                cwd: workspace.rootPath!,
+                // FIXME: Temporary Test
+                noDebug: false,
+                // createTemporaryIntegratedConsole: settings.debugging.createTemporaryIntegratedConsole,
+                // cwd:
+                //     currentDocument.isUntitled
+                //         ? vscode.workspace.rootPath
+                //         : path.dirname(currentDocument.fileName),
+            }
+
+            // TODO: Make this disposal of the listener more specific
+
+            const endDebugHandler = debug.onDidTerminateDebugSession(() => {
+                receiveObjectEventHandler.dispose()
+                endDebugHandler.dispose()
+            })
+            commands.executeCommand("PowerShell.ShowSessionConsole", true);
+            await debug.startDebugging(debugConfig.cwd,debugConfig)
+            // TODO: Report completed debugging results
+
+        } else {
+            await this.shell.addCommand(command)
+            if (args) {
+                for (let arg of args) {
+                    await this.shell.addArgument(arg)
+                }
+            }
+            await this.shell.addParameter({PipeName: this.pipeName})
+            try {
+                const output = await this.shell.invoke()
+                if (output) {console.log("Pwsh Host Output: " + output)}
+                receiveObjectEventHandler.dispose()
+                return new PowershellRunnerResult(
+                    result,
+                    output,
+                    undefined
+                )
+            } catch (err) {
+                // TODO: VSCode Error
+                console.log(err)
+                receiveObjectEventHandler.dispose()
+                return new PowershellRunnerResult(
+                    undefined,
+                    undefined,
+                    err
+                )
             }
         }
-        await this.shell.addParameter({PipeName: this.pipeName})
 
-        try {
-            const output = await this.shell.invoke()
-            if (output) {console.log("Pwsh Host Output: " + output)}
-            receiveObjectEventHandler.dispose()
-            return new PowershellRunnerResult(
-                result,
-                output,
-                undefined
-            )
 
-        } catch (err) {
-            // TODO: VSCode Error
-            console.log(err)
-            receiveObjectEventHandler.dispose()
-            return new PowershellRunnerResult(
-                undefined,
-                undefined,
-                err
-            )
-        }
     }
 
     /** Executes a Powershell Script and returns the script output as a string */
-    async execPwshScriptFile(path: string, args?: string[]) {
-        return this.execPwshCommand(`. ${path}`, args)
+    async execPwshScriptFile(path: string, args?: string[], debug?: boolean) {
+        if (debug) {
+            // HACK: Probably should figure this out earlier
+            return this.execPwshCommand(path, args, debug)
+        } else {
+            return this.execPwshCommand(`. ${path}`, args, debug)
+        }
+
     }
     // TODO: Remove this if we choose not to reimplement our own runner instead of using node-powershell
     //

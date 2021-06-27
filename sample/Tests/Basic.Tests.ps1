@@ -7,7 +7,9 @@ Context 'Test' -Tag 'ContextTag','ContextTag2' {
 Describe 'Basic' {
 
     Context 'Succeeds' {
-        It 'True' { $true }
+        It 'True' {
+            $true
+        }
         It 'False' { $false }
         It 'ShouldBeTrue' { $true | Should -Be $true }
     }

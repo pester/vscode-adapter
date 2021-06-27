@@ -13,16 +13,16 @@ export async function CreatePesterTestController(
     // A pester test controller should only have testfiles at its root, whether physical files or in-progress documents
     // The generic type in this case represents the possible test item types that can be stored and would need to be updated
     // when a run starts
-    const testController = test.createTestController('pesterTestController')
+    const testController = test.createTestController(id)
     const testRoot = testController.root
     testRoot.label = id
 
     // We sort of abuse this data storage for semi-singletons like the PowershellRunner
+    // TODO: This should be a singleton so we can just make this a const outside the function
     TestControllerData.set(
         testRoot,
         await TestRootContext.create(testController,context,powershellExtension)
     )
-
 
     // Wire up testController handlers to the methods defined in our new class
     // For pester, this gets called on startup, so we use it to start watching for pester files using vscode
@@ -30,7 +30,7 @@ export async function CreatePesterTestController(
     // when the user clicks on a file they want to run tests from.
     // TODO: Setting to just scan everything, useful for other views
 
-    // Any testitem that goes to pending will flow through this method now
+    /** @inheritdoc */
     testController.resolveChildrenHandler = (item) => {
         // Indicates initial startup of the extension, so scan for files that match the pester extension
         if (item === testRoot) {
@@ -41,6 +41,7 @@ export async function CreatePesterTestController(
             }
             return
         }
+
         const testItem = TestData.get(item)
         if (!testItem) {throw new Error('No matching testItem data found. This is a bug')}
         // We use data as a sort of "type proxy" because we can't really test type on generics directly
@@ -63,6 +64,7 @@ export async function CreatePesterTestController(
                     )
                     newTestItem.range = new Range(testItem.startLine,0,testItem.endLine,0)
                     newTestItem.description = testItem.tags ? testItem.tags : undefined
+                    newTestItem.debuggable = true
                     TestData.set(newTestItem, testItem)
                     testItemLookup.set(newTestItem.id, newTestItem)
                 }
@@ -74,6 +76,7 @@ export async function CreatePesterTestController(
 
     testController.runHandler = async (request, token) => {
         const run = testController.createTestRun(request)
+        if (request.debug) {console.log("Debugging was requested")}
         // TODO: Maybe? Determine if a child of a summary block is excluded
         // TODO: Check if a child of a describe/context can be excluded, for now add warning that child hidden tests may still run
         // TODO: De-Duplicate children that can be consolidated into a higher line, this is probably not necessary.
@@ -102,15 +105,15 @@ export async function CreatePesterTestController(
             const testData = TestData.get(testItem)
             if (!testData) {throw new Error("testItem not found in testData. This is a bug.")}
             const testLine = testData.startLine
-            ? [testData.file, testData.startLine+1].join(':')
-            : testData.file
+                ? [testData.file, testData.startLine+1].join(':')
+                : testData.file
             testsToRun.push(testLine)
         })
 
         // TODO: Use a queue instead to line these up like the test example
         request.tests.map(testItem => run.setState(testItem,TestResultState.Running))
         const testRootContext = TestControllerData.get(testController.root)!
-        const pesterTestRunResult = await testRootContext.runPesterTests(testsToRun, false)
+        const pesterTestRunResult = await testRootContext.runPesterTests(testsToRun, false, request.debug)
 
 
         // Make this easier to query by putting the IDs in a map so we dont have to iterate an array constantly.

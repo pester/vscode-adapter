@@ -30,15 +30,16 @@ export class TestFile {
         if (existing) {
             return existing
         }
-        const file = controller.createTestItem(
+        const fileTestItem = controller.createTestItem(
             uri.toString(),
             uri.path.split('/').pop()!,
             controller.root,
             uri
         )
-        TestData.set(file, new TestFile(controller, uri))
-        file.canResolveChildren = true
-        return file;
+        fileTestItem.debuggable = true
+        TestData.set(fileTestItem, new TestFile(controller, uri))
+        fileTestItem.canResolveChildren = true
+        return fileTestItem;
     }
 
     async discoverTests() {
@@ -119,7 +120,7 @@ export class TestRootContext {
     }
 
     /** Fetch the Pester Test json information for a particular path(s) */
-    async getPesterTests<T>(path: string[], discoveryOnly?: boolean, testsOnly?: boolean) {
+    async getPesterTests<T>(path: string[], discoveryOnly?: boolean, testsOnly?: boolean, debug?: boolean) {
         const scriptFolderPath = join(this.testExtensionContext.extension.extensionPath, 'Scripts')
         const scriptPath = join(scriptFolderPath, 'PesterInterface.ps1')
         let scriptArgs = Array<string>()
@@ -132,7 +133,9 @@ export class TestRootContext {
         try {
             const runner = await this.powerShellRunner
             // TODO: Need validation here
-            const runnerResult = await runner.execPwshScriptFile(scriptPath,scriptArgs)
+            const runnerResult = await runner.execPwshScriptFile(scriptPath,scriptArgs,debug)
+            // TODO: Better error handling
+            if (!runnerResult) {return new Array<T>()}
             console.log('Objects received from Pester',runnerResult.result)
             const result:T[] = runnerResult.result as T[]
 
@@ -154,8 +157,8 @@ export class TestRootContext {
         return this.getPesterTests<TestDefinition>(path, true, testsOnly)
     }
     /** Run Pester Tests and retrieve the results */
-    async runPesterTests(path: string[], testsOnly?: boolean) {
-        return this.getPesterTests<TestResult>(path, false, testsOnly)
+    async runPesterTests(path: string[], testsOnly?: boolean, debug?: boolean) {
+        return this.getPesterTests<TestResult>(path, false, testsOnly, debug)
     }
 
 }
