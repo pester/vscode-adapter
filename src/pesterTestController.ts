@@ -84,6 +84,9 @@ export async function CreatePesterTestController(
         for (const testItem of request.tests) {
             const testData = TestData.get(testItem)
             if (!testData) {throw new Error("testItem not found in testData. This is a bug.")}
+
+            execChildren(testItem, item => item.busy = true)
+
             // Do a discovery on empty test files first. TODO: Probably a way to consolidate this with the runner so it doesn't run Pester twice
             if ((testData instanceof TestFile) && testItem.children.size === 0) {
                 // TODO: Fix when API stabilizes
@@ -117,13 +120,9 @@ export async function CreatePesterTestController(
             pesterTestRunResultLookup.set(testResultItem.id, testResultItem)
         )
 
-        const requestedTests = request.tests
-
-        // Include all relevant children
-        // TODO: Recurse for multiple levels
-        for (const testRequestItem of request.tests) {
-            requestedTests.push(...testRequestItem.children.values())
-        }
+        const requestedTests = request.tests.flatMap(
+            item => getAllChildren(item)
+        )
 
         for (const testRequestItem of requestedTests) {
             try {
@@ -142,6 +141,7 @@ export async function CreatePesterTestController(
                 }
 
                 run.setState(testRequestItem, testResult.result, testResult.duration)
+                execChildren(testRequestItem, item => item.busy = false)
 
                 // TODO: This is clumsy and should be a constructor/method on the TestData type perhaps
                 const message = testResult.message && testResult.expected && testResult.actual
@@ -166,7 +166,6 @@ export async function CreatePesterTestController(
             }
             // TODO: Add error metadata
         }
-
         run.end()
         // testsToRun.filter(testItem =>
         //     !request.exclude?.includes(testItem)
@@ -207,5 +206,27 @@ async function watchWorkspaces(testController: TestController, disposable: Dispo
             console.log("Detected Pester File: ",file.fsPath)
             TestFile.getOrCreate(testController, file)
         }
+    }
+}
+
+/** Recursively retrieve all the children of this item along with itself */
+function getAllChildren(parent: TestItem) {
+    const accumulator: TestItem[] = []
+    const queue = [parent]
+    while (queue.length) {
+        const item = queue.shift()!;
+        accumulator.push(item)
+        queue.push(...item.children.values())
+    }
+    return accumulator
+}
+
+/** Runs the specified function on this item and all its children, if present */
+async function execChildren(parent: TestItem, fn: (child: TestItem) => void) {
+    const queue = [parent]
+    while (queue.length) {
+        const item = queue.shift()!;
+        fn(item)
+        queue.push(...item.children.values())
     }
 }
