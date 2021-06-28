@@ -1,5 +1,5 @@
 import { ExtensionContext } from 'vscode'
-import { CreatePesterTestController } from './pesterTestController'
+import { PesterTestController } from './pesterTestController'
 import { getPowershellExtension } from './powershellExtensionClient'
 
 export async function activate(context: ExtensionContext) {
@@ -9,9 +9,7 @@ export async function activate(context: ExtensionContext) {
   // Short circuit this activate call if we didn't find a Powershell Extension. Another activate will be triggered once
   // the powershell extension is available
   if (!powershellExtension) {return}
-
   context.subscriptions.push(
-    await CreatePesterTestController(powershellExtension, context)
+    new PesterTestController(powershellExtension,context)
   )
 }
-

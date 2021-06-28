@@ -3,11 +3,12 @@
 
 import { join } from "path"
 import { Extension, ExtensionContext, TestController, TestItem, TestResultState, Uri } from "vscode"
-import { TestControllerData } from "./pesterTestController"
 import { IExternalPowerShellDetails, IPowerShellExtensionClient, PowerShellExtensionClient } from "./powershellExtensionClient"
 import { PowerShellRunner } from "./powershellRunner"
 
-/** An association of test classes to their managed TestItem equivalents. Use this for custom data/metadata about a test */
+/** An association of test classes to their managed TestItem equivalents. Use this for custom data/metadata about a test
+ * because we cannot store it in the managed objects we get from the Test API
+*/
 export const TestData = new WeakMap<TestItem, TestTree>()
 
 /** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
@@ -23,6 +24,11 @@ export class TestFile {
     private constructor(private readonly controller: TestController, private readonly uri: Uri) {}
     get file() {return this.uri.fsPath}
     get startLine() {return undefined}
+    get testItem() {
+        const testItem = this.controller.root.children.get(this.uri.toString())
+        if (!testItem) {throw new Error('No associated test item for testfile:' + this.uri + '. This is a bug.')}
+        return testItem
+    }
 
     /** Creates a managed TestItem entry in the controller if it doesn't exist, or returns the existing object if it does already exist */
     static getOrCreate(controller: TestController, uri: Uri): TestItem {
@@ -45,8 +51,11 @@ export class TestFile {
     async discoverTests() {
         // HACK: Because the managed controller data type is returned as an <any>, we need to type assert it back to a TestRootContext
         // so that the return type is inferred correctly
-        const testRootContext: TestRootContext = TestControllerData.get(this.controller.root)!
-        return await testRootContext.discoverPesterTests([this.uri.fsPath], false)
+        // const testRootContext: TestRootContext = TestControllerData.get(this.controller.root)!
+        this.testItem.busy = true
+        // Ask the controller to run tests, then also register a callback that this is done scanning.
+        // return await testRootContext.discoverPesterTestsFromFile(this)
+        this.testItem.busy = false
     }
 }
 
@@ -76,7 +85,9 @@ export interface TestDefinition extends TestItemOptions {
     tags?: string
 }
 
-export class TestDefinition {}
+export class TestDefinition {
+
+}
 
 /** The type used to represent a test run from the Pester runner, with additional status data */
 export interface TestResult extends TestItemOptions {
@@ -152,9 +163,13 @@ export class TestRootContext {
         }
     }
 
-    /** Retrieve Pester Test information without actually running them */
-    async discoverPesterTests(path: string[], testsOnly?: boolean) {
-        return this.getPesterTests<TestDefinition>(path, true, testsOnly)
+    /** Run a pester test discovery and update the provided TestFiles
+     *
+     * Returns a Promise that completes when discovery is complete
+    */
+    async discoverPesterTestsFromFile(testFile: TestFile) {
+
+        // return this.getPesterTests<TestDefinition>(path, true, testsOnly)
     }
     /** Run Pester Tests and retrieve the results */
     async runPesterTests(path: string[], testsOnly?: boolean, debug?: boolean) {
