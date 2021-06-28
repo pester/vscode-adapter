@@ -360,8 +360,6 @@ function Invoke-Main {
         # This will replace the standard Out-Default and allow us to tee json results to a named pipe for the extension to pick up.
         $SCRIPT:client = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
         $client.Connect(5000)
-        $client.IsConnected
-        Write-Host -Fore Magenta "IsConnected: $($client.IsConnected) ServerInstances: $($client.NumberOfServerInstances)"
         $writer = [System.IO.StreamWriter]::new($client)
 
 

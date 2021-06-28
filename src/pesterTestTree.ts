@@ -48,15 +48,7 @@ export class TestFile {
         return fileTestItem;
     }
 
-    async discoverTests() {
-        // HACK: Because the managed controller data type is returned as an <any>, we need to type assert it back to a TestRootContext
-        // so that the return type is inferred correctly
-        // const testRootContext: TestRootContext = TestControllerData.get(this.controller.root)!
-        this.testItem.busy = true
-        // Ask the controller to run tests, then also register a callback that this is done scanning.
-        // return await testRootContext.discoverPesterTestsFromFile(this)
-        this.testItem.busy = false
-    }
+
 }
 
 /**

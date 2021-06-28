@@ -1,6 +1,6 @@
 // Eventually something like this would go in an npm package
 
-import { Extension, ExtensionContext, extensions, window } from 'vscode'
+import { commands, debug, DebugConfiguration, Extension, ExtensionContext, extensions, Terminal, window, workspace } from 'vscode'
 import { activate } from './extension'
 
 export interface IPowerShellExtensionClient {
@@ -61,6 +61,71 @@ export class PowerShellExtensionClient {
      */
     public GetVersionDetails(): Thenable<IExternalPowerShellDetails> {
         return this.internalPowerShellExtensionClient.getPowerShellVersionDetails(this.sessionId as string)
+    }
+
+    /**
+     * Lazily fetches the current terminal instance of the Powershell Integrated Console or starts it if not present
+     */
+    public GetPowerShellIntegratedConsole = () => new Promise<Terminal>( resolve => {
+        const psic = window.terminals.find(t => t.name === 'PowerShell Integrated Console')
+
+        if (psic && psic.processId) {resolve(psic); return}
+
+        // Try starting up the PSIC. There is no "start" command, only restart, but if the above didn't work
+        // then we can feel pretty safe it wasn't running.
+        const waitForPsic = window.onDidOpenTerminal(terminal => {
+            if (terminal.name === 'Powershell Integrated Console') {
+                waitForPsic.dispose()
+                resolve(terminal)
+            }
+        })
+        commands.executeCommand('PowerShell.RestartSession')
+    })
+
+    public async RunCommand(command: string, args?: string[], isDebug?: boolean, onComplete?: (terminalData: string) => void){
+        const psic = window.terminals.find(t => t.name === 'PowerShell Integrated Console')
+        // This indirectly loads the PSES extension
+        const versionDeets = await this.GetVersionDetails()
+        console.log(versionDeets)
+
+        const debugConfig: DebugConfiguration = {
+            request: "launch",
+            type: "PowerShell",
+            name: "PowerShell Launch Pester Tests",
+            script: command,
+            args: args,
+            // We use the PSIC, not the vscode native debug console
+            internalConsoleOptions: "neverOpen",
+            // TODO: Update this deprecation to match with the paths in the arg?
+            cwd: workspace.rootPath!,
+            // FIXME: Temporary Test
+            noDebug: !isDebug,
+            // createTemporaryIntegratedConsole: settings.debugging.createTemporaryIntegratedConsole,
+            // cwd:
+            //     currentDocument.isUntitled
+            //         ? vscode.workspace.rootPath
+            //         : path.dirname(currentDocument.fileName),
+        }
+
+        // const endDebugHandler = debug.onDidTerminateDebugSession(() => {
+        //     receiveObjectEventHandler.dispose()
+        //     endDebugHandler.dispose()
+        // })
+        let terminalData: string = ''
+        const terminalDataEvent = window.onDidWriteTerminalData(e => {
+            if (e.terminal !== psic) {return}
+            terminalData += e.data
+        })
+        if (
+            !await debug.startDebugging(debugConfig.cwd,debugConfig)
+        ) throw new Error('Debug Session did not start as expected')
+
+        // TODO: Figure out how to "await" this and return it as a string
+        const stopDebugEvent = debug.onDidTerminateDebugSession(e => {
+            terminalDataEvent.dispose()
+            stopDebugEvent.dispose()
+            if (onComplete) {onComplete(terminalData)}
+        })
     }
 }
 

@@ -1,6 +1,9 @@
-import { Disposable, Extension, ExtensionContext, RelativePattern, test, TestController, TestItem, workspace } from 'vscode'
+import { join } from 'path'
+import { Disposable, Extension, ExtensionContext, Range, RelativePattern, test, TestController, TestItem, workspace } from 'vscode'
+import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import { TestData, TestDefinition, TestFile } from './pesterTestTree'
-import { IPowerShellExtensionClient } from './powershellExtensionClient'
+import { IPowerShellExtensionClient, PowerShellExtensionClient } from './powershellExtensionClient'
+import { PowerShellRunner } from './powershellRunner'
 
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
@@ -10,7 +13,9 @@ export class PesterTestController implements Disposable {
         private readonly powershellExtension: Extension<IPowerShellExtensionClient>,
         private readonly context: ExtensionContext,
         public readonly id: string = 'Pester',
-        public testController: TestController = test.createTestController(id)
+        public testController: TestController = test.createTestController(id),
+        private powerShellExtensionClient? : PowerShellExtensionClient,
+        private powerShellRunner? : PowerShellRunner
     ) {
         this.testController.root.label = id
 
@@ -27,10 +32,12 @@ export class PesterTestController implements Disposable {
     async initialize() {
         try {
             this.watchWorkspaces()
+            // TODO: Find out why this can't be done in scope of resolveChildrenHandler
         } catch (err) {
             throw new Error(err)
         }
     }
+
 
     /** The test controller API calls this whenever it needs to get the resolveChildrenHandler
      * for Pester, this is only relevant to TestFiles as this is pester's lowest level of test resolution
@@ -53,28 +60,71 @@ export class PesterTestController implements Disposable {
         if (testItemData instanceof TestFile) {
             // Run Pester and get tests
             console.log('Discovering Tests: ',testItem.id)
-            testItemData.discoverTests()
+
+            if (!this.powerShellExtensionClient) {
+                this.powerShellExtensionClient = await PowerShellExtensionClient.create(this.context,this.powershellExtension)
+            }
+
+
+            // Indicate the start of a discovery, will cause the UI to show a spinner
+            const scriptFolderPath = join(this.context.extension.extensionPath, 'Scripts')
+            const scriptPath = join(scriptFolderPath, 'PesterInterface.ps1')
+            let scriptArgs = new Array<string>()
+            // if (testsOnly) {scriptArgs.push('-TestsOnly')}
+            // if (discoveryOnly) {scriptArgs.push('-Discovery')}
+            scriptArgs.push('-Discovery')
+            // Add remaining search paths as arguments, these will be rolled up into the path parameter of the script
+            scriptArgs.push(testItemData.file)
+
+            // Wait for PSIC and named pipe handler to be available
+            await this.powerShellExtensionClient.GetVersionDetails()
+            // TODO: Base this on PSIC process ID
+            const pipeName = 'PesterTestAdapterReturnServer'
+            const returnServer = await DotnetNamedPipeServer.create(pipeName)
+            await returnServer.listen()
+            scriptArgs.push('-PipeName')
+            scriptArgs.push(pipeName)
+
+            // TODO: Wire this back up to the test adapter
+            const testItemLookup = new Map<string, TestItem>()
+
+            const runObjectListenEvent = returnServer.onDidReceiveObject(t => {
+                // TODO: This should be done before onDidReceiveObject maybe as a handler callback?
+                const testDef = t as TestDefinition
+                const parent = testItemLookup.get(testDef.parent) ?? testItem
+                const newTestItem = this.testController.createTestItem(
+                    testDef.id,
+                    testDef.label,
+                    parent,
+                    testDef.uri
+                )
+                newTestItem.range = new Range(testDef.startLine,0,testDef.endLine,0)
+                newTestItem.description = testDef.tags ? testDef.tags : undefined
+                newTestItem.debuggable = true
+                TestData.set(newTestItem, testDef)
+                testItemLookup.set(newTestItem.id, newTestItem)
+            })
+            await this.powerShellExtensionClient.RunCommand(scriptPath, scriptArgs, false, (terminalData) => {
+                runObjectListenEvent.dispose()
+            })
+
 
             // FIXME: Move this to a handler for incoming items
             // .then(tests => {
-            //     // Use a lookup as a temporary hierarchy workaround until a recursive lookup can be made
-            //     // TODO: A recursive child lookup is going to be needed now that things have switched to objects rather than IDs
-            //     const testItemLookup = new Map<string, TestItem>()
+                // Use a lookup as a temporary hierarchy workaround until a recursive lookup can be made
+                // TODO: A recursive child lookup is going to be needed now that things have switched to objects rather than IDs
+                // const testItemLookup = new Map<string, TestItem>()
 
             //     for (const testItem of tests) {
             //         // Default to the testFile if a deeper hierarchy is not found
-            //         const parent = testItemLookup.get(testItem.parent) ?? item
-            //         const newTestItem = testController.createTestItem(
-            //             testItem.id,
-            //             testItem.label,
-            //             parent,
-            //             testItem.uri
-            //         )
-            //         newTestItem.range = new Range(testItem.startLine,0,testItem.endLine,0)
-            //         newTestItem.description = testItem.tags ? testItem.tags : undefined
-            //         newTestItem.debuggable = true
-            //         TestData.set(newTestItem, testItem)
-            //         testItemLookup.set(newTestItem.id, newTestItem)
+                    // const parent = testItemLookup.get(testItem.parent) ?? item
+                    // const newTestItem = testController.createTestItem(
+                    //     testItem.id,
+                    //     testItem.label,
+                    //     parent,
+                    //     testItem.uri
+                    // )
+
             //     }
             // })
         } else {
@@ -82,6 +132,49 @@ export class PesterTestController implements Disposable {
         }
         // TODO: Watch for unsaved document changes and try invoke-pester on scriptblock
         testItem.busy = false
+    }
+
+    /**
+     * Scans the specified files for Pester Tests
+     *
+     * @param {TestItem[]} testFiles - Managed Test Items. These should always be files for Pester.
+     */
+    async discoverTests(testFiles: TestItem[]) {
+
+
+
+
+    //     // Lazy initialize the powershell runner so the filewatcher-based test finder works quickly
+    //     try {
+    //         const runner = await this.powerShellRunner
+    //         // TODO: Need validation here
+    //         const runnerResult = await runner.execPwshScriptFile(scriptPath,scriptArgs,debug)
+    //         // TODO: Better error handling
+    //         if (!runnerResult) {return new Array<T>()}
+    //         console.log('Objects received from Pester',runnerResult.result)
+    //         const result:T[] = runnerResult.result as T[]
+
+    //         // TODO: Refactor this using class-transformer https://github.com/typestack/class-transformer
+
+    //         // Coerce null/undefined into an empty arrayP
+    //         if (result == null || result == undefined) {return new Array<T>()}
+
+    //         // BUG: ConvertTo-Json in PS5.1 doesn't have a "-AsArray" and can return single objects which typescript doesn't catch.
+    //         if (!Array.isArray(result)) {throw 'Powershell script returned a single object that is not an array. This is a bug. Make sure you did not pipe to Convert-Json!'}
+    //         return result
+    //     } catch (err) {
+    //         throw new Error(err)
+    //     }
+    // }
+
+
+
+        // HACK: Because the managed controller data type is returned as an <any>, we need to type assert it back to a TestRootContext
+        // so that the return type is inferred correctly
+        // const testRootContext: TestRootContext = TestControllerData.get(this.controller.root)!
+        // Ask the controller to run tests, then also register a callback that this is done scanning.
+        // return await testRootContext.discoverPesterTestsFromFile(this)
+        testFiles.forEach(testItem => testItem.busy = false)
     }
 
     // async runHandler(request: TestRunRequest) {

@@ -27,7 +27,6 @@ export class DotnetNamedPipeServer {
         item.listener = createServer(stream => {
             const readLineClient = createInterface(stream)
             readLineClient.on("line", line => {
-                console.log("Named Pipe Server received message:",line)
                 const returnedObject = JSON.parse(line)
                 item._onDidReceiveObject.fire(returnedObject)
             })
