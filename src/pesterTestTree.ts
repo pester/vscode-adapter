@@ -1,10 +1,7 @@
 
 /** Represents a test result returned from pester, serialized into JSON */
 
-import { join } from "path"
-import { Extension, ExtensionContext, TestController, TestItem, TestResultState, Uri } from "vscode"
-import { IExternalPowerShellDetails, IPowerShellExtensionClient, PowerShellExtensionClient } from "./powershellExtensionClient"
-import { PowerShellRunner } from "./powershellRunner"
+import { TestController, TestItem, TestResultState, Uri } from "vscode"
 
 /** An association of test classes to their managed TestItem equivalents. Use this for custom data/metadata about a test
  * because we cannot store it in the managed objects we get from the Test API
@@ -47,8 +44,6 @@ export class TestFile {
         fileTestItem.canResolveChildren = true
         return fileTestItem;
     }
-
-
 }
 
 /**
@@ -94,78 +89,78 @@ export interface TestResult extends TestItemOptions {
     description?: string
 }
 
-/** Stores data for the test root, such as the shared Powershell Runner. It will derive all needed info from the Powershell Extension */
-export class TestRootContext {
-    private constructor(
-        public testExtensionContext: ExtensionContext,
-        public powerShellExtension: Extension<IPowerShellExtensionClient>,
-        public powerShellExtensionClient: PowerShellExtensionClient,
-        public powerShellRunner: Promise<PowerShellRunner>,
-        public psVersionDetails: IExternalPowerShellDetails,
-        public testController: TestController
-    ) {}
+// /** Stores data for the test root, such as the shared Powershell Runner. It will derive all needed info from the Powershell Extension */
+// export class TestRootContext {
+//     private constructor(
+//         public testExtensionContext: ExtensionContext,
+//         public powerShellExtension: Extension<IPowerShellExtensionClient>,
+//         public powerShellExtensionClient: PowerShellExtensionClient,
+//         public powerShellRunner: Promise<PowerShellRunner>,
+//         public psVersionDetails: IExternalPowerShellDetails,
+//         public testController: TestController
+//     ) {}
 
-    public static async create(testController: TestController,testExtensionContext: ExtensionContext, powerShellExtension: Extension<IPowerShellExtensionClient>) {
-        //TODO: Lazy load this at Pester Test Invocation
-        const pseClient = await PowerShellExtensionClient.create(testExtensionContext,powerShellExtension)
-        const psVersionDetails = await pseClient.GetVersionDetails()
-        //HACK: We need to remove .exe from the path because Node-Powershell will add it on
-        const psExePath = psVersionDetails.exePath.replace(new RegExp('\.exe$'), '')
-        const pseRunner = PowerShellRunner.create(psExePath)
-        return new TestRootContext(
-            testExtensionContext,
-            powerShellExtension,
-            pseClient,
-            pseRunner,
-            psVersionDetails,
-            testController
-        )
-    }
+//     public static async create(testController: TestController,testExtensionContext: ExtensionContext, powerShellExtension: Extension<IPowerShellExtensionClient>) {
+//         //TODO: Lazy load this at Pester Test Invocation
+//         const pseClient = await PowerShellExtensionClient.create(testExtensionContext,powerShellExtension)
+//         const psVersionDetails = await pseClient.GetVersionDetails()
+//         //HACK: We need to remove .exe from the path because Node-Powershell will add it on
+//         const psExePath = psVersionDetails.exePath.replace(new RegExp('\.exe$'), '')
+//         const pseRunner = PowerShellRunner.create(psExePath)
+//         return new TestRootContext(
+//             testExtensionContext,
+//             powerShellExtension,
+//             pseClient,
+//             pseRunner,
+//             psVersionDetails,
+//             testController
+//         )
+//     }
 
-    /** Fetch the Pester Test json information for a particular path(s) */
-    async getPesterTests<T>(path: string[], discoveryOnly?: boolean, testsOnly?: boolean, debug?: boolean) {
-        const scriptFolderPath = join(this.testExtensionContext.extension.extensionPath, 'Scripts')
-        const scriptPath = join(scriptFolderPath, 'PesterInterface.ps1')
-        let scriptArgs = Array<string>()
-        if (testsOnly) {scriptArgs.push('-TestsOnly')}
-        if (discoveryOnly) {scriptArgs.push('-Discovery')}
-        // Add remaining search paths as arguments, these will be rolled up into the path parameter of the script
-        scriptArgs.push(...path)
+//     /** Fetch the Pester Test json information for a particular path(s) */
+//     async getPesterTests<T>(path: string[], discoveryOnly?: boolean, testsOnly?: boolean, debug?: boolean) {
+//         const scriptFolderPath = join(this.testExtensionContext.extension.extensionPath, 'Scripts')
+//         const scriptPath = join(scriptFolderPath, 'PesterInterface.ps1')
+//         let scriptArgs = Array<string>()
+//         if (testsOnly) {scriptArgs.push('-TestsOnly')}
+//         if (discoveryOnly) {scriptArgs.push('-Discovery')}
+//         // Add remaining search paths as arguments, these will be rolled up into the path parameter of the script
+//         scriptArgs.push(...path)
 
-        // Lazy initialize the powershell runner so the filewatcher-based test finder works quickly
-        try {
-            const runner = await this.powerShellRunner
-            // TODO: Need validation here
-            const runnerResult = await runner.execPwshScriptFile(scriptPath,scriptArgs,debug)
-            // TODO: Better error handling
-            if (!runnerResult) {return new Array<T>()}
-            console.log('Objects received from Pester',runnerResult.result)
-            const result:T[] = runnerResult.result as T[]
+//         // Lazy initialize the powershell runner so the filewatcher-based test finder works quickly
+//         try {
+//             const runner = await this.powerShellRunner
+//             // TODO: Need validation here
+//             const runnerResult = await runner.execPwshScriptFile(scriptPath,scriptArgs,debug)
+//             // TODO: Better error handling
+//             if (!runnerResult) {return new Array<T>()}
+//             console.log('Objects received from Pester',runnerResult.result)
+//             const result:T[] = runnerResult.result as T[]
 
-            // TODO: Refactor this using class-transformer https://github.com/typestack/class-transformer
+//             // TODO: Refactor this using class-transformer https://github.com/typestack/class-transformer
 
-            // Coerce null/undefined into an empty arrayP
-            if (result == null || result == undefined) {return new Array<T>()}
+//             // Coerce null/undefined into an empty arrayP
+//             if (result == null || result == undefined) {return new Array<T>()}
 
-            // BUG: ConvertTo-Json in PS5.1 doesn't have a "-AsArray" and can return single objects which typescript doesn't catch.
-            if (!Array.isArray(result)) {throw 'Powershell script returned a single object that is not an array. This is a bug. Make sure you did not pipe to Convert-Json!'}
-            return result
-        } catch (err) {
-            throw new Error(err)
-        }
-    }
+//             // BUG: ConvertTo-Json in PS5.1 doesn't have a "-AsArray" and can return single objects which typescript doesn't catch.
+//             if (!Array.isArray(result)) {throw 'Powershell script returned a single object that is not an array. This is a bug. Make sure you did not pipe to Convert-Json!'}
+//             return result
+//         } catch (err) {
+//             throw new Error(err)
+//         }
+//     }
 
-    /** Run a pester test discovery and update the provided TestFiles
-     *
-     * Returns a Promise that completes when discovery is complete
-    */
-    async discoverPesterTestsFromFile(testFile: TestFile) {
+//     /** Run a pester test discovery and update the provided TestFiles
+//      *
+//      * Returns a Promise that completes when discovery is complete
+//     */
+//     async discoverPesterTestsFromFile(testFile: TestFile) {
 
-        // return this.getPesterTests<TestDefinition>(path, true, testsOnly)
-    }
-    /** Run Pester Tests and retrieve the results */
-    async runPesterTests(path: string[], testsOnly?: boolean, debug?: boolean) {
-        return this.getPesterTests<TestResult>(path, false, testsOnly, debug)
-    }
+//         // return this.getPesterTests<TestDefinition>(path, true, testsOnly)
+//     }
+//     /** Run Pester Tests and retrieve the results */
+//     async runPesterTests(path: string[], testsOnly?: boolean, debug?: boolean) {
+//         return this.getPesterTests<TestResult>(path, false, testsOnly, debug)
+//     }
 
-}
+// }

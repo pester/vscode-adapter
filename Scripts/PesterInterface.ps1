@@ -9,7 +9,7 @@ param(
     [Parameter(ValueFromRemainingArguments)][String[]]$Path = $PWD,
     #Only return "It" Test Results and not the resulting hierarcy
     [Switch]$TestsOnly,
-    #Only return the test information, don't actually run them
+    #Only return the test information, don't actually run them. Also returns minimal output
     [Switch]$Discovery,
     #Only load the functions but don't execute anything. Used for testing.
     [Parameter(DontShow)][Switch]$LoadFunctionsOnly,
@@ -35,7 +35,6 @@ enum ResultStatus {
     Errored
     NotRun #Pester Specific, this should be ignored
 }
-
 
 function Merge-TestData () {
     #Produce a unified test Data object from this object and its parents
@@ -307,7 +306,7 @@ function Invoke-Main {
             PassThru = $true
         }
         Output = @{
-            Verbosity = 'Detailed'
+            Verbosity = if ($Discovery) {'None'} else {'Detailed'}
         }
     }
     if ($paths.Count) {
@@ -361,7 +360,6 @@ function Invoke-Main {
         $SCRIPT:client = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
         $client.Connect(5000)
         $writer = [System.IO.StreamWriter]::new($client)
-
 
         $testObjects.foreach{
             [string]$jsonObject = ConvertTo-Json $PSItem -Compress -Depth 1

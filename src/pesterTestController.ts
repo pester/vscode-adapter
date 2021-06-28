@@ -1,9 +1,8 @@
 import { join } from 'path'
-import { Disposable, Extension, ExtensionContext, Range, RelativePattern, test, TestController, TestItem, workspace } from 'vscode'
+import { Disposable, Extension, ExtensionContext, Range, RelativePattern, test, TestController, TestItem, TestRunRequest, workspace } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import { TestData, TestDefinition, TestFile } from './pesterTestTree'
 import { IPowerShellExtensionClient, PowerShellExtensionClient } from './powershellExtensionClient'
-import { PowerShellRunner } from './powershellRunner'
 
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
@@ -15,24 +14,28 @@ export class PesterTestController implements Disposable {
         public readonly id: string = 'Pester',
         public testController: TestController = test.createTestController(id),
         private powerShellExtensionClient? : PowerShellExtensionClient,
-        private powerShellRunner? : PowerShellRunner
+        private returnServer: DotnetNamedPipeServer = new DotnetNamedPipeServer(id + 'TestController-' + process.pid)
     ) {
         this.testController.root.label = id
 
         // wire up our custom handlers to the managed instance
         // HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
         testController.resolveChildrenHandler = testItem => this.resolveChildrenHandler(testItem)
-        // testController.runHandler = testItem => this.runHandler(testItem)
+        testController.runHandler = testItem => this.runHandler(testItem)
 
         // Tells the test controller to run resolveChildrenHandler() on the root
         testController.root.canResolveChildren = true
     }
 
     /** Start up the test controller. This includes watching all workspaces for Pester files */
+    private initialized: boolean = false
     async initialize() {
         try {
-            this.watchWorkspaces()
-            // TODO: Find out why this can't be done in scope of resolveChildrenHandler
+            await Promise.all([
+                this.watchWorkspaces(),
+                this.returnServer.listen()
+            ])
+            this.initialized = true
         } catch (err) {
             throw new Error(err)
         }
@@ -43,9 +46,11 @@ export class PesterTestController implements Disposable {
      * for Pester, this is only relevant to TestFiles as this is pester's lowest level of test resolution
      */
     private async resolveChildrenHandler(testItem: TestItem) {
-        // the test root being provided to this handler indicates initial startup of the extension
+        if (!this.initialized) {
+            await this.initialize()
+        }
+        // For the controller root, children are resolved via the watchers
         if (testItem === this.testController.root) {
-            this.initialize()
             return
         }
 
@@ -62,11 +67,15 @@ export class PesterTestController implements Disposable {
             console.log('Discovering Tests: ',testItem.id)
 
             if (!this.powerShellExtensionClient) {
-                this.powerShellExtensionClient = await PowerShellExtensionClient.create(this.context,this.powershellExtension)
+                this.powerShellExtensionClient = await PowerShellExtensionClient.create(
+                    this.context,
+                    this.powershellExtension
+                )
             }
 
-
             // Indicate the start of a discovery, will cause the UI to show a spinner
+            testItem.busy = true
+
             const scriptFolderPath = join(this.context.extension.extensionPath, 'Scripts')
             const scriptPath = join(scriptFolderPath, 'PesterInterface.ps1')
             let scriptArgs = new Array<string>()
@@ -76,19 +85,16 @@ export class PesterTestController implements Disposable {
             // Add remaining search paths as arguments, these will be rolled up into the path parameter of the script
             scriptArgs.push(testItemData.file)
 
-            // Wait for PSIC and named pipe handler to be available
+            // HACK: Calling this function indirectly starts/waits for PSIC to be available
             await this.powerShellExtensionClient.GetVersionDetails()
-            // TODO: Base this on PSIC process ID
-            const pipeName = 'PesterTestAdapterReturnServer'
-            const returnServer = await DotnetNamedPipeServer.create(pipeName)
-            await returnServer.listen()
+
             scriptArgs.push('-PipeName')
-            scriptArgs.push(pipeName)
+            scriptArgs.push(this.returnServer.name)
 
             // TODO: Wire this back up to the test adapter
             const testItemLookup = new Map<string, TestItem>()
 
-            const runObjectListenEvent = returnServer.onDidReceiveObject(t => {
+            const runObjectListenEvent = this.returnServer.onDidReceiveObject(t => {
                 // TODO: This should be done before onDidReceiveObject maybe as a handler callback?
                 const testDef = t as TestDefinition
                 const parent = testItemLookup.get(testDef.parent) ?? testItem
@@ -96,7 +102,7 @@ export class PesterTestController implements Disposable {
                     testDef.id,
                     testDef.label,
                     parent,
-                    testDef.uri
+                    testItem.uri
                 )
                 newTestItem.range = new Range(testDef.startLine,0,testDef.endLine,0)
                 newTestItem.description = testDef.tags ? testDef.tags : undefined
@@ -106,32 +112,13 @@ export class PesterTestController implements Disposable {
             })
             await this.powerShellExtensionClient.RunCommand(scriptPath, scriptArgs, false, (terminalData) => {
                 runObjectListenEvent.dispose()
+                // TODO: maybe promisify all the createTestItem actions and don't set this until they are done.
+                // This is probably only a slight visual bug if anything.
+                testItem.busy = false
             })
-
-
-            // FIXME: Move this to a handler for incoming items
-            // .then(tests => {
-                // Use a lookup as a temporary hierarchy workaround until a recursive lookup can be made
-                // TODO: A recursive child lookup is going to be needed now that things have switched to objects rather than IDs
-                // const testItemLookup = new Map<string, TestItem>()
-
-            //     for (const testItem of tests) {
-            //         // Default to the testFile if a deeper hierarchy is not found
-                    // const parent = testItemLookup.get(testItem.parent) ?? item
-                    // const newTestItem = testController.createTestItem(
-                    //     testItem.id,
-                    //     testItem.label,
-                    //     parent,
-                    //     testItem.uri
-                    // )
-
-            //     }
-            // })
         } else {
             throw new Error("TestItem received but did not recognize the type")
         }
-        // TODO: Watch for unsaved document changes and try invoke-pester on scriptblock
-        testItem.busy = false
     }
 
     /**
@@ -177,7 +164,9 @@ export class PesterTestController implements Disposable {
         testFiles.forEach(testItem => testItem.busy = false)
     }
 
-    // async runHandler(request: TestRunRequest) {
+    async runHandler(request: TestRunRequest) {
+        console.log(request)
+    }
     //     const run = this.testController.createTestRun(request)
     //     if (request.debug) {console.log("Debugging was requested")}
     //     // TODO: Maybe? Determine if a child of a summary block is excluded
@@ -296,13 +285,19 @@ export class PesterTestController implements Disposable {
         for (const workspaceFolder of workspace.workspaceFolders) {
             const pattern = new RelativePattern(workspaceFolder, '**/*.[tT]ests.[pP][sS]1')
             const testWatcher = workspace.createFileSystemWatcher(pattern)
-            // Test files will subscribe to this and update themselves if they see a change
-            // TODO: Maybe have each test register its own filewatcher?
 
             testWatcher.onDidCreate(uri => TestFile.getOrCreate(testController, uri),undefined,disposable)
-            testWatcher.onDidDelete(uri => testController.root.children.get(uri.toString())?.dispose(),undefined,disposable)
-            // const contentChange = new EventEmitter<Uri>()
-            // TODO: testWatcher.onDidChange(uri => contentChange.fire(uri));
+            // In both these cases we can somewhat safely assume the file will already be known, hence the ! used
+            testWatcher.onDidDelete(uri => TestFile.getOrCreate(testController, uri).dispose(),undefined,disposable)
+            testWatcher.onDidChange(uri => this.testController.resolveChildrenHandler!(TestFile.getOrCreate(testController, uri)))
+
+            // TODO: Make this a setting
+            const isPesterTestFile = /\.[tT]ests\.[pP][sS]1$/
+
+            workspace.onDidOpenTextDocument(e => {
+                if (!isPesterTestFile.test(e.fileName)) {return}
+                this.testController.resolveChildrenHandler!(TestFile.getOrCreate(testController, e.uri))
+            })
 
             const files = await workspace.findFiles(pattern)
             for (const file of files) {
@@ -312,7 +307,10 @@ export class PesterTestController implements Disposable {
         }
     }
 
-    dispose() {this.testController.dispose()}
+    dispose() {
+        this.testController.dispose()
+        this.returnServer.dispose()
+    }
 
 }
 

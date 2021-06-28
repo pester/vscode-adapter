@@ -3,35 +3,30 @@ import { createServer, Server } from 'net'
 import { platform, tmpdir } from 'os'
 import { join } from 'path'
 import { createInterface } from 'readline'
-import { EventEmitter } from 'vscode'
+import { Disposable, EventEmitter } from 'vscode'
 
 /** Provides a simple server listener to a .NET named pipe. This is useful as a IPC method to child processes like a Powershell Script */
-export class DotnetNamedPipeServer {
-    private listener!: Server
+export class DotnetNamedPipeServer implements Disposable {
     // We will use this emitter to notify any subscribers of new objects to process
     // TODO: Tighten up the types here
     // TODO: Optionally skip the json processing?
     // TODO: Make this not depend on vscode and use a general eventEmitter, then make an inherited class that is vscode specific
-    public _onDidReceiveObject = new EventEmitter<Object>();
+    private readonly _onDidReceiveObject = new EventEmitter<Object>();
     get onDidReceiveObject() {
 		return this._onDidReceiveObject.event
 	}
 
+    private readonly listener: Server
     constructor(
-        public name: string,
-    ) {}
-
-    /** Initialize a named pipe server with the specified name. Returns a promise that completes when the server is ready */
-    static async create(name: string) {
-        const item = new DotnetNamedPipeServer(name)
-        item.listener = createServer(stream => {
+        public name: string = 'NodeNamedPipe-' + Math.random().toString(36)
+    ) {
+        this.listener = createServer(stream => {
             const readLineClient = createInterface(stream)
             readLineClient.on("line", line => {
                 const returnedObject = JSON.parse(line)
-                item._onDidReceiveObject.fire(returnedObject)
+                this._onDidReceiveObject.fire(returnedObject)
             })
         })
-        return item
     }
 
     async listen() {
@@ -55,5 +50,9 @@ export class DotnetNamedPipeServer {
             // This requires connecting to the pipe file in different locations on Windows vs non-Windows.
             return join(tmpdir(), pipeName);
         }
+    }
+
+    dispose() {
+        this.listener.close()
     }
 }

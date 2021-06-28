@@ -1,6 +1,6 @@
 // Eventually something like this would go in an npm package
 
-import { commands, debug, DebugConfiguration, Extension, ExtensionContext, extensions, Terminal, window, workspace } from 'vscode'
+import { debug, DebugConfiguration, Extension, ExtensionContext, extensions, window, workspace } from 'vscode'
 import { activate } from './extension'
 
 export interface IPowerShellExtensionClient {
@@ -66,27 +66,14 @@ export class PowerShellExtensionClient {
     /**
      * Lazily fetches the current terminal instance of the Powershell Integrated Console or starts it if not present
      */
-    public GetPowerShellIntegratedConsole = () => new Promise<Terminal>( resolve => {
-        const psic = window.terminals.find(t => t.name === 'PowerShell Integrated Console')
-
-        if (psic && psic.processId) {resolve(psic); return}
-
-        // Try starting up the PSIC. There is no "start" command, only restart, but if the above didn't work
-        // then we can feel pretty safe it wasn't running.
-        const waitForPsic = window.onDidOpenTerminal(terminal => {
-            if (terminal.name === 'Powershell Integrated Console') {
-                waitForPsic.dispose()
-                resolve(terminal)
-            }
-        })
-        commands.executeCommand('PowerShell.RestartSession')
-    })
+    public GetPowerShellIntegratedConsole() {
+        return window.terminals.find(t => t.name === 'PowerShell Integrated Console')
+    }
 
     public async RunCommand(command: string, args?: string[], isDebug?: boolean, onComplete?: (terminalData: string) => void){
-        const psic = window.terminals.find(t => t.name === 'PowerShell Integrated Console')
         // This indirectly loads the PSES extension
-        const versionDeets = await this.GetVersionDetails()
-        console.log(versionDeets)
+        await this.GetVersionDetails()
+        const psic = this.GetPowerShellIntegratedConsole()
 
         const debugConfig: DebugConfiguration = {
             request: "launch",
