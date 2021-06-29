@@ -60,6 +60,8 @@ export interface TestItemOptions {
     parent: string
     /** A resource URI that matches the physical location of this test */
     uri?: Uri
+    /** TODO: A temporary type hint until I do a better serialization method */
+    type?: string
 }
 
 /** Represents a test that has been discovered by Pester. TODO: Separate suite definition maybe? */

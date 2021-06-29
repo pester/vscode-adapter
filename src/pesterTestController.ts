@@ -1,7 +1,7 @@
 import { join } from 'path'
-import { Disposable, Extension, ExtensionContext, Range, RelativePattern, test, TestController, TestItem, TestRunRequest, workspace } from 'vscode'
+import { Disposable, Extension, ExtensionContext, Location, Position, Range, RelativePattern, test, TestController, TestItem, TestMessage, TestResultState, TestRunRequest, Uri, window, workspace } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
-import { TestData, TestDefinition, TestFile } from './pesterTestTree'
+import { TestData, TestDefinition, TestFile, TestResult } from './pesterTestTree'
 import { IPowerShellExtensionClient, PowerShellExtensionClient } from './powershellExtensionClient'
 
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
@@ -62,63 +62,157 @@ export class PesterTestController implements Disposable {
             console.log(`WARNING: Received a test definition ${testItemData.id} to resolve. Should not happen`)
         }
 
+        // TODO: Wire this back up to the test adapter
+        const testItemLookup = new Map<string, TestItem>()
+        const testItemDiscoveryHandler = (t: object) => {
+            // TODO: This should be done before onDidReceiveObject maybe as a handler callback?
+            const testDef = t as TestDefinition
+            const parent = testItemLookup.get(testDef.parent) ?? testItem
+            const newTestItem = this.testController.createTestItem(
+                testDef.id,
+                testDef.label,
+                parent,
+                testItem.uri
+            )
+            newTestItem.range = new Range(testDef.startLine,0,testDef.endLine,0)
+            newTestItem.description = testDef.tags ? testDef.tags : undefined
+            newTestItem.debuggable = true
+            TestData.set(newTestItem, testDef)
+            testItemLookup.set(newTestItem.id, newTestItem)
+        }
+
+        // Indicate the start of a discovery, will cause the UI to show a spinner
+        testItem.busy = true
         if (testItemData instanceof TestFile) {
             // Run Pester and get tests
             console.log('Discovering Tests: ',testItem.id)
 
-            if (!this.powerShellExtensionClient) {
-                this.powerShellExtensionClient = await PowerShellExtensionClient.create(
-                    this.context,
-                    this.powershellExtension
-                )
-            }
-
-            // Indicate the start of a discovery, will cause the UI to show a spinner
-            testItem.busy = true
-
-            const scriptFolderPath = join(this.context.extension.extensionPath, 'Scripts')
-            const scriptPath = join(scriptFolderPath, 'PesterInterface.ps1')
-            let scriptArgs = new Array<string>()
-            // if (testsOnly) {scriptArgs.push('-TestsOnly')}
-            // if (discoveryOnly) {scriptArgs.push('-Discovery')}
-            scriptArgs.push('-Discovery')
-            // Add remaining search paths as arguments, these will be rolled up into the path parameter of the script
-            scriptArgs.push(testItemData.file)
-
-            // HACK: Calling this function indirectly starts/waits for PSIC to be available
-            await this.powerShellExtensionClient.GetVersionDetails()
-
-            scriptArgs.push('-PipeName')
-            scriptArgs.push(this.returnServer.name)
-
-            // TODO: Wire this back up to the test adapter
-            const testItemLookup = new Map<string, TestItem>()
-
-            const runObjectListenEvent = this.returnServer.onDidReceiveObject(t => {
-                // TODO: This should be done before onDidReceiveObject maybe as a handler callback?
-                const testDef = t as TestDefinition
-                const parent = testItemLookup.get(testDef.parent) ?? testItem
-                const newTestItem = this.testController.createTestItem(
-                    testDef.id,
-                    testDef.label,
-                    parent,
-                    testItem.uri
-                )
-                newTestItem.range = new Range(testDef.startLine,0,testDef.endLine,0)
-                newTestItem.description = testDef.tags ? testDef.tags : undefined
-                newTestItem.debuggable = true
-                TestData.set(newTestItem, testDef)
-                testItemLookup.set(newTestItem.id, newTestItem)
-            })
-            await this.powerShellExtensionClient.RunCommand(scriptPath, scriptArgs, false, (terminalData) => {
-                runObjectListenEvent.dispose()
-                // TODO: maybe promisify all the createTestItem actions and don't set this until they are done.
-                // This is probably only a slight visual bug if anything.
-                testItem.busy = false
-            })
+            // For discovery we discard the terminal output
+            await this.startPesterInterface(
+                [testItem],
+                testItemDiscoveryHandler,
+                true
+            )
         } else {
             throw new Error("TestItem received but did not recognize the type")
         }
+        testItem.busy = false
+    }
+
+
+    /** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
+    private async runHandler(request: TestRunRequest) {
+        if (!this.initialized) {
+            await this.initialize()
+        }
+        const run = this.testController.createTestRun(request)
+        if (request.debug) {console.log("Debugging was requested")}
+        if (request.exclude?.length) {
+            window.showWarningMessage("Pester: Hiding tests is currently not supported. The tests will still be run but their status will be suppressed")
+        }
+        for (const testItem of request.tests) {
+            const testData = TestData.get(testItem)
+            if (!testData) {throw new Error("testItem not found in testData. This is a bug.")}
+
+            // TODO: Fix when API stabilizes
+            if ((testData instanceof TestFile) && testItem.children.size === 0) {
+                window.showWarningMessage('TEMPORARY: You must expand a test file at least once before you run it')
+                run.end()
+                return
+            }
+            execChildren(testItem, item => run.setState(item,TestResultState.Queued))
+        }
+        const testReturnAccumulator = new Array<TestItem>()
+        const runResultHandler = (item: Object) => {
+            const testResult = item as TestResult
+            // Skip Test Suites for now, focus on test results
+            if (testResult.type === 'Block') {return}
+
+            // We may have received more results than we had runners due to test cases and summaries, go ahead
+            // and process all returned results
+            const testRequestItem = this.getTestItemById(testResult.id)
+            if (!testRequestItem) {throw new Error(`Test Result with ID ${testResult.id} doesn't exist in the controller test tree. This is a bug`)}
+
+            run.setState(testRequestItem, testResult.result, testResult.duration)
+
+            // TODO: This is clumsy and should be a constructor/method on the TestData type perhaps
+            const message = testResult.message && testResult.expected && testResult.actual
+                ? TestMessage.diff(
+                        testResult.message,
+                        testResult.expected,
+                        testResult.actual
+                    )
+                : new TestMessage(testResult.message)
+            if (testResult.targetFile != undefined && testResult.targetLine != undefined) {
+                message.location = new Location(
+                    Uri.file(testResult.targetFile),
+                    new Position(testResult.targetLine, 0)
+                )
+            }
+            if (message.message) {
+                run.appendMessage(testRequestItem, message)
+            }
+            testReturnAccumulator.push(testRequestItem)
+        }
+
+        request.tests.forEach(testItem => execChildren(testItem, item => run.setState(item,TestResultState.Running)))
+        const terminalOutput = await this.startPesterInterface(request.tests,runResultHandler,false,true)
+        run.appendOutput(terminalOutput)
+        run.end()
+    }
+
+
+
+    /** Runs pester in the PSIC. Results will be sent via a named pipe and handled as events
+     * Returns a promise that completes with the terminal output during the pester run
+     * returnHandler will run on each object that comes back from the Pester Interface
+    */
+    // TODO: Mutex or otherwise await so that this can only happen one at a time?
+    private async startPesterInterface(
+        testItems: TestItem[],
+        returnHandler: (event: Object) => void,
+        discovery?: boolean,
+        debug?: boolean,
+    ) {
+
+        // Derive Pester-friendly test line identifiers from the testItem info
+        const testsToRun = testItems.map(testItem => {
+            if (!testItem.uri) {throw new Error('TestItem did not have a URI. For pester, this is a bug')}
+            const fsPath = testItem.uri.fsPath
+            const testLine = testItem.range?.start.line
+                ? [fsPath, testItem.range.start.line+1].join(':')
+                : fsPath
+            return testLine
+        })
+
+        const scriptFolderPath = join(this.context.extension.extensionPath, 'Scripts')
+        const scriptPath = join(scriptFolderPath, 'PesterInterface.ps1')
+        const scriptArgs = new Array<string>()
+        if (discovery) {scriptArgs.push('-Discovery')}
+
+        scriptArgs.push('-PipeName')
+        scriptArgs.push(this.returnServer.name)
+        scriptArgs.push(...testsToRun)
+
+        if (!this.powerShellExtensionClient) {
+            this.powerShellExtensionClient = await PowerShellExtensionClient.create(
+                this.context,
+                this.powershellExtension
+            )
+        }
+
+        const runObjectListenEvent = this.returnServer.onDidReceiveObject(returnHandler)
+
+        // HACK: Calling this function indirectly starts/waits for PSIC to be available
+        await this.powerShellExtensionClient.GetVersionDetails()
+
+        // No idea if this will work or not
+        const terminalData = new Promise<string>(resolve => this.powerShellExtensionClient!.RunCommand(scriptPath, scriptArgs, debug, (terminalData) => {
+            runObjectListenEvent.dispose()
+            console.log("Terminal Results",terminalData)
+            return resolve(terminalData)
+        }))
+        return terminalData
     }
 
     /**
@@ -126,11 +220,7 @@ export class PesterTestController implements Disposable {
      *
      * @param {TestItem[]} testFiles - Managed Test Items. These should always be files for Pester.
      */
-    async discoverTests(testFiles: TestItem[]) {
-
-
-
-
+    // async discoverTests(testFiles: TestItem[]) {
     //     // Lazy initialize the powershell runner so the filewatcher-based test finder works quickly
     //     try {
     //         const runner = await this.powerShellRunner
@@ -153,54 +243,13 @@ export class PesterTestController implements Disposable {
     //         throw new Error(err)
     //     }
     // }
-
-
-
         // HACK: Because the managed controller data type is returned as an <any>, we need to type assert it back to a TestRootContext
         // so that the return type is inferred correctly
         // const testRootContext: TestRootContext = TestControllerData.get(this.controller.root)!
         // Ask the controller to run tests, then also register a callback that this is done scanning.
         // return await testRootContext.discoverPesterTestsFromFile(this)
-        testFiles.forEach(testItem => testItem.busy = false)
-    }
+    // }
 
-    async runHandler(request: TestRunRequest) {
-        console.log(request)
-    }
-    //     const run = this.testController.createTestRun(request)
-    //     if (request.debug) {console.log("Debugging was requested")}
-    //     // TODO: Maybe? Determine if a child of a summary block is excluded
-    //     // TODO: Check if a child of a describe/context can be excluded, for now add warning that child hidden tests may still run
-    //     // TODO: De-Duplicate children that can be consolidated into a higher line, this is probably not necessary.
-    //     if (request.exclude?.length) {
-    //         window.showWarningMessage("Pester: Hiding tests is currently not supported. The tests will still be run but their status will be suppressed")
-    //     }
-
-    //     for (const testItem of request.tests) {
-    //         const testData = TestData.get(testItem)
-    //         if (!testData) {throw new Error("testItem not found in testData. This is a bug.")}
-
-    //         execChildren(testItem, item => item.busy = true)
-
-    //         // Do a discovery on empty test files first. TODO: Probably a way to consolidate this with the runner so it doesn't run Pester twice
-    //         if ((testData instanceof TestFile) && testItem.children.size === 0) {
-    //             // TODO: Fix when API stabilizes
-    //             window.showWarningMessage('TEMPORARY: You must expand a test file at least once before you run it')
-    //             run.end()
-    //             return
-    //         }
-    //         run.setState(testItem,TestResultState.Queued)
-    //     }
-
-    //     const testsToRun: string[] = []
-    //     request.tests.map(testItem => {
-    //         const testData = TestData.get(testItem)
-    //         if (!testData) {throw new Error("testItem not found in testData. This is a bug.")}
-    //         const testLine = testData.startLine
-    //             ? [testData.file, testData.startLine+1].join(':')
-    //             : testData.file
-    //         testsToRun.push(testLine)
-    //     })
 
     //     // TODO: Use a queue instead to line these up like the test example
     //     request.tests.map(testItem => run.setState(testItem,TestResultState.Running))
@@ -307,6 +356,17 @@ export class PesterTestController implements Disposable {
         }
     }
 
+    /** Find a TestItem by its ID in the TestItem tree hierarchy of this controller */
+    // TODO: Maybe build a lookup cache that is populated as items are added
+    getTestItemById(id: string) {
+        const queue = [... this.testController.root.children.values()];
+        while (queue.length) {
+            const item = queue.shift()!
+            if (item.id === id) {return item}
+            queue.push(...item.children.values())
+        }
+    }
+
     dispose() {
         this.testController.dispose()
         this.returnServer.dispose()
@@ -328,6 +388,8 @@ function expandAllChildren(parent: TestItem) {
     }
     return accumulator
 }
+
+
 
 /** Runs the specified function on this item and all its children, if present */
 async function execChildren(parent: TestItem, fn: (child: TestItem) => void) {
