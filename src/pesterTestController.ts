@@ -105,12 +105,18 @@ export class PesterTestController implements Disposable {
         if (!this.initialized) {
             await this.initialize()
         }
+        // Pester doesn't understand a "root" test so get all files registered to the controller instead
+        const testFiles = request.tests[0] === this.testController.root
+            ? Array.from(this.testController.root.children.values())
+            : request.tests
+
         const run = this.testController.createTestRun(request)
         if (request.debug) {console.log("Debugging was requested")}
         if (request.exclude?.length) {
             window.showWarningMessage("Pester: Hiding tests is currently not supported. The tests will still be run but their status will be suppressed")
         }
-        for (const testItem of request.tests) {
+
+        for (const testItem of testFiles) {
             const testData = TestData.get(testItem)
             if (!testData) {throw new Error("testItem not found in testData. This is a bug.")}
 
@@ -155,8 +161,8 @@ export class PesterTestController implements Disposable {
             testReturnAccumulator.push(testRequestItem)
         }
 
-        request.tests.forEach(testItem => execChildren(testItem, item => run.setState(item,TestResultState.Running)))
-        const terminalOutput = await this.startPesterInterface(request.tests,runResultHandler,false,true)
+        testFiles.forEach(testItem => execChildren(testItem, item => run.setState(item,TestResultState.Running)))
+        const terminalOutput = await this.startPesterInterface(testFiles,runResultHandler,false,true)
         run.appendOutput(terminalOutput)
         run.end()
     }
