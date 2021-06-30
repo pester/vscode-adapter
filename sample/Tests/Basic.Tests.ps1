@@ -18,6 +18,7 @@ Describe 'Basic' {
         It 'ShouldThrow' { { $true } | Should -Throw }
         It 'ShouldBeTrue' { $false | Should -Be $true }
         It 'ShouldBeGreaterThan' { 1 | Should -BeGreaterThan 2 }
+        It 'ShouldBeTrueBecause' { $false | Should -BeTrue -Because 'True is True'}
     }
     It 'Describe-Level Succeeds' { $true | Should -Be $true }
     It 'Describe-Level Fails' { $true | Should -Be $false }

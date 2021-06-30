@@ -339,6 +339,7 @@ export class PesterTestController implements Disposable {
         }
         for (const workspaceFolder of workspace.workspaceFolders) {
             const pattern = new RelativePattern(workspaceFolder, '**/*.[tT]ests.[pP][sS]1')
+
             const testWatcher = workspace.createFileSystemWatcher(pattern)
 
             testWatcher.onDidCreate(uri => TestFile.getOrCreate(testController, uri),undefined,disposable)
