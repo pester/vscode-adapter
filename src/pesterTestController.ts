@@ -91,7 +91,8 @@ export class PesterTestController implements Disposable {
             await this.startPesterInterface(
                 [testItem],
                 testItemDiscoveryHandler,
-                true
+                true,
+                false
             )
         } else {
             throw new Error("TestItem received but did not recognize the type")
@@ -111,7 +112,6 @@ export class PesterTestController implements Disposable {
             : request.tests
 
         const run = this.testController.createTestRun(request)
-        if (request.debug) {console.log("Debugging was requested")}
         if (request.exclude?.length) {
             window.showWarningMessage("Pester: Hiding tests is currently not supported. The tests will still be run but their status will be suppressed")
         }
@@ -162,8 +162,11 @@ export class PesterTestController implements Disposable {
         }
 
         testFiles.forEach(testItem => execChildren(testItem, item => run.setState(item,TestResultState.Running)))
-        const terminalOutput = await this.startPesterInterface(testFiles,runResultHandler,false,true)
-        run.appendOutput(terminalOutput)
+        const terminalOutput = await this.startPesterInterface(testFiles,runResultHandler,false,request.debug)
+        // Because we are capturing from a terminal, some intermediate line breaks can be introduced
+        // due to window resizing so we want to strip those out
+        const fullWidthTerminalOutput = terminalOutput.replace(/\r?\n/g,'')
+        run.appendOutput(fullWidthTerminalOutput)
         run.end()
     }
 
@@ -194,6 +197,7 @@ export class PesterTestController implements Disposable {
         const scriptFolderPath = join(this.context.extension.extensionPath, 'Scripts')
         const scriptPath = join(scriptFolderPath, 'PesterInterface.ps1')
         const scriptArgs = new Array<string>()
+
         if (discovery) {scriptArgs.push('-Discovery')}
 
         scriptArgs.push('-PipeName')
@@ -205,6 +209,18 @@ export class PesterTestController implements Disposable {
                 this.context,
                 this.powershellExtension
             )
+        }
+
+        const pesterSettings = this.powerShellExtensionClient.GetPesterSettings()
+
+        let verbosity = debug
+            ? pesterSettings.get<string>('debugOutputVerbosity')
+            : pesterSettings.get<string>('outputVerbosity')
+
+        if (discovery) {verbosity = 'None'}
+        if (verbosity && verbosity != 'FromPreference') {
+            scriptArgs.push('-Verbosity')
+            scriptArgs.push(verbosity)
         }
 
         const runObjectListenEvent = this.returnServer.onDidReceiveObject(returnHandler)

@@ -9,7 +9,6 @@ export async function activate(context: ExtensionContext) {
   // Short circuit this activate call if we didn't find a Powershell Extension. Another activate will be triggered once
   // the powershell extension is available
   if (!powershellExtension) {return}
-
   context.subscriptions.push(
     new PesterTestController(powershellExtension,context)
   )

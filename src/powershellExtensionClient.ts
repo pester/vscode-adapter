@@ -70,6 +70,9 @@ export class PowerShellExtensionClient {
         return window.terminals.find(t => t.name === 'PowerShell Integrated Console')
     }
 
+    public GetPowerShellSettings() { return workspace.getConfiguration('powershell') }
+    public GetPesterSettings() { return workspace.getConfiguration('powershell.pester') }
+
     public async RunCommand(command: string, args?: string[], isDebug?: boolean, onComplete?: (terminalData: string) => void){
         // This indirectly loads the PSES extension
         await this.GetVersionDetails()

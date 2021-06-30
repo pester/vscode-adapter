@@ -1,4 +1,4 @@
-#Requires -Modules @{ ModuleName="Pester";ModuleVersion="5.2.0" }
+#Requires -version 5.1 -Modules @{ ModuleName="Pester";ModuleVersion="5.2.0" }
 using namespace System.Collections
 using namespace System.Collections.Generic
 using namespace Pester
@@ -16,7 +16,9 @@ param(
     #If specified, emit the output objects as a flattened json to the specified named pipe handle. Used for IPC to the extension
     [String]$PipeName,
     #If specified just emit the json to stdout instead of the pipe
-    [Switch]$PassThru
+    [Switch]$PassThru,
+    #The verbosity to pass to the system
+    [String]$Verbosity
 )
 
 $VerbosePreference = 'Ignore'
@@ -306,7 +308,7 @@ function Invoke-Main {
             PassThru = $true
         }
         Output = @{
-            Verbosity = if ($Discovery) {'None'} else {'Detailed'}
+            Verbosity = if ($Discovery) {'None'} else {$Verbosity}
         }
     }
     if ($paths.Count) {
