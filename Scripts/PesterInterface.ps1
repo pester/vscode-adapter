@@ -245,6 +245,7 @@ function New-TestObject ($Test) {
     }
 }
 
+
 function Get-TestItemParents {
     <#
     .SYNOPSIS
@@ -288,6 +289,7 @@ function Get-TestItemParents {
 $MyPlugin = @{
     Name = 'TestPlugin'
     Start = {
+        $SCRIPT:__TestAdapterKnownParents = [HashSet[Pester.Block]]::new()
         Write-Host -ForegroundColor Green "Connecting to pipe $pipename"
         $SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
         $__TestAdapterNamedPipeClient.Connect(5000)
@@ -295,24 +297,28 @@ $MyPlugin = @{
     }
     DiscoveryEnd = {
         param($Context)
+        if (-not $Discovery) {continue}
         $discoveredTests = & (Get-Module Pester) {$Context.BlockContainers | View-Flat}
         $discoveredTests.foreach{
+
+            [Pester.Block[]]$testSuites = Get-TestItemParents -Test $PSItem -KnownParents $SCRIPT:__TestAdapterKnownParents
+            $testSuites.foreach{
+                $testItem = New-TestObject $PSItem
+                [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+                $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+            }
             $testItem = New-TestObject $PSItem
             [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
             $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
         }
     }
 
-    EachTestTearDownEnd = {
+    EachTestTeardownEnd = {
         param($Context)
         if (-not $Context) {continue}
-        Write-Host -ForegroundColor Green ($Context.Test.ExpandedPath)
-        # $testItem = New-TestObject $testInfo
-        # [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-        # if ($SCRIPT:PipeName) {
-        #     Write-Host -Fore Magenta "WROTE TEST: $($testInfo.ExpandedPath)"
-        #     $SCRIPT:writer.WriteLine($jsonObject)
-        # }
+        $testItem = New-TestObject $context.test
+        [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+        $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
     }
     End = {
         $SCRIPT:__TestAdapterNamedPipeWriter.flush()
@@ -334,8 +340,9 @@ Warning: This only works once, not designed for repeated plugin injection
         if ($SCRIPT:ShimmedPlugin) {return}
         [ScriptBlock]$SCRIPT:ShimmedPlugin = (Get-Item 'Function:\Get-RSpecObjectDecoratorPlugin').ScriptBlock
         function SCRIPT:Get-RSpecObjectDecoratorPlugin {
-            . $ShimmedPlugin $args
+            # Our plugin must come first because teardowns are done in reverse and we need the RSpec to add result status
             New-PluginObject @SCRIPT:PluginConfiguration
+            . $ShimmedPlugin $args
         }
     } $PluginConfiguration
 }
