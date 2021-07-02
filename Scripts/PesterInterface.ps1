@@ -3,6 +3,7 @@ using namespace System.Collections
 using namespace System.Collections.Generic
 using namespace Pester
 
+
 [CmdletBinding()]
 param(
     #Path(s) to search for tests. Paths can also contain line numbers (e.g. /path/to/file:25)
@@ -198,7 +199,7 @@ function New-TestObject ($Test) {
 
     #HACK: Block and Parent are equivalent so this simplifies further code
     if ($Test -is [Pester.Test]) {
-        Add-Member -InputObject $Test -NotePropertyName 'Parent' -NotePropertyValue $Test.Block
+        Add-Member -InputObject $Test -NotePropertyName 'Parent' -NotePropertyValue $Test.Block -Force
     }
 
     #Common stuff first
@@ -229,7 +230,7 @@ function New-TestObject ($Test) {
         startLine = [int]($Test.StartLine - 1) #Lines are zero-based in vscode
         endLine = [int]($Test.ScriptBlock.StartPosition.EndLine - 1) #Lines are zero-based in vscode
         label = Expand-TestCaseName $Test
-        result = [ResultStatus]$Test.Result
+        result = [ResultStatus]$(if ($null -eq $Test.Result) {'NotRun'} else {$Test.Result})
         duration = $Test.UserDuration.TotalMilliseconds #I don't think anyone is doing sub-millisecond code performance testing in Powershell :)
         durationDetail = Get-DurationString $Test
         message = $Message
@@ -283,6 +284,62 @@ function Get-TestItemParents {
     }
 }
 
+
+$MyPlugin = @{
+    Name = 'TestPlugin'
+    Start = {
+        Write-Host -ForegroundColor Green "Connecting to pipe $pipename"
+        $SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
+        $__TestAdapterNamedPipeClient.Connect(5000)
+        $SCRIPT:__TestAdapterNamedPipeWriter = [System.IO.StreamWriter]::new($__TestAdapterNamedPipeClient)
+    }
+    DiscoveryEnd = {
+        param($Context)
+        $discoveredTests = & (Get-Module Pester) {$Context.BlockContainers | View-Flat}
+        $discoveredTests.foreach{
+            $testItem = New-TestObject $PSItem
+            [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+            $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+        }
+    }
+
+    EachTestTearDownEnd = {
+        param($Context)
+        if (-not $Context) {continue}
+        Write-Host -ForegroundColor Green ($Context.Test.ExpandedPath)
+        # $testItem = New-TestObject $testInfo
+        # [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+        # if ($SCRIPT:PipeName) {
+        #     Write-Host -Fore Magenta "WROTE TEST: $($testInfo.ExpandedPath)"
+        #     $SCRIPT:writer.WriteLine($jsonObject)
+        # }
+    }
+    End = {
+        $SCRIPT:__TestAdapterNamedPipeWriter.flush()
+        $SCRIPT:__TestAdapterNamedPipeWriter.dispose()
+        $SCRIPT:__TestAdapterNamedPipeClient.Close()
+    }
+}
+
+function Add-PesterPluginShim([Hashtable]$PluginConfiguration) {
+<#
+.SYNOPSIS
+A dirty hack that parasitically infects another plugin function and generates this function in addition to that one
+.NOTES
+Warning: This only works once, not designed for repeated plugin injection
+#>
+    $Pester = Import-Module Pester -PassThru
+    & $Pester {
+        param($SCRIPT:PluginConfiguration)
+        if ($SCRIPT:ShimmedPlugin) {return}
+        [ScriptBlock]$SCRIPT:ShimmedPlugin = (Get-Item 'Function:\Get-RSpecObjectDecoratorPlugin').ScriptBlock
+        function SCRIPT:Get-RSpecObjectDecoratorPlugin {
+            . $ShimmedPlugin $args
+            New-PluginObject @SCRIPT:PluginConfiguration
+        }
+    } $PluginConfiguration
+}
+
 #endregion Functions
 
 #Main Function
@@ -318,64 +375,63 @@ function Invoke-Main {
         $config.Filter.Line = [string[]]$lines #Cast to string array is required or it will error
     }
 
-    $runResult = Invoke-Pester -Configuration $config
+    Add-PesterPluginShim $MyPlugin
+    Invoke-Pester -Configuration $config | Out-Null
 
 
-    $testResult = $runResult.Tests
-    if ($testResult.count -le 0) {return}
+    # $testResult = $runResult.Tests
+    # if ($testResult.count -le 0) {return}
 
-    $testFilteredResult = if (-not $Discovery) {
-        #If discovery was not run, its easy to filter the results
-        $testResult | Where-Object Executed
-    } elseif ($lines.count) {
-        #A more esoteric filter is required because
-        #BUG: Pester still returns all test discovery results in the file even if you only specify a particular line filter
-        #TODO: File an issue on this
-        #Returns true if the id matches. The ID is not a native property in pester, we have to construct it.
-        $testResult | Where-Object {
-            $Test = $PSItem
-            $location = $Test.ScriptBlock.File + ':' + $Test.StartLine
-            $location -in $lines
-        }
-    } else {
-        $testResult
-    }
-    [Collections.ArrayList]$testObjects = @($testFilteredResult | ForEach-Object {
-        New-TestObject $PSItem
-    })
+    # $testFilteredResult = if (-not $Discovery) {
+    #     #If discovery was not run, its easy to filter the results
+    #     $testResult | Where-Object Executed
+    # } elseif ($lines.count) {
+    #     #A more esoteric filter is required because
+    #     #BUG: Pester still returns all test discovery results in the file even if you only specify a particular line filter
+    #     #TODO: File an issue on this
+    #     #Returns true if the id matches. The ID is not a native property in pester, we have to construct it.
+    #     $testResult | Where-Object {
+    #         $Test = $PSItem
+    #         $location = $Test.ScriptBlock.File + ':' + $Test.StartLine
+    #         $location -in $lines
+    #     }
+    # } else {
+    #     $testResult
+    # }
+    # [Collections.ArrayList]$testObjects = @($testFilteredResult | ForEach-Object {
+    #     New-TestObject $PSItem
+    # })
 
-    if (-not $TestsOnly) {
-        #Emit the scaffolding objects
-        # TODO: Make this streaming with Pester Output Plugin
-        [Pester.Block[]]$testSuites = Get-TestItemParents $runResult.Tests
+    # if (-not $TestsOnly) {
+    #     #Emit the scaffolding objects
+    #     # TODO: Make this streaming with Pester Output Plugin
+    #     [Pester.Block[]]$testSuites = Get-TestItemParents $runResult.Tests
 
-        $testObjects.InsertRange(0,($testSuites.foreach{New-TestObject $PSItem}))
-    }
+    #     $testObjects.InsertRange(0,($testSuites.foreach{New-TestObject $PSItem}))
+    # }
 
-    #Skip writing to pipe if passthru is specified
-    if ($PassThru) {
-        ConvertTo-Json $TestObjects -Depth 1;return
-    }
+    # #Skip writing to pipe if passthru is specified
+    # if ($PassThru) {
+    #     ConvertTo-Json $TestObjects -Depth 1;return
+    # }
 
-    try {
-        # This will replace the standard Out-Default and allow us to tee json results to a named pipe for the extension to pick up.
-        $SCRIPT:client = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
-        $client.Connect(5000)
-        $writer = [System.IO.StreamWriter]::new($client)
+    # try {
+    #     # This will replace the standard Out-Default and allow us to tee json results to a named pipe for the extension to pick up.
 
-        $testObjects.foreach{
-            [string]$jsonObject = ConvertTo-Json $PSItem -Compress -Depth 1
-            if ($PipeName) {
-                $writer.WriteLine($jsonObject)
-            }
-        }
-        # DO NOT USE THE PIPELINE, it will unwrap the array and cause a problem with single-item results
 
-    } catch {throw} finally {
-        $writer.flush()
-        $writer.dispose()
-        $client.Close()
-    }
+    #     $testObjects.foreach{
+    #         [string]$jsonObject = ConvertTo-Json $PSItem -Compress -Depth 1
+    #         if ($PipeName) {
+    #             $writer.WriteLine($jsonObject)
+    #         }
+    #     }
+    #     # DO NOT USE THE PIPELINE, it will unwrap the array and cause a problem with single-item results
+
+    # } catch {throw} finally {
+    #     $writer.flush()
+    #     $writer.dispose()
+    #     $client.Close()
+    # }
 }
 
 #Run Main function
