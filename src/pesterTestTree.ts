@@ -1,7 +1,7 @@
 
 /** Represents a test result returned from pester, serialized into JSON */
 
-import { TestController, TestItem, TestResultState, Uri } from "vscode"
+import { test, TestController, TestItem, TestResultState, Uri } from "vscode"
 
 /** An association of test classes to their managed TestItem equivalents. Use this for custom data/metadata about a test
  * because we cannot store it in the managed objects we get from the Test API
@@ -22,24 +22,22 @@ export class TestFile {
     get file() {return this.uri.fsPath}
     get startLine() {return undefined}
     get testItem() {
-        const testItem = this.controller.root.children.get(this.uri.toString())
+        const testItem = this.controller.items.get(this.uri.toString())
         if (!testItem) {throw new Error('No associated test item for testfile:' + this.uri + '. This is a bug.')}
         return testItem
     }
 
     /** Creates a managed TestItem entry in the controller if it doesn't exist, or returns the existing object if it does already exist */
     static getOrCreate(controller: TestController, uri: Uri): TestItem {
-        const existing = controller.root.children.get(uri.toString())
+        const existing = controller.items.get(uri.toString())
         if (existing) {
             return existing
         }
-        const fileTestItem = controller.createTestItem(
+        const fileTestItem = test.createTestItem(
             uri.toString(),
             uri.path.split('/').pop()!,
-            controller.root,
             uri
         )
-        fileTestItem.debuggable = true
         TestData.set(fileTestItem, new TestFile(controller, uri))
         fileTestItem.canResolveChildren = true
         return fileTestItem;

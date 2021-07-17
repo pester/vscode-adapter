@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { Disposable, Extension, ExtensionContext, Location, Position, Range, RelativePattern, test, TestController, TestItem, TestMessage, TestResultState, TestRunRequest, Uri, window, workspace } from 'vscode'
+import { Disposable, Extension, ExtensionContext, Location, Position, Range, RelativePattern, test, TestController, TestItem, TestMessage, TestResultState, TestRunProfileGroup, TestRunRequest, Uri, window, workspace } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import { TestData, TestDefinition, TestFile, TestResult } from './pesterTestTree'
 import { IPowerShellExtensionClient, PowerShellExtensionClient } from './powershellExtensionClient'
@@ -12,23 +12,21 @@ export class PesterTestController implements Disposable {
         private readonly powershellExtension: Extension<IPowerShellExtensionClient>,
         private readonly context: ExtensionContext,
         public readonly id: string = 'Pester',
-        public testController: TestController = test.createTestController(id),
+        public testController: TestController = test.createTestController(id, id),
         private powerShellExtensionClient? : PowerShellExtensionClient,
         private returnServer: DotnetNamedPipeServer = new DotnetNamedPipeServer(id + 'TestController-' + process.pid)
     ) {
-        this.testController.root.label = id
 
         // wire up our custom handlers to the managed instance
         // HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
         testController.resolveChildrenHandler = testItem => this.resolveChildrenHandler(testItem)
-        testController.runHandler = testItem => this.runHandler(testItem)
-
-        // Tells the test controller to run resolveChildrenHandler() on the root
-        testController.root.canResolveChildren = true
+        // FIXME: Enums don't work for some reason for createrunprofile
+        testController.createRunProfile('Run',TestRunProfileGroup.Run, this.runHandler, true)
+        testController.createRunProfile('Debug',TestRunProfileGroup.Debug, this.debugHandler, true)
     }
 
-    /** Start up the test controller. This includes watching all workspaces for Pester files */
     private initialized: boolean = false
+    /** Start up the test controller. This includes watching all workspaces for Pester files */
     async initialize() {
         try {
             await Promise.all([
@@ -36,8 +34,10 @@ export class PesterTestController implements Disposable {
                 this.returnServer.listen()
             ])
             this.initialized = true
-        } catch (err) {
-            throw new Error(err)
+        } catch (err: any) {
+            if (err) {
+                throw new Error(err)
+            }
         }
     }
 
@@ -45,12 +45,12 @@ export class PesterTestController implements Disposable {
     /** The test controller API calls this whenever it needs to get the resolveChildrenHandler
      * for Pester, this is only relevant to TestFiles as this is pester's lowest level of test resolution
      */
-    private async resolveChildrenHandler(testItem: TestItem) {
+    private async resolveChildrenHandler(testItem: TestItem|undefined) {
         if (!this.initialized) {
             await this.initialize()
         }
         // For the controller root, children are resolved via the watchers
-        if (testItem === this.testController.root) {
+        if (!testItem) {
             return
         }
 
@@ -68,17 +68,16 @@ export class PesterTestController implements Disposable {
             // TODO: This should be done before onDidReceiveObject maybe as a handler callback?
             const testDef = t as TestDefinition
             const parent = testItemLookup.get(testDef.parent) ?? testItem
-            const newTestItem = this.testController.createTestItem(
+            const newTestItem = test.createTestItem(
                 testDef.id,
                 testDef.label,
-                parent,
                 testItem.uri
             )
             newTestItem.range = new Range(testDef.startLine,0,testDef.endLine,0)
             newTestItem.description = testDef.tags ? testDef.tags : undefined
-            newTestItem.debuggable = true
             TestData.set(newTestItem, testDef)
             testItemLookup.set(newTestItem.id, newTestItem)
+            parent.children.add(newTestItem)
         }
 
         // Indicate the start of a discovery, will cause the UI to show a spinner
@@ -100,16 +99,23 @@ export class PesterTestController implements Disposable {
         testItem.busy = false
     }
 
+    private async debugHandler(request: TestRunRequest) {
+        this.testHandler(request, true)
+    }
+    /** Called by the test controller when "run" is clicked **/
+    private async runHandler(request: TestRunRequest) {
+        this.testHandler(request, false)
+    }
 
     /** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
-    private async runHandler(request: TestRunRequest) {
+    private async testHandler(request: TestRunRequest, debug: boolean) {
         if (!this.initialized) {
             await this.initialize()
         }
         // Pester doesn't understand a "root" test so get all files registered to the controller instead
-        const testFiles = request.tests[0] === this.testController.root
-            ? Array.from(this.testController.root.children.values())
-            : request.tests
+        const testFiles = request.include === undefined
+            ? Array.from(this.testController.items)
+            : request.include
 
         const run = this.testController.createTestRun(request)
         if (request.exclude?.length) {
@@ -121,11 +127,12 @@ export class PesterTestController implements Disposable {
             if (!testData) {throw new Error("testItem not found in testData. This is a bug.")}
 
             // TODO: Fix when API stabilizes
-            if ((testData instanceof TestFile) && testItem.children.size === 0) {
-                window.showWarningMessage('TEMPORARY: You must expand a test file at least once before you run it')
-                run.end()
-                return
-            }
+            // FIXME: Find another way to do this, as new API changed this from an array to an iterable and couting the size doesnt work aynmore
+            // if ((testData instanceof TestFile) && testItem.children.size === 0) {
+            //     window.showWarningMessage('TEMPORARY: You must expand a test file at least once before you run it')
+            //     run.end()
+            //     return
+            // }
             execChildren(testItem, item => run.setState(item,TestResultState.Queued))
         }
         const testReturnAccumulator = new Array<TestItem>()
@@ -136,7 +143,7 @@ export class PesterTestController implements Disposable {
 
             // We may have received more results than we had runners due to test cases and summaries, go ahead
             // and process all returned results
-            const testRequestItem = this.getTestItemById(testResult.id)
+            const testRequestItem = this.testController.items.get(testResult.id)
             if (!testRequestItem) {throw new Error(`Test Result with ID ${testResult.id} doesn't exist in the controller test tree. This is a bug`)}
 
             run.setState(testRequestItem, testResult.result, testResult.duration)
@@ -162,7 +169,12 @@ export class PesterTestController implements Disposable {
         }
 
         testFiles.forEach(testItem => execChildren(testItem, item => run.setState(item,TestResultState.Running)))
-        const terminalOutput = await this.startPesterInterface(testFiles,runResultHandler,false,request.debug)
+        const terminalOutput = await this.startPesterInterface(
+            testFiles,
+            runResultHandler,
+            false,
+            debug
+        )
         // Because we are capturing from a terminal, some intermediate line breaks can be introduced
         // due to window resizing so we want to strip those out
         const fullWidthTerminalOutput = terminalOutput.replace(/\r?\n/g,'')
@@ -357,10 +369,9 @@ export class PesterTestController implements Disposable {
             const pattern = new RelativePattern(workspaceFolder, '**/*.[tT]ests.[pP][sS]1')
 
             const testWatcher = workspace.createFileSystemWatcher(pattern)
-
-            testWatcher.onDidCreate(uri => TestFile.getOrCreate(testController, uri),undefined,disposable)
-            // In both these cases we can somewhat safely assume the file will already be known, hence the ! used
-            testWatcher.onDidDelete(uri => TestFile.getOrCreate(testController, uri).dispose(),undefined,disposable)
+            const tests = this.testController.items
+            testWatcher.onDidCreate(uri => tests.add(TestFile.getOrCreate(testController, uri)))
+            testWatcher.onDidDelete(uri => tests.delete(uri.toString()))
             testWatcher.onDidChange(uri => this.testController.resolveChildrenHandler!(TestFile.getOrCreate(testController, uri)))
 
             // TODO: Make this a setting
@@ -382,12 +393,7 @@ export class PesterTestController implements Disposable {
     /** Find a TestItem by its ID in the TestItem tree hierarchy of this controller */
     // TODO: Maybe build a lookup cache that is populated as items are added
     getTestItemById(id: string) {
-        const queue = [... this.testController.root.children.values()];
-        while (queue.length) {
-            const item = queue.shift()!
-            if (item.id === id) {return item}
-            queue.push(...item.children.values())
-        }
+        this.testController.items.get(id)
     }
 
     dispose() {
@@ -407,7 +413,7 @@ function expandAllChildren(parent: TestItem) {
     while (queue.length) {
         const item = queue.shift()!;
         accumulator.push(item)
-        queue.push(...item.children.values())
+        // queue.push(...item.children.all())
     }
     return accumulator
 }
@@ -420,6 +426,6 @@ async function execChildren(parent: TestItem, fn: (child: TestItem) => void) {
     while (queue.length) {
         const item = queue.shift()!;
         fn(item)
-        queue.push(...item.children.values())
+        // queue.push(...item.children.values())
     }
 }
