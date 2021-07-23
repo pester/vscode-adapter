@@ -13,16 +13,16 @@ export class PesterTestController implements Disposable {
         private readonly context: ExtensionContext,
         public readonly id: string = 'Pester',
         public testController: TestController = tests.createTestController(id, id),
-        private powerShellExtensionClient? : PowerShellExtensionClient,
+        private powerShellExtensionClient?: PowerShellExtensionClient,
         private returnServer: DotnetNamedPipeServer = new DotnetNamedPipeServer(id + 'TestController-' + process.pid)
     ) {
 
         // wire up our custom handlers to the managed instance
         // HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
-        testController.resolveHandler = testItem => this.resolveChildrenHandler(testItem)
+        testController.resolveHandler = testItem => this.resolveHandler(testItem)
         // FIXME: Enums don't work for some reason for createrunprofile
-        testController.createRunProfile('Run',TestRunProfileKind.Run, this.runHandler.bind(this), true)
-        testController.createRunProfile('Debug',TestRunProfileKind.Debug, this.debugHandler.bind(this), true)
+        testController.createRunProfile('Run', TestRunProfileKind.Run, this.testHandler.bind(this), true)
+        testController.createRunProfile('Debug', TestRunProfileKind.Debug, this.testHandler.bind(this), true)
     }
 
     private initialized: boolean = false
@@ -45,7 +45,7 @@ export class PesterTestController implements Disposable {
     /** The test controller API calls this whenever it needs to get the resolveChildrenHandler
      * for Pester, this is only relevant to TestFiles as this is pester's lowest level of test resolution
      */
-    private async resolveChildrenHandler(testItem: TestItem|undefined) {
+    private async resolveHandler(testItem: TestItem | undefined) {
         if (!this.initialized) {
             await this.initialize()
         }
@@ -55,7 +55,7 @@ export class PesterTestController implements Disposable {
         }
 
         const testItemData = TestData.get(testItem)
-        if (!testItemData) {throw new Error('No matching testItem data found. This is a bug')}
+        if (!testItemData) { throw new Error('No matching testItem data found. This is a bug') }
 
         // Test Definitions should never show up here, they aren't resolvable in Pester as we only do it at file level
         if (testItemData instanceof TestDefinition) {
@@ -73,7 +73,7 @@ export class PesterTestController implements Disposable {
                 testDef.label,
                 testItem.uri
             )
-            newTestItem.range = new Range(testDef.startLine,0,testDef.endLine,0)
+            newTestItem.range = new Range(testDef.startLine, 0, testDef.endLine, 0)
             newTestItem.description = testDef.tags ? testDef.tags : undefined
             TestData.set(newTestItem, testDef)
             testItemLookup.set(newTestItem.id, newTestItem)
@@ -84,7 +84,7 @@ export class PesterTestController implements Disposable {
         testItem.busy = true
         if (testItemData instanceof TestFile) {
             // Run Pester and get tests
-            console.log('Discovering Tests: ',testItem.id)
+            console.log('Discovering Tests: ', testItem.id)
 
             // For discovery we discard the terminal output
             await this.startPesterInterface(
@@ -99,90 +99,71 @@ export class PesterTestController implements Disposable {
         testItem.busy = false
     }
 
-    private async debugHandler(request: TestRunRequest) {
-        this.testHandler(request, true)
-    }
-    /** Called by the test controller when "run" is clicked **/
-    private async runHandler(request: TestRunRequest) {
-        this.testHandler(request, false)
-    }
-
     /** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
-    private async testHandler(request: TestRunRequest, debug: boolean) {
+    private async testHandler(request: TestRunRequest) {
         if (!this.initialized) {
             await this.initialize()
         }
-        // Pester doesn't understand a "root" test so get all files registered to the controller instead
-        const tcItems = new Set<TestItem>()
-        this.testController.items.forEach(item => tcItems.add(item))
-        const testFiles = request.include === undefined
-            ? Array.from(tcItems)
-            : request.include
 
         const run = this.testController.createTestRun(request)
-        if (request.exclude?.length) {
-            window.showWarningMessage("Pester: Hiding tests is currently not supported. The tests will still be run but their status will be suppressed")
-        }
+        if (request.profile === undefined) { throw new Error('No profile provided. This is (currently) a bug.') }
+        const debug = request.profile.kind === TestRunProfileKind.Debug
 
-        for (const testItem of testFiles) {
-            const testData = TestData.get(testItem)
-            if (!testData) {throw new Error("testItem not found in testData. This is a bug.")}
+        const testItems = this.getRunRequestTestItems(request)
+        // Indicate that the tests are ready to run
+        testItems.forEach(run.enqueued)
 
-            // TODO: Fix when API stabilizes
-            // FIXME: Find another way to do this, as new API changed this from an array to an iterable and couting the size doesnt work aynmore
-            // if ((testData instanceof TestFile) && testItem.children.size === 0) {
-            //     window.showWarningMessage('TEMPORARY: You must expand a test file at least once before you run it')
-            //     run.end()
-            //     return
-            // }
-            execChildren(testItem, item => run.enqueued(item))
+        const exclude = new Set<TestItem>(request.exclude)
 
-        }
-        const testReturnAccumulator = new Array<TestItem>()
+        /** Takes the returned objects from Pester and resolves their status in the test controller **/
         const runResultHandler = (item: Object) => {
             const testResult = item as TestResult
             // Skip Test Suites for now, focus on test results
-            if (testResult.type === 'Block') {return}
+            if (testResult.type === 'Block') { return }
 
-            // We may have received more results than we had runners due to test cases and summaries, go ahead
-            // and process all returned results
+            // BUG: Find out why this doesn't match. Maybe get isn't recursive?
             const testRequestItem = this.testController.items.get(testResult.id)
-            if (!testRequestItem) {throw new Error(`Test Result with ID ${testResult.id} doesn't exist in the controller test tree. This is a bug`)}
+
+            if (testRequestItem === undefined) {throw new Error(`${testResult.id} was returned from Pester but was not tracked in the test controller. This is probably a bug in test discovery.`)}
+            if (exclude.has(testRequestItem)) {
+                console.log(`${testResult.id} was run in Pester but excluded from results`)
+                return
+            }
 
             if (testResult.result === TestResultState.Passed) {
                 run.passed(testRequestItem, testResult.duration)
-            }
-
-            // TODO: This is clumsy and should be a constructor/method on the TestData type perhaps
-            const message = testResult.message && testResult.expected && testResult.actual
-                ? TestMessage.diff(
+            } else {
+                // TODO: This is clumsy and should be a constructor/method on the TestData type perhaps
+                const message = testResult.message && testResult.expected && testResult.actual
+                    ? TestMessage.diff(
                         testResult.message,
                         testResult.expected,
                         testResult.actual
                     )
-                : new TestMessage(testResult.message)
-            if (testResult.targetFile != undefined && testResult.targetLine != undefined) {
-                message.location = new Location(
-                    Uri.file(testResult.targetFile),
-                    new Position(testResult.targetLine, 0)
-                )
+                    : new TestMessage(testResult.message)
+                if (testResult.targetFile != undefined && testResult.targetLine != undefined) {
+                    message.location = new Location(
+                        Uri.file(testResult.targetFile),
+                        new Position(testResult.targetLine, 0)
+                    )
+                }
+                if (message.message) {
+                    run.failed(testRequestItem, message, testResult.duration)
+                }
             }
-            if (message.message) {
-                run.failed(testRequestItem, message)
-            }
-            testReturnAccumulator.push(testRequestItem)
         }
 
-        testFiles.forEach(testItem => execChildren(testItem, item => run.started(item)))
+        testItems.forEach(run.started)
+        // TODO: Adjust testItems parameter to a Set
         const terminalOutput = await this.startPesterInterface(
-            testFiles,
-            runResultHandler,
+            Array.from(testItems),
+            runResultHandler.bind(this),
             false,
             debug
         )
-        // Because we are capturing from a terminal, some intermediate line breaks can be introduced
-        // due to window resizing so we want to strip those out
-        const fullWidthTerminalOutput = terminalOutput.replace(/\r?\n/g,'')
+        // // Because we are capturing from a terminal, some intermediate line breaks can be introduced
+        // // due to window resizing so we want to strip those out
+        const fullWidthTerminalOutput = terminalOutput.replace(/\r?\n/g, '')
         run.appendOutput(fullWidthTerminalOutput)
         run.end()
     }
@@ -203,10 +184,10 @@ export class PesterTestController implements Disposable {
 
         // Derive Pester-friendly test line identifiers from the testItem info
         const testsToRun = testItems.map(testItem => {
-            if (!testItem.uri) {throw new Error('TestItem did not have a URI. For pester, this is a bug')}
+            if (!testItem.uri) { throw new Error('TestItem did not have a URI. For pester, this is a bug') }
             const fsPath = testItem.uri.fsPath
             const testLine = testItem.range?.start.line
-                ? [fsPath, testItem.range.start.line+1].join(':')
+                ? [fsPath, testItem.range.start.line + 1].join(':')
                 : fsPath
             return testLine
         })
@@ -215,7 +196,7 @@ export class PesterTestController implements Disposable {
         const scriptPath = join(scriptFolderPath, 'PesterInterface.ps1')
         const scriptArgs = new Array<string>()
 
-        if (discovery) {scriptArgs.push('-Discovery')}
+        if (discovery) { scriptArgs.push('-Discovery') }
 
         scriptArgs.push('-PipeName')
         scriptArgs.push(this.returnServer.name)
@@ -234,7 +215,7 @@ export class PesterTestController implements Disposable {
             ? pesterSettings.get<string>('debugOutputVerbosity')
             : pesterSettings.get<string>('outputVerbosity')
 
-        if (discovery) {verbosity = 'None'}
+        if (discovery) { verbosity = 'None' }
         if (verbosity && verbosity != 'FromPreference') {
             scriptArgs.push('-Verbosity')
             scriptArgs.push(verbosity)
@@ -248,112 +229,11 @@ export class PesterTestController implements Disposable {
         // No idea if this will work or not
         const terminalData = new Promise<string>(resolve => this.powerShellExtensionClient!.RunCommand(scriptPath, scriptArgs, debug, (terminalData) => {
             runObjectListenEvent.dispose()
-            console.log("Terminal Results",terminalData)
+            console.log("Terminal Results", terminalData)
             return resolve(terminalData)
         }))
         return terminalData
     }
-
-    /**
-     * Scans the specified files for Pester Tests
-     *
-     * @param {TestItem[]} testFiles - Managed Test Items. These should always be files for Pester.
-     */
-    // async discoverTests(testFiles: TestItem[]) {
-    //     // Lazy initialize the powershell runner so the filewatcher-based test finder works quickly
-    //     try {
-    //         const runner = await this.powerShellRunner
-    //         // TODO: Need validation here
-    //         const runnerResult = await runner.execPwshScriptFile(scriptPath,scriptArgs,debug)
-    //         // TODO: Better error handling
-    //         if (!runnerResult) {return new Array<T>()}
-    //         console.log('Objects received from Pester',runnerResult.result)
-    //         const result:T[] = runnerResult.result as T[]
-
-    //         // TODO: Refactor this using class-transformer https://github.com/typestack/class-transformer
-
-    //         // Coerce null/undefined into an empty arrayP
-    //         if (result == null || result == undefined) {return new Array<T>()}
-
-    //         // BUG: ConvertTo-Json in PS5.1 doesn't have a "-AsArray" and can return single objects which typescript doesn't catch.
-    //         if (!Array.isArray(result)) {throw 'Powershell script returned a single object that is not an array. This is a bug. Make sure you did not pipe to Convert-Json!'}
-    //         return result
-    //     } catch (err) {
-    //         throw new Error(err)
-    //     }
-    // }
-        // HACK: Because the managed controller data type is returned as an <any>, we need to type assert it back to a TestRootContext
-        // so that the return type is inferred correctly
-        // const testRootContext: TestRootContext = TestControllerData.get(this.controller.root)!
-        // Ask the controller to run tests, then also register a callback that this is done scanning.
-        // return await testRootContext.discoverPesterTestsFromFile(this)
-    // }
-
-
-    //     // TODO: Use a queue instead to line these up like the test example
-    //     request.tests.map(testItem => run.setState(testItem,TestResultState.Running))
-    //     // FIXME: Use a new handler
-    //     const pesterTestRunResult = await testRootContext.runPesterTests(testsToRun, false, request.debug)
-
-
-    //     // Make this easier to query by putting the IDs in a map so we dont have to iterate an array constantly.
-    //     // TODO: Make this part of getPesterTests?
-    //     const pesterTestRunResultLookup = new Map<string,TestResult>()
-    //     pesterTestRunResult.map(testResultItem =>
-    //         pesterTestRunResultLookup.set(testResultItem.id, testResultItem)
-    //     )
-
-    //     const requestedTests = request.tests.flatMap(
-    //         item => expandAllChildren(item)
-    //     )
-
-    //     for (const testRequestItem of requestedTests) {
-    //         try {
-    //             // Skip Testfiles
-    //             if (TestData.get(testRequestItem) instanceof TestFile) {
-    //                 continue
-    //             }
-    //             let testResult = pesterTestRunResultLookup.get(testRequestItem.id)
-
-    //             if (!testResult) {
-    //                 throw 'No Test Results were found in the test request. This should not happen and is probably a bug.'
-    //             }
-    //             // TODO: Test for blank or invalid result
-    //             if (!testResult.result) {
-    //                 throw `No test result found for ${testResult.id}. This is probably a bug in the PesterInterface script`
-    //             }
-
-    //             run.setState(testRequestItem, testResult.result, testResult.duration)
-    //             execChildren(testRequestItem, item => item.busy = false)
-
-    //             // TODO: This is clumsy and should be a constructor/method on the TestData type perhaps
-    //             const message = testResult.message && testResult.expected && testResult.actual
-    //                 ? TestMessage.diff(
-    //                         testResult.message,
-    //                         testResult.expected,
-    //                         testResult.actual
-    //                     )
-    //                 : new TestMessage(testResult.message)
-    //             if (testResult.targetFile != undefined && testResult.targetLine != undefined) {
-    //                 message.location = new Location(
-    //                     Uri.file(testResult.targetFile),
-    //                     new Position(testResult.targetLine, 0)
-    //                 )
-    //             }
-    //             if (message.message) {
-    //                 run.appendMessage(testRequestItem, message)
-    //             }
-
-    //         } catch (err) {
-    //             console.log(err)
-    //         }
-    //         // TODO: Add error metadata
-    //     }
-    //     run.end()
-    //     // testsToRun.filter(testItem =>
-    //     //     !request.exclude?.includes(testItem)
-    //     // )
-    // }
 
     /**
      * Starts up filewatchers for each workspace to scan for pester files and add them to the test controller root.
@@ -383,13 +263,13 @@ export class PesterTestController implements Disposable {
             const isPesterTestFile = /\.[tT]ests\.[pP][sS]1$/
 
             workspace.onDidOpenTextDocument(e => {
-                if (!isPesterTestFile.test(e.fileName)) {return}
+                if (!isPesterTestFile.test(e.fileName)) { return }
                 this.testController.resolveHandler!(TestFile.getOrCreate(testController, e.uri))
             })
 
             const files = await workspace.findFiles(pattern)
             for (const file of files) {
-                console.log("Detected Pester File: ",file.fsPath)
+                console.log("Detected Pester File: ", file.fsPath)
                 TestFile.getOrCreate(testController, file)
             }
         }
@@ -399,6 +279,36 @@ export class PesterTestController implements Disposable {
     // TODO: Maybe build a lookup cache that is populated as items are added
     getTestItemById(id: string) {
         this.testController.items.get(id)
+    }
+
+    /** Retrieves all test items to run, minus the exclusions */
+    getRunRequestTestItems(request: TestRunRequest) {
+        // Pester doesn't understand a "root" test so get all files registered to the controller instead
+        const tcItems = new Set<TestItem>()
+        this.testController.items.forEach(item => tcItems.add(item))
+
+        // TODO: Figure out a way to this without having to build tcItems ahead of time
+        const testItems = request.include === undefined
+            ? tcItems
+            : new Set<TestItem>(request.include)
+
+        if (request.exclude?.length) {
+            window.showWarningMessage("Pester: Hiding tests is currently not supported. The tests will still be run but their status will be suppressed")
+        }
+
+        const exclude = new Set<TestItem>(request.exclude)
+
+        /** Resursively walk the function and add to testitems **/
+        const addChildren = (item: TestItem) => {
+            item.children.forEach(child => {
+                if (!exclude.has(child)) {
+                    testItems.add(child)
+                }
+                addChildren(child)
+            })
+        }
+        testItems.forEach(addChildren)
+        return testItems
     }
 
     dispose() {
@@ -416,21 +326,18 @@ function expandAllChildren(parent: TestItem) {
     const accumulator: TestItem[] = []
     const queue = [parent]
     while (queue.length) {
-        const item = queue.shift()!;
+        const item = queue.shift()!
         accumulator.push(item)
         // queue.push(...item.children.all())
     }
     return accumulator
 }
 
-
-
 /** Runs the specified function on this item and all its children, if present */
-async function execChildren(parent: TestItem, fn: (child: TestItem) => void) {
-    const queue = [parent]
-    while (queue.length) {
-        const item = queue.shift()!;
-        fn(item)
-        // queue.push(...item.children.values())
-    }
+async function forAll(parent: TestItem, fn: (child: TestItem) => void) {
+    fn(parent)
+    parent.children.forEach((child) => {
+        forAll(child, fn)
+    })
 }
+

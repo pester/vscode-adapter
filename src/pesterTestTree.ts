@@ -29,6 +29,7 @@ export class TestFile {
 
     /** Creates a managed TestItem entry in the controller if it doesn't exist, or returns the existing object if it does already exist */
     static getOrCreate(controller: TestController, uri: Uri): TestItem {
+        const uriFsPath = uri.fsPath
         const existing = controller.items.get(uri.toString())
         if (existing) {
             return existing
