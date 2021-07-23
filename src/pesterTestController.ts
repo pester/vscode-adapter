@@ -113,8 +113,10 @@ export class PesterTestController implements Disposable {
             await this.initialize()
         }
         // Pester doesn't understand a "root" test so get all files registered to the controller instead
+        const tcItems = new Set<TestItem>()
+        this.testController.items.forEach(item => tcItems.add(item))
         const testFiles = request.include === undefined
-            ? Array.from(this.testController.items)
+            ? Array.from(tcItems)
             : request.include
 
         const run = this.testController.createTestRun(request)
