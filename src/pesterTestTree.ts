@@ -1,7 +1,7 @@
 
 /** Represents a test result returned from pester, serialized into JSON */
 
-import { test, TestController, TestItem, TestResultState, Uri } from "vscode"
+import { TestController, TestItem, TestResultState, Uri } from "vscode"
 
 /** An association of test classes to their managed TestItem equivalents. Use this for custom data/metadata about a test
  * because we cannot store it in the managed objects we get from the Test API
@@ -33,14 +33,14 @@ export class TestFile {
         if (existing) {
             return existing
         }
-        const fileTestItem = test.createTestItem(
+        const fileTestItem = controller.createTestItem(
             uri.toString(),
             uri.path.split('/').pop()!,
             uri
         )
         TestData.set(fileTestItem, new TestFile(controller, uri))
         fileTestItem.canResolveChildren = true
-        controller.items.set([fileTestItem])
+        controller.items.replace([fileTestItem])
         return fileTestItem;
     }
 }

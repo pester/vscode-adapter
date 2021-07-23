@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { Disposable, Extension, ExtensionContext, Location, Position, Range, RelativePattern, test, TestController, TestItem, TestMessage, TestResultState, TestRunProfileGroup, TestRunRequest, Uri, window, workspace } from 'vscode'
+import { Disposable, Extension, ExtensionContext, Location, Position, Range, RelativePattern, TestController, TestItem, TestMessage, TestResultState, TestRunProfileKind, TestRunRequest, tests, Uri, window, workspace } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import { TestData, TestDefinition, TestFile, TestResult } from './pesterTestTree'
 import { IPowerShellExtensionClient, PowerShellExtensionClient } from './powershellExtensionClient'
@@ -12,17 +12,17 @@ export class PesterTestController implements Disposable {
         private readonly powershellExtension: Extension<IPowerShellExtensionClient>,
         private readonly context: ExtensionContext,
         public readonly id: string = 'Pester',
-        public testController: TestController = test.createTestController(id, id),
+        public testController: TestController = tests.createTestController(id, id),
         private powerShellExtensionClient? : PowerShellExtensionClient,
         private returnServer: DotnetNamedPipeServer = new DotnetNamedPipeServer(id + 'TestController-' + process.pid)
     ) {
 
         // wire up our custom handlers to the managed instance
         // HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
-        testController.resolveChildrenHandler = testItem => this.resolveChildrenHandler(testItem)
+        testController.resolveHandler = testItem => this.resolveChildrenHandler(testItem)
         // FIXME: Enums don't work for some reason for createrunprofile
-        testController.createRunProfile('Run',TestRunProfileGroup.Run, this.runHandler, true)
-        testController.createRunProfile('Debug',TestRunProfileGroup.Debug, this.debugHandler, true)
+        testController.createRunProfile('Run',TestRunProfileKind.Run, this.runHandler.bind(this), true)
+        testController.createRunProfile('Debug',TestRunProfileKind.Debug, this.debugHandler.bind(this), true)
     }
 
     private initialized: boolean = false
@@ -68,7 +68,7 @@ export class PesterTestController implements Disposable {
             // TODO: This should be done before onDidReceiveObject maybe as a handler callback?
             const testDef = t as TestDefinition
             const parent = testItemLookup.get(testDef.parent) ?? testItem
-            const newTestItem = test.createTestItem(
+            const newTestItem = this.testController.createTestItem(
                 testDef.id,
                 testDef.label,
                 testItem.uri
@@ -135,7 +135,8 @@ export class PesterTestController implements Disposable {
             //     run.end()
             //     return
             // }
-            execChildren(testItem, item => run.setState(item,TestResultState.Queued))
+            execChildren(testItem, item => run.enqueued(item))
+
         }
         const testReturnAccumulator = new Array<TestItem>()
         const runResultHandler = (item: Object) => {
@@ -148,7 +149,9 @@ export class PesterTestController implements Disposable {
             const testRequestItem = this.testController.items.get(testResult.id)
             if (!testRequestItem) {throw new Error(`Test Result with ID ${testResult.id} doesn't exist in the controller test tree. This is a bug`)}
 
-            run.setState(testRequestItem, testResult.result, testResult.duration)
+            if (testResult.result === TestResultState.Passed) {
+                run.passed(testRequestItem, testResult.duration)
+            }
 
             // TODO: This is clumsy and should be a constructor/method on the TestData type perhaps
             const message = testResult.message && testResult.expected && testResult.actual
@@ -165,12 +168,12 @@ export class PesterTestController implements Disposable {
                 )
             }
             if (message.message) {
-                run.appendMessage(testRequestItem, message)
+                run.failed(testRequestItem, message)
             }
             testReturnAccumulator.push(testRequestItem)
         }
 
-        testFiles.forEach(testItem => execChildren(testItem, item => run.setState(item,TestResultState.Running)))
+        testFiles.forEach(testItem => execChildren(testItem, item => run.started(item)))
         const terminalOutput = await this.startPesterInterface(
             testFiles,
             runResultHandler,
@@ -374,14 +377,14 @@ export class PesterTestController implements Disposable {
             const tests = this.testController.items
             testWatcher.onDidCreate(uri => tests.add(TestFile.getOrCreate(testController, uri)))
             testWatcher.onDidDelete(uri => tests.delete(uri.toString()))
-            testWatcher.onDidChange(uri => this.testController.resolveChildrenHandler!(TestFile.getOrCreate(testController, uri)))
+            testWatcher.onDidChange(uri => this.testController.resolveHandler!(TestFile.getOrCreate(testController, uri)))
 
             // TODO: Make this a setting
             const isPesterTestFile = /\.[tT]ests\.[pP][sS]1$/
 
             workspace.onDidOpenTextDocument(e => {
                 if (!isPesterTestFile.test(e.fileName)) {return}
-                this.testController.resolveChildrenHandler!(TestFile.getOrCreate(testController, e.uri))
+                this.testController.resolveHandler!(TestFile.getOrCreate(testController, e.uri))
             })
 
             const files = await workspace.findFiles(pattern)
