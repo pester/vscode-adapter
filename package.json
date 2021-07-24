@@ -2,9 +2,9 @@
   "name": "pester-test",
   "displayName": "Pester Tests",
   "description": "Pester Test Support using the native API",
-  "version": "0.0.0-development",
+  "version": "0.0.1-beta",
   "publisher": "justingrote",
-  "repository": "https://github.com/Microsoft/vscode-extension-samples",
+  "repository": "https://github.com/pester/vscode-adapter",
   "engines": {
     "vscode": "^1.59.0"
   },
@@ -37,24 +37,28 @@
     "arrowParens": "avoid"
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "vscode:prepublish": "npm run -S esbuild-base -- --minify",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
+    "esbuild": "npm run -S esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run -S esbuild-base -- --sourcemap --watch",
+    "test-compile": "tsc -p ./",
+    "build": "npm run -S esbuild",
     "lint": "eslint . --ext .ts,.tsx",
     "watch": "tsc -watch -p ./",
     "download-api": "vscode-dts main",
     "postdownload-api": "vscode-dts main",
-    "postinstall": "npm run download-api",
-    "semantic-release": "semantic-release"
+    "postinstall": "npm run download-api"
   },
   "devDependencies": {
     "@types/node": "^12.12.0",
     "@types/node-powershell": "^4.0.0",
     "@typescript-eslint/eslint-plugin": "^4.16.0",
     "@typescript-eslint/parser": "^4.16.0",
+    "esbuild": "^0.12.15",
     "eslint": "^7.21.0",
-    "semantic-release": "^17.4.4",
     "ts-node": "^10.0.0",
     "typescript": "^4.2.2",
+    "vsce": "^1.96.1",
     "vscode-dts": "^0.3.1"
   },
   "dependencies": {
