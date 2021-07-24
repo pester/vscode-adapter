@@ -3,6 +3,7 @@ import { Disposable, Extension, ExtensionContext, Location, Position, Range, Rel
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import { TestData, TestDefinition, TestFile, TestResult, TestResultState } from './pesterTestTree'
 import { IPowerShellExtensionClient, PowerShellExtensionClient } from './powershellExtensionClient'
+import { findTestItem } from './testItemUtils'
 
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
@@ -122,7 +123,7 @@ export class PesterTestController implements Disposable {
             if (testResult.type === 'Block') { return }
 
             // BUG: Find out why this doesn't match. Maybe get isn't recursive?
-            const testRequestItem = this.testController.items.get(testResult.id)
+            const testRequestItem = findTestItem(testResult.id,this.testController.items)
 
             if (testRequestItem === undefined) {throw new Error(`${testResult.id} was returned from Pester but was not tracked in the test controller. This is probably a bug in test discovery.`)}
             if (exclude.has(testRequestItem)) {
@@ -238,8 +239,7 @@ export class PesterTestController implements Disposable {
      * Starts up filewatchers for each workspace to scan for pester files and add them to the test controller root.
      *
      * @param {TestController} testController - The test controller to initiate watching on
-     * @param {Disposable[]} [disposable=[]] - An array to store disposables from the watchers, usually \
-     {@link ExtensionContext.subscriptions} to auto-dispose the watchers on unload or cancel
+     * @param {Disposable[]} [disposable=[]] - An array to store disposables from the watchers, usually {@link ExtensionContext.subscriptions} to auto-dispose the watchers on unload or cancel
     */
     async watchWorkspaces() {
         const testController = this.testController
@@ -283,6 +283,7 @@ export class PesterTestController implements Disposable {
     /** Retrieves all test items to run, minus the exclusions */
     getRunRequestTestItems(request: TestRunRequest) {
         // Pester doesn't understand a "root" test so get all files registered to the controller instead
+        // TODO: Move some of this logic to the TestItemUtils
         const tcItems = new Set<TestItem>()
         this.testController.items.forEach(item => tcItems.add(item))
 
@@ -314,29 +315,6 @@ export class PesterTestController implements Disposable {
         this.testController.dispose()
         this.returnServer.dispose()
     }
-
 }
 
-
-
-
-/** Recursively retrieve all the children of this item along with itself */
-function expandAllChildren(parent: TestItem) {
-    const accumulator: TestItem[] = []
-    const queue = [parent]
-    while (queue.length) {
-        const item = queue.shift()!
-        accumulator.push(item)
-        // queue.push(...item.children.all())
-    }
-    return accumulator
-}
-
-/** Runs the specified function on this item and all its children, if present */
-async function forAll(parent: TestItem, fn: (child: TestItem) => void) {
-    fn(parent)
-    parent.children.forEach((child) => {
-        forAll(child, fn)
-    })
-}
 
