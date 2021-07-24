@@ -1,5 +1,4 @@
 {
-  "enableProposedApi": true,
   "name": "pester-test",
   "displayName": "Pester Tests",
   "description": "Pester Test Support using the native API",
@@ -7,7 +6,7 @@
   "publisher": "justingrote",
   "repository": "https://github.com/Microsoft/vscode-extension-samples",
   "engines": {
-    "vscode": "^1.51.0"
+    "vscode": "^1.59.0"
   },
   "categories": [
     "Other"
@@ -42,7 +41,7 @@
     "compile": "tsc -p ./",
     "lint": "eslint . --ext .ts,.tsx",
     "watch": "tsc -watch -p ./",
-    "download-api": "vscode-dts dev",
+    "download-api": "vscode-dts main",
     "postdownload-api": "vscode-dts main",
     "postinstall": "npm run download-api",
     "semantic-release": "semantic-release"

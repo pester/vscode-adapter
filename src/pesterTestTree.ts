@@ -1,12 +1,31 @@
 
 /** Represents a test result returned from pester, serialized into JSON */
 
-import { TestController, TestItem, TestResultState, Uri } from "vscode"
+import { TestController, TestItem, Uri } from "vscode"
 
 /** An association of test classes to their managed TestItem equivalents. Use this for custom data/metadata about a test
  * because we cannot store it in the managed objects we get from the Test API
 */
 export const TestData = new WeakMap<TestItem, TestTree>()
+
+/**
+ * Possible states of tests in a test run.
+ */
+    export enum TestResultState {
+    // Test will be run, but is not currently running.
+    Queued = 1,
+    // Test is currently running
+    Running = 2,
+    // Test run has passed
+    Passed = 3,
+    // Test run has failed (on an assertion)
+    Failed = 4,
+    // Test run has been skipped
+    Skipped = 5,
+    // Test run failed for some other reason (compilation error, timeout, etc)
+    Errored = 6
+}
+
 
 /** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
  * types and organization types such as suites
@@ -35,7 +54,7 @@ export class TestFile {
             return existing
         }
         const fileTestItem = controller.createTestItem(
-            uri.toString(),
+            uri.fsPath,
             uri.path.split('/').pop()!,
             uri
         )

@@ -97,22 +97,21 @@ export class PowerShellExtensionClient {
             //         : path.dirname(currentDocument.fileName),
         }
 
-        // const endDebugHandler = debug.onDidTerminateDebugSession(() => {
-        //     receiveObjectEventHandler.dispose()
-        //     endDebugHandler.dispose()
-        // })
+
         let terminalData: string = ''
-        const terminalDataEvent = window.onDidWriteTerminalData(e => {
-            if (e.terminal !== psic) {return}
-            terminalData += e.data
-        })
+        // FIXME: Figure out another way to capture terminal data, this is a proposed API that will never go stable
+        // const terminalDataEvent = window.onDidWriteTerminalData(e => {
+        //     if (e.terminal !== psic) {return}
+        //     terminalData += e.data
+        // })
         if (
             !await debug.startDebugging(debugConfig.cwd,debugConfig)
         ) throw new Error('Debug Session did not start as expected')
 
         // TODO: Figure out how to "await" this and return it as a string
         const stopDebugEvent = debug.onDidTerminateDebugSession(e => {
-            terminalDataEvent.dispose()
+            // FIXME: Figure out another way to capture terminal data, this is a proposed API that will never go stable
+            // terminalDataEvent.dispose()
             stopDebugEvent.dispose()
             if (onComplete) {onComplete(terminalData)}
         })

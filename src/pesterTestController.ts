@@ -1,7 +1,7 @@
 import { join } from 'path'
-import { Disposable, Extension, ExtensionContext, Location, Position, Range, RelativePattern, TestController, TestItem, TestMessage, TestResultState, TestRunProfileKind, TestRunRequest, tests, Uri, window, workspace } from 'vscode'
+import { Disposable, Extension, ExtensionContext, Location, Position, Range, RelativePattern, TestController, TestItem, TestMessage, TestRunProfileKind, TestRunRequest, tests, Uri, window, workspace } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
-import { TestData, TestDefinition, TestFile, TestResult } from './pesterTestTree'
+import { TestData, TestDefinition, TestFile, TestResult, TestResultState } from './pesterTestTree'
 import { IPowerShellExtensionClient, PowerShellExtensionClient } from './powershellExtensionClient'
 
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
@@ -20,7 +20,7 @@ export class PesterTestController implements Disposable {
         // wire up our custom handlers to the managed instance
         // HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
         testController.resolveHandler = testItem => this.resolveHandler(testItem)
-        // FIXME: Enums don't work for some reason for createrunprofile
+
         testController.createRunProfile('Run', TestRunProfileKind.Run, this.testHandler.bind(this), true)
         testController.createRunProfile('Debug', TestRunProfileKind.Debug, this.testHandler.bind(this), true)
     }
@@ -229,7 +229,6 @@ export class PesterTestController implements Disposable {
         // No idea if this will work or not
         const terminalData = new Promise<string>(resolve => this.powerShellExtensionClient!.RunCommand(scriptPath, scriptArgs, debug, (terminalData) => {
             runObjectListenEvent.dispose()
-            console.log("Terminal Results", terminalData)
             return resolve(terminalData)
         }))
         return terminalData
