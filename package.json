@@ -2,8 +2,9 @@
   "name": "pester-test",
   "displayName": "Pester Tests",
   "description": "Pester Test Support using the native API",
-  "version": "0.0.1-beta",
+  "version": "0.0.0-source",
   "publisher": "justingrote",
+  "license": "MIT",
   "repository": "https://github.com/pester/vscode-adapter",
   "engines": {
     "vscode": "^1.59.0"
@@ -14,40 +15,23 @@
   "activationEvents": [
     "workspaceContains:**/*.[tT]ests.[pP][sS]1"
   ],
-  "main": "./out/extension.js",
-  "contributes": {
-    "commands": [
-      {
-        "command": "test-provider-sample.runTests",
-        "title": "Custom Run Tests"
-      }
-    ],
-    "views": {
-      "explorer": [
-        {
-          "id": "sampleTestExplorerView",
-          "name": "Sample Test Explorer"
-        }
-      ]
-    }
-  },
+  "main": "./dist/extension.js",
   "prettier": {
     "printWidth": 120,
     "singleQuote": true,
     "arrowParens": "avoid"
   },
   "scripts": {
-    "vscode:prepublish": "npm run -S esbuild-base -- --minify",
-    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
-    "esbuild": "npm run -S esbuild-base -- --sourcemap",
-    "esbuild-watch": "npm run -S esbuild-base -- --sourcemap --watch",
-    "test-compile": "tsc -p ./",
-    "build": "npm run -S esbuild",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "build": "npx vsce package --no-git-tag-version",
+    "watch": "npm run -S esbuild-base -- --watch --sourcemap",
     "lint": "eslint . --ext .ts,.tsx",
-    "watch": "tsc -watch -p ./",
+    "tscbuild": "tsc -p ./",
+    "tscwatch": "tsc -watch -p ./",
     "download-api": "vscode-dts main",
     "postdownload-api": "vscode-dts main",
-    "postinstall": "npm run download-api"
+    "postinstall": "npm run download-api && npx patch-package",
+    "vscode:prepublish": "npm run -S esbuild-base -- --minify"
   },
   "devDependencies": {
     "@types/node": "^12.12.0",
@@ -62,6 +46,7 @@
     "vscode-dts": "^0.3.1"
   },
   "dependencies": {
-    "path": "^0.12.7"
+    "path": "^0.12.7",
+    "tslog": "^3.2.0"
   }
 }
