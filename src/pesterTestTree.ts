@@ -60,8 +60,8 @@ export class TestFile {
         )
         TestData.set(fileTestItem, new TestFile(controller, uri))
         fileTestItem.canResolveChildren = true
-        controller.items.replace([fileTestItem])
-        return fileTestItem;
+        controller.items.add(fileTestItem)
+        return fileTestItem
     }
 }
 
