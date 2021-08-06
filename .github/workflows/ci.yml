@@ -2,11 +2,10 @@
 on:
   pull_request:
     branches:
-      - $default-branch
+      - main
   push:
     branches:
-      - $default-branch
-      - ci
+      - main
 
 name: 👷‍♂️ Build Visual Studio Code Extension
 
@@ -47,7 +46,6 @@ jobs:
         id: version
         run: |
           $semanticVersion = & dotnet-gitversion /nofetch | ConvertFrom-Json | % SemVer
-          dotnet-gitversion /diag
           "Calculated Version: $semanticVersion"
           "::set-output name=semanticVersion::$semanticVersion"
 
@@ -58,5 +56,14 @@ jobs:
       - name: ⬆ Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: vsix
+          name: vsix-${{steps.version.outputs.semanticVersion}}
           path: '*.vsix'
+
+      - name: 📝 Draft Github Release
+        if: github.ref == 'refs/heads/main' || github.head_ref == 'ci'
+        uses: release-drafter/release-drafter@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          version: "${{steps.version.outputs.semanticVersion}}"
+          prerelease: true
