@@ -1,6 +1,7 @@
 import { join } from 'path'
 import { Disposable, Extension, ExtensionContext, Location, Position, Range, RelativePattern, TestController, TestItem, TestMessage, TestRunProfileKind, TestRunRequest, tests, Uri, window, workspace } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
+import log from './log'
 import { TestData, TestDefinition, TestFile, TestResult, TestResultState } from './pesterTestTree'
 import { IPowerShellExtensionClient, PowerShellExtensionClient } from './powershellExtensionClient'
 import { findTestItem } from './testItemUtils'
@@ -21,12 +22,11 @@ export class PesterTestController implements Disposable {
         // wire up our custom handlers to the managed instance
         // HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
         testController.resolveHandler = testItem => this.resolveHandler(testItem)
-
         testController.createRunProfile('Run', TestRunProfileKind.Run, this.testHandler.bind(this), true)
         testController.createRunProfile('Debug', TestRunProfileKind.Debug, this.testHandler.bind(this), true)
     }
 
-    private initialized: boolean = false
+    private initialized = false
     /** Start up the test controller. This includes watching all workspaces for Pester files */
     async initialize() {
         try {
@@ -41,7 +41,6 @@ export class PesterTestController implements Disposable {
             }
         }
     }
-
 
     /** The test controller API calls this whenever it needs to get the resolveChildrenHandler
      * for Pester, this is only relevant to TestFiles as this is pester's lowest level of test resolution
@@ -60,12 +59,12 @@ export class PesterTestController implements Disposable {
 
         // Test Definitions should never show up here, they aren't resolvable in Pester as we only do it at file level
         if (testItemData instanceof TestDefinition) {
-            console.log(`WARNING: Received a test definition ${testItemData.id} to resolve. Should not happen`)
+            log.warn(`Received a test definition ${testItemData.id} to resolve. Should not happen`)
         }
 
         // TODO: Wire this back up to the test adapter
         const testItemLookup = new Map<string, TestItem>()
-        const testItemDiscoveryHandler = (t: object) => {
+        const testItemDiscoveryHandler = (t: unknown) => {
             // TODO: This should be done before onDidReceiveObject maybe as a handler callback?
             const testDef = t as TestDefinition
             const parent = testItemLookup.get(testDef.parent) ?? testItem
@@ -85,7 +84,7 @@ export class PesterTestController implements Disposable {
         testItem.busy = true
         if (testItemData instanceof TestFile) {
             // Run Pester and get tests
-            console.log('Discovering Tests: ', testItem.id)
+            log.info('Discovering Tests: ', testItem.id)
 
             // For discovery we discard the terminal output
             await this.startPesterInterface(
@@ -117,7 +116,7 @@ export class PesterTestController implements Disposable {
         const exclude = new Set<TestItem>(request.exclude)
 
         /** Takes the returned objects from Pester and resolves their status in the test controller **/
-        const runResultHandler = (item: Object) => {
+        const runResultHandler = (item: unknown) => {
             const testResult = item as TestResult
             // Skip Test Suites for now, focus on test results
             if (testResult.type === 'Block') { return }
@@ -127,7 +126,7 @@ export class PesterTestController implements Disposable {
 
             if (testRequestItem === undefined) {throw new Error(`${testResult.id} was returned from Pester but was not tracked in the test controller. This is probably a bug in test discovery.`)}
             if (exclude.has(testRequestItem)) {
-                console.log(`${testResult.id} was run in Pester but excluded from results`)
+                log.warn(`${testResult.id} was run in Pester but excluded from results`)
                 return
             }
 
@@ -162,10 +161,11 @@ export class PesterTestController implements Disposable {
             false,
             debug
         )
+        // FIXME: Terminal Output relied on a proposed API that won't be published, need a workaround
         // // Because we are capturing from a terminal, some intermediate line breaks can be introduced
         // // due to window resizing so we want to strip those out
-        const fullWidthTerminalOutput = terminalOutput.replace(/\r?\n/g, '')
-        run.appendOutput(fullWidthTerminalOutput)
+        // const fullWidthTerminalOutput = terminalOutput.replace(/\r?\n/g, '')
+        // run.appendOutput(fullWidthTerminalOutput)
         run.end()
     }
 
@@ -178,7 +178,7 @@ export class PesterTestController implements Disposable {
     // TODO: Mutex or otherwise await so that this can only happen one at a time?
     private async startPesterInterface(
         testItems: TestItem[],
-        returnHandler: (event: Object) => void,
+        returnHandler: (event: unknown) => void,
         discovery?: boolean,
         debug?: boolean,
     ) {
@@ -246,7 +246,7 @@ export class PesterTestController implements Disposable {
         const disposable = this.context.subscriptions
         if (!workspace.workspaceFolders) {
             // TODO: Register event to look for when a workspace folder is added
-            console.log('No workspace folders detected.')
+            log.warn('No workspace folders detected.')
             return
         }
         for (const workspaceFolder of workspace.workspaceFolders) {
@@ -268,7 +268,7 @@ export class PesterTestController implements Disposable {
 
             const files = await workspace.findFiles(pattern)
             for (const file of files) {
-                console.log("Detected Pester File: ", file.fsPath)
+                log.info("Detected Pester File: ", file.fsPath)
                 TestFile.getOrCreate(testController, file)
             }
         }

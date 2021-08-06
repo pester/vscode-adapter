@@ -14,14 +14,20 @@
 				"--install-extension=ms-vscode.powershell-preview",
 				"${workspaceFolder}/sample"
 			],
+			"env": {
+				"VSCODE_DEBUG_MODE": "true"
+			},
 			"outFiles": [
-				"${workspaceFolder}/out/**/*.js"
+				"${workspaceFolder}/dist/**/*.js"
 			],
+			"sourceMaps": true,
 			"smartStep": true,
 			"skipFiles": [
+				"**/log.ts", // Enables better debug console log representation
+				"**/node_modules/**", // "Just my code"
 				"C:/users/jgrote/AppData/Local/Programs/Microsoft VS Code Insiders/**/*.js",
-				"**/app/out/vs/**",
-				"**\\app\\out\\vs\\**",
+				"**/app/dist/vs/**",
+				"**\\app\\dist\\vs\\**",
 				"<node_internals>/**"
 			],
 			"preLaunchTask": "npm: watch"
@@ -32,10 +38,10 @@
 			"request": "launch",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--extensionTestsPath=${workspaceFolder}/out/test/suite/index"
+				"--extensionTestsPath=${workspaceFolder}/dist/test/suite/index"
 			],
 			"outFiles": [
-				"${workspaceFolder}/out/test/**/*.js"
+				"${workspaceFolder}/dist/test/**/*.js"
 			],
 			"preLaunchTask": "${defaultBuildTask}"
 		}

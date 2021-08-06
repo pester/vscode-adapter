@@ -11,7 +11,7 @@ export class DotnetNamedPipeServer implements Disposable {
     // TODO: Tighten up the types here
     // TODO: Optionally skip the json processing?
     // TODO: Make this not depend on vscode and use a general eventEmitter, then make an inherited class that is vscode specific
-    private readonly _onDidReceiveObject = new EventEmitter<Object>();
+    private readonly _onDidReceiveObject = new EventEmitter<unknown>()
     get onDidReceiveObject() {
 		return this._onDidReceiveObject.event
 	}
@@ -35,7 +35,7 @@ export class DotnetNamedPipeServer implements Disposable {
                 DotnetNamedPipeServer.getDotnetPipePath(this.name)
             )
             .once('listening', resolve)
-            .once('error', reject);
+            .once('error', reject)
         })
     }
 
@@ -44,11 +44,11 @@ export class DotnetNamedPipeServer implements Disposable {
     */
     static getDotnetPipePath(pipeName: string) {
         if (platform() === "win32") {
-            return "\\\\.\\pipe\\" + pipeName;
+            return "\\\\.\\pipe\\" + pipeName
         } else {
             // Windows uses NamedPipes where non-Windows platforms use Unix Domain Sockets.
             // This requires connecting to the pipe file in different locations on Windows vs non-Windows.
-            return join(tmpdir(), pipeName);
+            return join(tmpdir(), pipeName)
         }
     }
 

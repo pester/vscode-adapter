@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+on:
+  pull_request:
+    branches:
+      - $default-branch
+  push:
+    branches:
+      - $default-branch
+      - ci
+
+name: 👷‍♂️ Build Visual Studio Code Extension
+
+jobs:
+  build:
+    name: 👷‍♂️ Build
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    runs-on: ubuntu-20.04
+    steps:
+      - name: 🚚 Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Cache
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            node_modules
+            ~/.dotnet/tools
+            .git/gitversion_cache
+            .config/dotnet-tools.ci.json
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node-
+
+      - name: ➕ Dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          npm install
+          dotnet tool install -g gitversion.tool --version 5.6.11
+
+      - name: 🔍 GitVersion
+        id: version
+        run: |
+          $semanticVersion = & dotnet-gitversion /nofetch | ConvertFrom-Json | % SemVer
+          dotnet-gitversion /diag
+          "Calculated Version: $semanticVersion"
+          "::set-output name=semanticVersion::$semanticVersion"
+
+      - name: 👷‍♂️ Build
+        run: |
+          npm run build ${{steps.version.outputs.semanticVersion}}
+
+      - name: ⬆ Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: vsix
+          path: '*.vsix'
