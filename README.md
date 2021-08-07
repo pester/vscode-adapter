@@ -6,7 +6,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/pester/vscode-adapter?style=social)](https://github.com/pester/vscode-adapter)
 
 This extension provides the ability to run [Pester](https://pester.dev/) tests utilizing the native
-[Testing functionality](https://code.visualstudio.com/updates/v1_59#_testing-apis) first introduced in Visual Studio Code 1.49
+[Testing functionality](https://code.visualstudio.com/updates/v1_59#_testing-apis) first introduced in Visual Studio Code 1.59
 
 ![Example](images/2021-08-07-08-06-26.png)
 
