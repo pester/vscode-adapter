@@ -20,6 +20,10 @@ This extension provides the ability to run [Pester](https://pester.dev/) tests u
 - Pester 5.2.0 or later (sorry, no Pester 4 support)
 - Powershell 7+ or Windows Powershell 5.1
 
+### Usage
+The extension will automatically discover all `.Tests.ps1` Pester files in your workspace, you can then run tests either
+from the Tests pane or from the green arrows that will appear adjacent to your tests.
+
 ### Installing the latest beta VSIX
 Beta VSIX extension packages are generated upon every commit to master and every pull request update. To install a beta build:
 1. Click the green checkmark next to the latest commit
