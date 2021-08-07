@@ -1,12 +1,14 @@
 ## 🧪 Pester Test Adapter for Visual Studio Code
-[![Latest](https://img.shields.io/github/v/release/pester/vscode-adapter?label=latest&sort=semver&style=flat-square)](https://github.com/pester/vscode-adapter/releases)![Downloads](https://img.shields.io/github/downloads/pester/vscode-adapter/latest/total?sort=semver&style=flat-square)
+[![Latest](https://img.shields.io/github/v/release/pester/vscode-adapter?label=latest&sort=semver&style=flat-square)](https://github.com/pester/vscode-adapter/releases)![Downloads](https://img.shields.io/github/downloads/pester/vscode-adapter/latest/total?sort=semver&style=flat-square&label=downloads)
+[![Build](https://img.shields.io/github/workflow/status/pester/vscode-adapter/%F0%9F%91%B7%E2%80%8D%E2%99%82%EF%B8%8F%20Build%20Visual%20Studio%20Code%20Extension)](https://github.com/pester/vscode-adapter/actions/workflows/ci.yml)
+[![Analysis](https://img.shields.io/github/workflow/status/pester/vscode-adapter/%F0%9F%94%8E%20CodeQL/main?label=codeQL&style=flat-square)](https://github.com/pester/vscode-adapter/actions/workflows/codeql-analysis.yml)
 [![License: MIT](https://img.shields.io/npm/l/tslog?logo=tslog&style=flat-square)](https://tldrlegal.com/license/mit-license)
-
-[![Build](https://github.com/pester/vscode-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/pester/vscode-adapter/actions/workflows/ci.yml)
-[![Build](https://github.com/pester/vscode-adapter/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/pester/vscode-adapter/actions/workflows/codeql-analysis.yml)
+[![GitHub stars](https://img.shields.io/github/stars/pester/vscode-adapter?style=social)](https://github.com/pester/vscode-adapter)
 
 This extension provides the ability to run [Pester](https://pester.dev/) tests utilizing the native
 [Testing functionality](https://code.visualstudio.com/updates/v1_59#_testing-apis) first introduced in Visual Studio Code 1.49
+
+![Example](images/2021-08-07-08-06-26.png)
 
 ### Highlights
 🔍 **Pester Test Browser**<br>
