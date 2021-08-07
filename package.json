@@ -1,15 +1,23 @@
 {
   "name": "pester-test",
   "displayName": "Pester Tests",
-  "description": "Pester Test Support using the native API",
+  "description": "Enables you to run PowerShell Pester tests using the VSCode testing feature",
   "version": "0.0.0-source",
-  "publisher": "justingrote",
+  "publisher": "Pester",
   "license": "MIT",
   "repository": "https://github.com/pester/vscode-adapter",
   "engines": {
     "vscode": "^1.59.0"
   },
+  "keywords": [
+    "Pester",
+    "PowerShell",
+    "Test",
+    "Debug"
+  ],
   "categories": [
+    "Debuggers",
+    "Programming Languages",
     "Other"
   ],
   "activationEvents": [
@@ -48,5 +56,18 @@
   "dependencies": {
     "path": "^0.12.7",
     "tslog": "^3.2.0"
-  }
+  },
+  "icon": "images/pesterlogo.png",
+  "badges": [
+    {
+      "url": "https://img.shields.io/github/stars/pester/vscode-adapter?style=social",
+      "description": "Stars",
+      "href": "https://github.com/pester/vscode-adapter"
+    },
+    {
+      "url": "https://img.shields.io/github/workflow/status/pester/vscode-adapter/%F0%9F%91%B7%E2%80%8D%E2%99%82%EF%B8%8F%20Build%20Visual%20Studio%20Code%20Extension",
+      "description": "Build",
+      "href": "https://github.com/pester/vscode-adapter/actions/workflows/ci.yml"
+    }
+  ]
 }
