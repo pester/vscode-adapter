@@ -1,4 +1,4 @@
-## 🧪 Pester Test Adapter for Visual Studio Code
+![Pester Test Adapter for Visual Studio Code](images/social-preview.png)
 [![Latest](https://img.shields.io/github/v/release/pester/vscode-adapter?label=latest&sort=semver&style=flat-square)](https://github.com/pester/vscode-adapter/releases)![Downloads](https://img.shields.io/github/downloads/pester/vscode-adapter/latest/total?sort=semver&style=flat-square&label=downloads)
 [![Build](https://img.shields.io/github/workflow/status/pester/vscode-adapter/%F0%9F%91%B7%E2%80%8D%E2%99%82%EF%B8%8F%20Build%20Visual%20Studio%20Code%20Extension)](https://github.com/pester/vscode-adapter/actions/workflows/ci.yml)
 [![Analysis](https://img.shields.io/github/workflow/status/pester/vscode-adapter/%F0%9F%94%8E%20CodeQL/main?label=codeQL&style=flat-square)](https://github.com/pester/vscode-adapter/actions/workflows/codeql-analysis.yml)
