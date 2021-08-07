@@ -11,8 +11,8 @@ This extension provides the ability to run [Pester](https://pester.dev/) tests u
 ![Example](images/2021-08-07-08-06-26.png)
 
 ### Highlights
-🔍 **Pester Test Browser**<br>
-🐞 **Debugging Support**<br>
+🔍 **Pester Test Browser** <br>
+🐞 **Debugging Support** <br>
 👩‍💻 **Uses Powershell Integrated Terminal** <br>
 👨‍👧‍👦 **Expands Test Cases** <br>
 
