@@ -39,7 +39,7 @@ jobs:
       - name: ➕ Dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          & npm install -g npm
+          & sudo npm install -g npm@lts
           "NPM Version: $(& npm -v)"
           & npm ci
           & dotnet tool install -g gitversion.tool --version 5.6.11
