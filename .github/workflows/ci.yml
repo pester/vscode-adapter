@@ -34,13 +34,12 @@ jobs:
             .git/gitversion_cache
             .config/dotnet-tools.ci.json
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-          restore-keys: ${{ runner.os }}-node-
 
       - name: ➕ Dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          npm install
-          dotnet tool install -g gitversion.tool --version 5.6.11
+          & npm ci
+          & dotnet tool install -g gitversion.tool --version 5.6.11
 
       - name: 🔍 GitVersion
         id: version
