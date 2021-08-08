@@ -1,4 +1,4 @@
 {
-  "github-actions.workflows.pinned.workflows": [".github/workflows/ci.yml"],
-  "editor.detectIndentation": false
+	"github-actions.workflows.pinned.workflows": [".github/workflows/ci.yml"],
+	"editor.detectIndentation": false
 }
