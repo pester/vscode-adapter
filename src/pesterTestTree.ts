@@ -1,31 +1,29 @@
-
 /** Represents a test result returned from pester, serialized into JSON */
 
-import { TestController, TestItem, Uri } from "vscode"
+import { TestController, TestItem, Uri } from 'vscode'
 
 /** An association of test classes to their managed TestItem equivalents. Use this for custom data/metadata about a test
  * because we cannot store it in the managed objects we get from the Test API
-*/
+ */
 export const TestData = new WeakMap<TestItem, TestTree>()
 
 /**
  * Possible states of tests in a test run.
  */
-    export enum TestResultState {
-    // Test will be run, but is not currently running.
-    Queued = 1,
-    // Test is currently running
-    Running = 2,
-    // Test run has passed
-    Passed = 3,
-    // Test run has failed (on an assertion)
-    Failed = 4,
-    // Test run has been skipped
-    Skipped = 5,
-    // Test run failed for some other reason (compilation error, timeout, etc)
-    Errored = 6
+export enum TestResultState {
+  // Test will be run, but is not currently running.
+  Queued = 1,
+  // Test is currently running
+  Running = 2,
+  // Test run has passed
+  Passed = 3,
+  // Test run has failed (on an assertion)
+  Failed = 4,
+  // Test run has been skipped
+  Skipped = 5,
+  // Test run failed for some other reason (compilation error, timeout, etc)
+  Errored = 6
 }
-
 
 /** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
  * types and organization types such as suites
@@ -34,35 +32,45 @@ export type TestTree = TestFile | TestDefinition
 
 /** Represents an individual Pester .tests.ps1 file, or an active document in the editor. This is just a stub to be used
  * for type identification later, the real work is done in {@link PesterTestController.getOrCreateFile()}
-*/
+ */
 export class TestFile {
-
-    private constructor(private readonly controller: TestController, private readonly uri: Uri) {}
-    get file() {return this.uri.fsPath}
-    get startLine() {return undefined}
-    get testItem() {
-        const testItem = this.controller.items.get(this.uri.toString())
-        if (!testItem) {throw new Error('No associated test item for testfile:' + this.uri + '. This is a bug.')}
-        return testItem
+  private constructor(
+    private readonly controller: TestController,
+    private readonly uri: Uri
+  ) {}
+  get file() {
+    return this.uri.fsPath
+  }
+  get startLine() {
+    return undefined
+  }
+  get testItem() {
+    const testItem = this.controller.items.get(this.uri.toString())
+    if (!testItem) {
+      throw new Error(
+        'No associated test item for testfile:' + this.uri + '. This is a bug.'
+      )
     }
+    return testItem
+  }
 
-    /** Creates a managed TestItem entry in the controller if it doesn't exist, or returns the existing object if it does already exist */
-    static getOrCreate(controller: TestController, uri: Uri): TestItem {
-        const uriFsPath = uri.fsPath
-        const existing = controller.items.get(uri.toString())
-        if (existing) {
-            return existing
-        }
-        const fileTestItem = controller.createTestItem(
-            uri.fsPath,
-            uri.path.split('/').pop()!,
-            uri
-        )
-        TestData.set(fileTestItem, new TestFile(controller, uri))
-        fileTestItem.canResolveChildren = true
-        controller.items.add(fileTestItem)
-        return fileTestItem
+  /** Creates a managed TestItem entry in the controller if it doesn't exist, or returns the existing object if it does already exist */
+  static getOrCreate(controller: TestController, uri: Uri): TestItem {
+    const uriFsPath = uri.fsPath
+    const existing = controller.items.get(uri.toString())
+    if (existing) {
+      return existing
     }
+    const fileTestItem = controller.createTestItem(
+      uri.fsPath,
+      uri.path.split('/').pop()!,
+      uri
+    )
+    TestData.set(fileTestItem, new TestFile(controller, uri))
+    fileTestItem.canResolveChildren = true
+    controller.items.add(fileTestItem)
+    return fileTestItem
+  }
 }
 
 /**
@@ -71,43 +79,41 @@ export class TestFile {
  * @template TChild - What types this TestItem can have as a child. Leaf TestItems like test cases should specify 'never'
  */
 export interface TestItemOptions {
-    /** Uniquely identifies the test. Can be anything but must be unique to the controller */
-    id: string
-    /** A label for the testItem. This is how it will appear in the test, explorer pane */
-    label: string
-    /** Which test item is the parent of this item. You can specify the test controller root here */
-    parent: string
-    /** A resource URI that matches the physical location of this test */
-    uri?: Uri
-    /** TODO: A temporary type hint until I do a better serialization method */
-    type?: string
+  /** Uniquely identifies the test. Can be anything but must be unique to the controller */
+  id: string
+  /** A label for the testItem. This is how it will appear in the test, explorer pane */
+  label: string
+  /** Which test item is the parent of this item. You can specify the test controller root here */
+  parent: string
+  /** A resource URI that matches the physical location of this test */
+  uri?: Uri
+  /** TODO: A temporary type hint until I do a better serialization method */
+  type?: string
 }
 
 /** Represents a test that has been discovered by Pester. TODO: Separate suite definition maybe? */
 export interface TestDefinition extends TestItemOptions {
-    startLine: number
-    endLine: number
-    file: string
-    description?: string
-    error?: string
-    tags?: string
+  startLine: number
+  endLine: number
+  file: string
+  description?: string
+  error?: string
+  tags?: string
 }
 
-export class TestDefinition {
-
-}
+export class TestDefinition {}
 
 /** The type used to represent a test run from the Pester runner, with additional status data */
 export interface TestResult extends TestItemOptions {
-    result: TestResultState
-    duration: number
-    durationDetail: string
-    message: string
-    expected: string
-    actual: string
-    targetFile: string
-    targetLine: number
-    description?: string
+  result: TestResultState
+  duration: number
+  durationDetail: string
+  message: string
+  expected: string
+  actual: string
+  targetFile: string
+  targetLine: number
+  description?: string
 }
 
 // /** Stores data for the test root, such as the shared Powershell Runner. It will derive all needed info from the Powershell Extension */

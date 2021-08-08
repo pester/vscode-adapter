@@ -1,14 +1,14 @@
 {
-	"compilerOptions": {
-		"module": "commonjs",
-		"target": "es2019",
-		"lib": ["ES2019"],
-		"outDir": "dist",
-		"sourceMap": true,
-		"inlineSources": true,
-		"strict": true,
-		"rootDir": "src",
-		"experimentalDecorators": true
-	},
-	"exclude": ["node_modules", ".vscode-test", "**/*.test.ts"]
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2019",
+    "lib": ["ES2019"],
+    "outDir": "dist",
+    "sourceMap": true,
+    "inlineSources": true,
+    "strict": true,
+    "rootDir": "src",
+    "experimentalDecorators": true
+  },
+  "exclude": ["node_modules", ".vscode-test", "**/*.test.ts"]
 }

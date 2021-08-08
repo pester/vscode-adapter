@@ -1,3 +1,2 @@
-
 -P ubuntu-20.04=ghcr.io/justingrote/act-pwsh-dotnet:latest
 -P ubuntu-latest=ghcr.io/justingrote/act-pwsh-dotnet:latest

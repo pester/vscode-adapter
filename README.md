@@ -11,21 +11,26 @@ This extension provides the ability to run [Pester](https://pester.dev/) tests u
 ![Example](images/2021-08-07-08-06-26.png)
 
 ### Highlights
+
 🔍 **Pester Test Browser** <br>
 🐞 **Debugging Support** <br>
 👩‍💻 **Uses Powershell Integrated Terminal** <br>
 👨‍👧‍👦 **Expands Test Cases** <br>
 
 ### Extension Prerequisites
+
 - Pester 5.2.0 or later (sorry, no Pester 4 support)
 - Powershell 7+ or Windows Powershell 5.1
 
 ### Usage
+
 The extension will automatically discover all `.Tests.ps1` Pester files in your workspace, you can then run tests either
 from the Tests pane or from the green arrows that will appear adjacent to your tests.
 
 ### Installing the latest beta VSIX
+
 Beta VSIX extension packages are generated upon every commit to master and every pull request update. To install a beta build:
+
 1. Click the green checkmark next to the latest commit
 1. Click `Details` next to the `👷‍♂️ Build Visual Studio Code Extension` task
 1. Click `Artifacts` in the upper right of the window
@@ -35,4 +40,5 @@ Beta VSIX extension packages are generated upon every commit to master and every
 1. Alternatively in vscode you can hit F1 and choose `Extensions: Install from VSIX` and browse for the vsix file.
 
 ### Configuration
+
 This extension will use the Powershell Extension Pester verbosity settings for the output.

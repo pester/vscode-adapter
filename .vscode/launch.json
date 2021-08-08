@@ -3,47 +3,43 @@
 // Hover to view descriptions of existing attributes.
 // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
 {
-	"version": "0.2.0",
-	"configurations": [
-		{
-			"name": "Run Extension",
-			"type": "extensionHost",
-			"request": "launch",
-			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--install-extension=ms-vscode.powershell-preview",
-				"${workspaceFolder}/sample"
-			],
-			"env": {
-				"VSCODE_DEBUG_MODE": "true"
-			},
-			"outFiles": [
-				"${workspaceFolder}/dist/**/*.js"
-			],
-			"sourceMaps": true,
-			"smartStep": true,
-			"skipFiles": [
-				"**/log.ts", // Enables better debug console log representation
-				"**/node_modules/**", // "Just my code"
-				"C:/users/jgrote/AppData/Local/Programs/Microsoft VS Code Insiders/**/*.js",
-				"**/app/dist/vs/**",
-				"**\\app\\dist\\vs\\**",
-				"<node_internals>/**"
-			],
-			"preLaunchTask": "npm: watch"
-		},
-		{
-			"name": "Extension Tests",
-			"type": "extensionHost",
-			"request": "launch",
-			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--extensionTestsPath=${workspaceFolder}/dist/test/suite/index"
-			],
-			"outFiles": [
-				"${workspaceFolder}/dist/test/**/*.js"
-			],
-			"preLaunchTask": "${defaultBuildTask}"
-		}
-	]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--install-extension=ms-vscode.powershell-preview",
+        "${workspaceFolder}/sample"
+      ],
+      "env": {
+        "VSCODE_DEBUG_MODE": "true"
+      },
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "sourceMaps": true,
+      "smartStep": true,
+      "skipFiles": [
+        "**/log.ts", // Enables better debug console log representation
+        "**/node_modules/**", // "Just my code"
+        "C:/users/jgrote/AppData/Local/Programs/Microsoft VS Code Insiders/**/*.js",
+        "**/app/dist/vs/**",
+        "**\\app\\dist\\vs\\**",
+        "<node_internals>/**"
+      ],
+      "preLaunchTask": "npm: watch"
+    },
+    {
+      "name": "Extension Tests",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--extensionTestsPath=${workspaceFolder}/dist/test/suite/index"
+      ],
+      "outFiles": ["${workspaceFolder}/dist/test/**/*.js"],
+      "preLaunchTask": "${defaultBuildTask}"
+    }
+  ]
 }

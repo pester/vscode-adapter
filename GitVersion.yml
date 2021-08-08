@@ -17,7 +17,7 @@ minor-version-bump-message: ✨|:(feat|tada):|^feat:|\+semver:\s?(feature|minor)
 #Reference: https://regex101.com/r/NACNiA/1
 patch-version-bump-message: '[📌🐛🩹🚑♻️🗑️🔥⚡🔒➕➖🔗⚙️]|:(bug|refactor|perf|security|add|remove|deps|config):|^(fix|refactor|perf|security|style|deps):|\+semver:\s?(fix|patch)'
 #Reference: https://regex101.com/r/Kw8oen/1
-no-bump-message:  '[📝📚🎨🚨💡🧪✔️✅☑️🚀📦👷🌐🔧]|:(docs|style|test|test_tube|release|build|ci|i18n|chore|heavy_check_mark|white_check_mark|ballot_box_with_check):|^(docs|style|test|release|build|ci|i18n|chore):|\+semver:\s?(none|skip)'
+no-bump-message: '[📝📚🎨🚨💡🧪✔️✅☑️🚀📦👷🌐🔧]|:(docs|style|test|test_tube|release|build|ci|i18n|chore|heavy_check_mark|white_check_mark|ballot_box_with_check):|^(docs|style|test|release|build|ci|i18n|chore):|\+semver:\s?(none|skip)'
 
 #Set the build numbers to be xxx, example 0.1.0-myfeature001 or 0.2.1-beta001. This allows for longer feature branch names, and can be increased for more active projects
 #You should set this to the number of commits you expect to have for a given branch before merging.

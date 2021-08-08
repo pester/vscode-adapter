@@ -24,11 +24,6 @@
     "workspaceContains:**/*.[tT]ests.[pP][sS]1"
   ],
   "main": "./dist/extension.js",
-  "prettier": {
-    "printWidth": 120,
-    "singleQuote": true,
-    "arrowParens": "avoid"
-  },
   "scripts": {
     "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
     "build": "npx vsce package --no-git-tag-version",
@@ -47,7 +42,10 @@
     "@typescript-eslint/eslint-plugin": "^4.16.0",
     "@typescript-eslint/parser": "^4.16.0",
     "esbuild": "^0.12.15",
-    "eslint": "^7.21.0",
+    "eslint": "^7.32.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^3.4.0",
+    "prettier": "^2.3.2",
     "ts-node": "^10.0.0",
     "typescript": "^4.2.2",
     "vsce": "^1.96.1",
