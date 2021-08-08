@@ -1,10 +1,10 @@
 {
-    "recommendations": [
-        "ms-vscode.powershell-preview",
-        "github.vscode-pull-request-github",
-        "cschleiden.vscode-github-actions",
+	"recommendations": [
+		"ms-vscode.powershell-preview",
+		"github.vscode-pull-request-github",
+		"cschleiden.vscode-github-actions",
 		"dbaeumer.vscode-eslint",
 		"esbenp.prettier-vscode",
 		"connor4312.esbuild-problem-matchers"
-    ]
+	]
 }

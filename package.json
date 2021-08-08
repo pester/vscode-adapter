@@ -1,73 +1,71 @@
 {
-  "name": "pester-test",
-  "displayName": "Pester Tests",
-  "description": "Enables you to run PowerShell Pester tests using the VSCode testing feature",
-  "version": "0.0.0-source",
-  "publisher": "Pester",
-  "license": "MIT",
-  "repository": "https://github.com/pester/vscode-adapter",
-  "engines": {
-    "vscode": "^1.59.0"
-  },
-  "keywords": [
-    "Pester",
-    "PowerShell",
-    "Test",
-    "Debug"
-  ],
-  "categories": [
-    "Debuggers",
-    "Programming Languages",
-    "Other"
-  ],
-  "activationEvents": [
-    "workspaceContains:**/*.[tT]ests.[pP][sS]1"
-  ],
-  "main": "./dist/extension.js",
-  "prettier": {
-    "printWidth": 120,
-    "singleQuote": true,
-    "arrowParens": "avoid"
-  },
-  "scripts": {
-    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
-    "build": "npx vsce package --no-git-tag-version",
-    "watch": "npm run -S esbuild-base -- --watch --sourcemap",
-    "lint": "eslint . --ext .ts,.tsx",
-    "tscbuild": "tsc -p ./",
-    "tscwatch": "tsc -watch -p ./",
-    "download-api": "vscode-dts main",
-    "postdownload-api": "vscode-dts main",
-    "postinstall": "npm run download-api && npx patch-package",
-    "vscode:prepublish": "npm run -S esbuild-base -- --minify"
-  },
-  "devDependencies": {
-    "@types/node": "^12.12.0",
-    "@types/node-powershell": "^4.0.0",
-    "@typescript-eslint/eslint-plugin": "^4.16.0",
-    "@typescript-eslint/parser": "^4.16.0",
-    "esbuild": "^0.12.15",
-    "eslint": "^7.21.0",
-    "ts-node": "^10.0.0",
-    "typescript": "^4.2.2",
-    "vsce": "^1.96.1",
-    "vscode-dts": "^0.3.1"
-  },
-  "dependencies": {
-    "path": "^0.12.7",
-    "tslog": "^3.2.0"
-  },
-  "icon": "images/pesterlogo.png",
-  "badges": [
-    {
-      "url": "https://img.shields.io/github/stars/pester/vscode-adapter?style=social",
-      "description": "Stars",
-      "href": "https://github.com/pester/vscode-adapter"
-    },
-    {
-      "url": "https://img.shields.io/github/workflow/status/pester/vscode-adapter/%F0%9F%91%B7%E2%80%8D%E2%99%82%EF%B8%8F%20Build%20Visual%20Studio%20Code%20Extension",
-      "description": "Build",
-      "href": "https://github.com/pester/vscode-adapter/actions/workflows/ci.yml"
-    }
-  ]
+	"name": "pester-test",
+	"displayName": "Pester Tests",
+	"description": "Enables you to run PowerShell Pester tests using the VSCode testing feature",
+	"version": "0.0.0-source",
+	"publisher": "Pester",
+	"license": "MIT",
+	"repository": "https://github.com/pester/vscode-adapter",
+	"engines": {
+		"vscode": "^1.59.0"
+	},
+	"keywords": [
+		"Pester",
+		"PowerShell",
+		"Test",
+		"Debug"
+	],
+	"categories": [
+		"Debuggers",
+		"Programming Languages",
+		"Other"
+	],
+	"activationEvents": [
+		"workspaceContains:**/*.[tT]ests.[pP][sS]1"
+	],
+	"main": "./dist/extension.js",
+	"scripts": {
+		"esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+		"build": "npx vsce package --no-git-tag-version",
+		"watch": "npm run -S esbuild-base -- --watch --sourcemap",
+		"lint": "eslint . --ext .ts,.tsx",
+		"tscbuild": "tsc -p ./",
+		"tscwatch": "tsc -watch -p ./",
+		"download-api": "vscode-dts main",
+		"postdownload-api": "vscode-dts main",
+		"postinstall": "npm run download-api && npx patch-package",
+		"vscode:prepublish": "npm run -S esbuild-base -- --minify"
+	},
+	"devDependencies": {
+		"@types/node": "^12.12.0",
+		"@types/node-powershell": "^4.0.0",
+		"@typescript-eslint/eslint-plugin": "^4.16.0",
+		"@typescript-eslint/parser": "^4.16.0",
+		"esbuild": "^0.12.15",
+		"eslint": "^7.32.0",
+		"eslint-config-prettier": "^8.3.0",
+		"eslint-plugin-prettier": "^3.4.0",
+		"prettier": "^2.3.2",
+		"ts-node": "^10.0.0",
+		"typescript": "^4.2.2",
+		"vsce": "^1.96.1",
+		"vscode-dts": "^0.3.1"
+	},
+	"dependencies": {
+		"path": "^0.12.7",
+		"tslog": "^3.2.0"
+	},
+	"icon": "images/pesterlogo.png",
+	"badges": [
+		{
+			"url": "https://img.shields.io/github/stars/pester/vscode-adapter?style=social",
+			"description": "Stars",
+			"href": "https://github.com/pester/vscode-adapter"
+		},
+		{
+			"url": "https://img.shields.io/github/workflow/status/pester/vscode-adapter/%F0%9F%91%B7%E2%80%8D%E2%99%82%EF%B8%8F%20Build%20Visual%20Studio%20Code%20Extension",
+			"description": "Build",
+			"href": "https://github.com/pester/vscode-adapter/actions/workflows/ci.yml"
+		}
+	]
 }

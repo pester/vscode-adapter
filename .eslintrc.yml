@@ -1,0 +1,18 @@
+parser: '@typescript-eslint/parser'
+plugins:
+  - '@typescript-eslint'
+extends:
+  - eslint:recommended
+  - plugin:@typescript-eslint/recommended
+  - plugin:prettier/recommended
+rules:
+  prettier/prettier: error
+  arrow-body-style: 'off'
+  prefer-arrow-callback: 'off'
+  no-underscore-dangle: 'off'
+  # '@typescipt-eslint/interface-name-prefix': ['error', 'always']
+  '@typescript-eslint/no-unused-vars': 'off'
+  '@typescript-eslint/no-explicit-any': 'off'
+  '@typescript-eslint/explicit-module-boundary-types': 'off'
+  '@typescript-eslint/no-non-null-assertion': 'off'
+  '@typescript-eslint/indent': 'off'

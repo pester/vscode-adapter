@@ -17,9 +17,7 @@
 			"env": {
 				"VSCODE_DEBUG_MODE": "true"
 			},
-			"outFiles": [
-				"${workspaceFolder}/dist/**/*.js"
-			],
+			"outFiles": ["${workspaceFolder}/dist/**/*.js"],
 			"sourceMaps": true,
 			"smartStep": true,
 			"skipFiles": [
@@ -40,9 +38,7 @@
 				"--extensionDevelopmentPath=${workspaceFolder}",
 				"--extensionTestsPath=${workspaceFolder}/dist/test/suite/index"
 			],
-			"outFiles": [
-				"${workspaceFolder}/dist/test/**/*.js"
-			],
+			"outFiles": ["${workspaceFolder}/dist/test/**/*.js"],
 			"preLaunchTask": "${defaultBuildTask}"
 		}
 	]

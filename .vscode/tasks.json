@@ -9,7 +9,7 @@
 			"group": "build",
 			"problemMatcher": "$esbuild-watch",
 			"isBackground": true,
-			"label": "npm: watch",
+			"label": "npm: watch"
 		},
 		{
 			"type": "npm",
@@ -19,7 +19,7 @@
 				"isDefault": true
 			},
 			"problemMatcher": "$esbuild",
-			"label": "npm: build",
+			"label": "npm: build"
 		}
 	]
 }
