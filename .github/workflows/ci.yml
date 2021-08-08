@@ -34,7 +34,6 @@ jobs:
             .git/gitversion_cache
             .config/dotnet-tools.ci.json
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-          # restore-keys: ${{ runner.os }}-node-
 
       - name: ➕ Dependencies
         if: steps.cache.outputs.cache-hit != 'true'
