@@ -384,61 +384,6 @@ function Invoke-Main {
 
     Add-PesterPluginShim $MyPlugin
     Invoke-Pester -Configuration $config | Out-Null
-
-
-    # $testResult = $runResult.Tests
-    # if ($testResult.count -le 0) {return}
-
-    # $testFilteredResult = if (-not $Discovery) {
-    #     #If discovery was not run, its easy to filter the results
-    #     $testResult | Where-Object Executed
-    # } elseif ($lines.count) {
-    #     #A more esoteric filter is required because
-    #     #BUG: Pester still returns all test discovery results in the file even if you only specify a particular line filter
-    #     #TODO: File an issue on this
-    #     #Returns true if the id matches. The ID is not a native property in pester, we have to construct it.
-    #     $testResult | Where-Object {
-    #         $Test = $PSItem
-    #         $location = $Test.ScriptBlock.File + ':' + $Test.StartLine
-    #         $location -in $lines
-    #     }
-    # } else {
-    #     $testResult
-    # }
-    # [Collections.ArrayList]$testObjects = @($testFilteredResult | ForEach-Object {
-    #     New-TestObject $PSItem
-    # })
-
-    # if (-not $TestsOnly) {
-    #     #Emit the scaffolding objects
-    #     # TODO: Make this streaming with Pester Output Plugin
-    #     [Pester.Block[]]$testSuites = Get-TestItemParents $runResult.Tests
-
-    #     $testObjects.InsertRange(0,($testSuites.foreach{New-TestObject $PSItem}))
-    # }
-
-    # #Skip writing to pipe if passthru is specified
-    # if ($PassThru) {
-    #     ConvertTo-Json $TestObjects -Depth 1;return
-    # }
-
-    # try {
-    #     # This will replace the standard Out-Default and allow us to tee json results to a named pipe for the extension to pick up.
-
-
-    #     $testObjects.foreach{
-    #         [string]$jsonObject = ConvertTo-Json $PSItem -Compress -Depth 1
-    #         if ($PipeName) {
-    #             $writer.WriteLine($jsonObject)
-    #         }
-    #     }
-    #     # DO NOT USE THE PIPELINE, it will unwrap the array and cause a problem with single-item results
-
-    # } catch {throw} finally {
-    #     $writer.flush()
-    #     $writer.dispose()
-    #     $client.Close()
-    # }
 }
 
 #Run Main function
