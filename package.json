@@ -5,6 +5,7 @@
 	"version": "0.0.0-source",
 	"publisher": "pspester",
 	"license": "MIT",
+	"preview": true,
 	"repository": "https://github.com/pester/vscode-adapter",
 	"engines": {
 		"vscode": "^1.59.0"
