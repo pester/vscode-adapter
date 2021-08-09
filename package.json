@@ -2,7 +2,7 @@
 	"name": "pester-test",
 	"displayName": "Pester Tests",
 	"description": "Enables you to run PowerShell Pester tests using the VSCode testing feature",
-	"version": "0.0.0-source",
+	"version": "0.0.1",
 	"publisher": "pspester",
 	"license": "MIT",
 	"repository": "https://github.com/pester/vscode-adapter",
