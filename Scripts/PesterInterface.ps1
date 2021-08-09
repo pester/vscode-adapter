@@ -22,9 +22,9 @@ param(
     [String]$Verbosity
 )
 
-$VerbosePreference = 'Ignore'
-$WarningPreference = 'Ignore'
-$DebugPreference = 'Ignore'
+$VerbosePreference = 'SilentlyContinue'
+$WarningPreference = 'SilentlyContinue'
+$DebugPreference = 'SilentlyContinue'
 
 #region Functions
 # Maps pester result status to vscode result status
