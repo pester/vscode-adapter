@@ -260,7 +260,12 @@ export class PesterTestController implements Disposable {
 
 		scriptArgs.push('-PipeName')
 		scriptArgs.push(this.returnServer.name)
-		scriptArgs.push(...testsToRun)
+		// Quotes are required when passing to integrated terminal if the test path has spaces
+		scriptArgs.push(
+			...testsToRun.map(testFilePath => {
+				return `'${testFilePath}'`
+			})
+		)
 
 		if (!this.powerShellExtensionClient) {
 			this.powerShellExtensionClient = await PowerShellExtensionClient.create(
