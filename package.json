@@ -19,7 +19,8 @@
 	"categories": [
 		"Debuggers",
 		"Programming Languages",
-		"Other"
+		"Other",
+		"Testing"
 	],
 	"activationEvents": [
 		"workspaceContains:**/*.[tT]ests.[pP][sS]1"
