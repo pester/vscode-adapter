@@ -6,7 +6,6 @@
 [![GitHub stars](https://img.shields.io/github/stars/pester/vscode-adapter?style=social)](https://github.com/pester/vscode-adapter)
 
 🚧 THIS EXTENSION IS IN PREVIEW STATE, THERE ARE GOING TO BE BUGS 🚧
-⚠️ LIST VIEW IS CURRENTLY BROKEN, SWITCH BACK TO TREE VIEW IF YOU SWITCHED TO IT ⚠️
 
 This extension provides the ability to run [Pester](https://pester.dev/) tests utilizing the native
 [Testing functionality](https://code.visualstudio.com/updates/v1_59#_testing-apis) first introduced in Visual Studio Code 1.59
