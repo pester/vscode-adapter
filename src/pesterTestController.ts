@@ -31,6 +31,7 @@ import {
 	PowerShellExtensionClient
 } from './powershellExtensionClient'
 import { findTestItem } from './testItemUtils'
+import { debounce } from 'lodash-es'
 
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
@@ -76,11 +77,16 @@ export class PesterTestController implements Disposable {
 		}
 	}
 
+	/** Queues up testItems from resolveHandler requests because pester works faster scanning multiple files together **/
+	private resolveQueue = new Array<TestItem>()
+
 	/** The test controller API calls this whenever it needs to get the resolveChildrenHandler
 	 * for Pester, this is only relevant to TestFiles as this is pester's lowest level of test resolution
 	 */
 	private async resolveHandler(testItem: TestItem | undefined) {
 		if (!this.initialized) {
+			// HACK: Avoid a race condition when resolveHandler is called multiple times. This can be done better
+			this.initialized = true
 			await this.initialize()
 		}
 		// For the controller root, children are resolved via the watchers
@@ -122,20 +128,26 @@ export class PesterTestController implements Disposable {
 		testItem.busy = true
 		if (testItemData instanceof TestFile) {
 			// Run Pester and get tests
-			log.info('Discovering Tests: ', testItem.id)
-
+			log.info('Adding to Discovery Queue: ', testItem.id)
+			this.resolveQueue.push(testItem)
+			this.startTestDiscovery(testItemDiscoveryHandler)
 			// For discovery we discard the terminal output
-			await this.startPesterInterface(
-				[testItem],
-				testItemDiscoveryHandler,
-				true,
-				false
-			)
 		} else {
 			throw new Error('TestItem received but did not recognize the type')
 		}
 		testItem.busy = false
 	}
+
+	private startTestDiscovery = debounce(async testItemDiscoveryHandler => {
+		log.info(`Starting Test Discovery of ${this.resolveQueue.length} files`)
+		await this.startPesterInterface(
+			this.resolveQueue,
+			testItemDiscoveryHandler,
+			true,
+			false
+		)
+		this.resolveQueue.length = 0
+	}, 100)
 
 	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
 	private async testHandler(request: TestRunRequest) {
