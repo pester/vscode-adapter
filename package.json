@@ -27,7 +27,7 @@
 	],
 	"main": "./dist/extension.js",
 	"scripts": {
-		"esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+		"esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --metafile=dist/esbuild.json --external:vscode --format=cjs --platform=node",
 		"build": "npx vsce package --no-git-tag-version",
 		"watch": "npm run -S esbuild-base -- --watch --sourcemap",
 		"lint": "eslint . --ext .ts,.tsx",
