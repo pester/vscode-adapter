@@ -2,6 +2,11 @@
 
 import { TestController, TestItem, Uri } from 'vscode'
 
+/** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
+ * types and organization types such as suites
+ */
+export type TestTree = TestFile | TestDefinition
+
 /** An association of test classes to their managed TestItem equivalents. Use this for custom data/metadata about a test
  * because we cannot store it in the managed objects we get from the Test API
  */
@@ -25,15 +30,12 @@ export enum TestResultState {
 	Errored = 6
 }
 
-/** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
- * types and organization types such as suites
- */
-export type TestTree = TestFile | TestDefinition
-
 /** Represents an individual Pester .tests.ps1 file, or an active document in the editor. This is just a stub to be used
  * for type identification later, the real work is done in {@link PesterTestController.getOrCreateFile()}
  */
 export class TestFile {
+	// Indicates if a testfile has had Pester Discovery run at least once
+	testsDiscovered = false
 	private constructor(
 		private readonly controller: TestController,
 		private readonly uri: Uri

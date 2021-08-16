@@ -24,14 +24,16 @@ import {
 	TestDefinition,
 	TestFile,
 	TestResult,
-	TestResultState
+	TestResultState,
+	TestTree
 } from './pesterTestTree'
 import {
 	IPowerShellExtensionClient,
 	PowerShellExtensionClient
 } from './powershellExtensionClient'
-import { findTestItem } from './testItemUtils'
-import { debounce } from 'lodash-es'
+import { findTestItem, getUniqueTestItems } from './testItemUtils'
+import debounce = require('debounce-promise')
+import { info } from 'console'
 
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
@@ -111,7 +113,17 @@ export class PesterTestController implements Disposable {
 		const testItemDiscoveryHandler = (t: unknown) => {
 			// TODO: This should be done before onDidReceiveObject maybe as a handler callback?
 			const testDef = t as TestDefinition
-			const parent = testItemLookup.get(testDef.parent) ?? testItem
+			const parent =
+				testItemLookup.get(testDef.parent) ??
+				this.testController.items.get(testDef.file)
+			if (parent === undefined) {
+				log.fatal(
+					`Test Item ${testDef.label} does not have a parent. This is a bug and should not happen`
+				)
+				throw new Error(
+					`Test Item ${testDef.label} does not have a parent. This is a bug and should not happen`
+				)
+			}
 			const newTestItem = this.testController.createTestItem(
 				testDef.id,
 				testDef.label,
@@ -124,29 +136,38 @@ export class PesterTestController implements Disposable {
 			parent.children.add(newTestItem)
 		}
 
-		// Indicate the start of a discovery, will cause the UI to show a spinner
-		testItem.busy = true
-		if (testItemData instanceof TestFile) {
+		if (
+			testItemData instanceof TestFile &&
+			!testItemData.testsDiscovered &&
+			!testItem.busy
+		) {
+			// Indicate the start of a discovery, will cause the UI to show a spinner
+			testItem.busy = true
+
 			// Run Pester and get tests
 			log.info('Adding to Discovery Queue: ', testItem.id)
 			this.resolveQueue.push(testItem)
-			this.startTestDiscovery(testItemDiscoveryHandler)
-			// For discovery we discard the terminal output
+			// For discovery we don't care about the terminal output, thats why no assignment to var here
+			await this.startTestDiscovery(testItemDiscoveryHandler)
+			testItem.busy = false
+			testItemData.testsDiscovered = true
 		} else {
-			throw new Error('TestItem received but did not recognize the type')
+			log.info(
+				`Resolve for ${testItem.label} requested but it is already resolving/resolved`
+			)
 		}
-		testItem.busy = false
 	}
 
 	private startTestDiscovery = debounce(async testItemDiscoveryHandler => {
 		log.info(`Starting Test Discovery of ${this.resolveQueue.length} files`)
-		await this.startPesterInterface(
+		const result = await this.startPesterInterface(
 			this.resolveQueue,
 			testItemDiscoveryHandler,
 			true,
 			false
 		)
 		this.resolveQueue.length = 0
+		return result
 	}, 100)
 
 	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
@@ -245,6 +266,30 @@ export class PesterTestController implements Disposable {
 		discovery?: boolean,
 		debug?: boolean
 	) {
+		if (!discovery) {
+			// HACK: Using flatMap to filter out undefined in a type-safe way. Unintuitive but effective
+			// https://stackoverflow.com/a/64480539/5511129
+			// Change to map and filter when https://github.com/microsoft/TypeScript/issues/16069 is resolved
+			const undiscoveredTestFiles: Promise<void>[] = testItems.flatMap(
+				testItem => {
+					const testDataItem = TestData.get(testItem)
+					if (
+						testDataItem instanceof TestFile &&
+						!testDataItem.testsDiscovered
+					) {
+						log.info(
+							`Run invoked on undiscovered testFile ${testItem.label}, discovery will be run first`
+						)
+						return [this.resolveHandler(testItem)]
+					} else {
+						return []
+					}
+				}
+			)
+			// The resolve handler is debounced, this will wait until the delayed resolve handler completes
+			await Promise.all(undiscoveredTestFiles)
+		}
+
 		// Derive Pester-friendly test line identifiers from the testItem info
 		const testsToRun = testItems.map(testItem => {
 			if (!testItem.uri) {

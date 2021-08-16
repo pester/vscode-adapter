@@ -39,7 +39,7 @@
 		"vscode:prepublish": "npm run -S esbuild-base -- --minify"
 	},
 	"devDependencies": {
-		"@types/lodash-es": "^4.14.172",
+		"@types/debounce-promise": "^3.1.4",
 		"@types/glob": "^7.1.3",
 		"@types/node": "14.x",
 		"@types/node-powershell": "^4.0.0",
@@ -58,7 +58,7 @@
 		"vscode-test": "^1.5.2"
 	},
 	"dependencies": {
-		"lodash-es": "^4.14.172",
+		"debounce-promise": "^3.1.2",
 		"path": "^0.12.7",
 		"tslog": "^3.2.0"
 	},
