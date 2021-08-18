@@ -58,13 +58,15 @@ export class TestFile {
 
 	/** Creates a managed TestItem entry in the controller if it doesn't exist, or returns the existing object if it does already exist */
 	static getOrCreate(controller: TestController, uri: Uri): TestItem {
-		const uriFsPath = uri.fsPath
+		// Normalize paths to uppercase on windows due to formatting differences between Javascript and PowerShell
+		const uriFsPath =
+			process.platform === 'win32' ? uri.fsPath.toUpperCase() : uri.fsPath
 		const existing = controller.items.get(uri.toString())
 		if (existing) {
 			return existing
 		}
 		const fileTestItem = controller.createTestItem(
-			uri.fsPath,
+			uriFsPath,
 			uri.path.split('/').pop()!,
 			uri
 		)
