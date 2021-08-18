@@ -120,7 +120,7 @@ export class PesterTestController implements Disposable {
 				const existingTest = this.testController.items.get(testDef.id)
 				if (existingTest) {
 					existingTest.error = new MarkdownString(
-						`**$(error)** ${testDef.error}`,
+						`$(error) ${testDef.error}`,
 						true
 					)
 					return
