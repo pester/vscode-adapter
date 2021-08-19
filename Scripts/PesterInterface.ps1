@@ -212,38 +212,35 @@ function New-TestObject ($Test) {
     Add-Member -InputObject $Test -NotePropertyName 'Parent' -NotePropertyValue $Test.Block -Force
   }
 
-  #Common stuff first
-  [String]$Parent = if ($Test.Parent -and -not $Test.Parent.IsRoot) {
-    New-TestItemId $Test.Parent
-  } elseif ($Test.Parent.IsRoot -and $Test -is [Pester.Block]) {
-    #This is a Context or describe block that doesn't have a parent so don't make a parent ID
-    $null
-  } elseif ($Test.IsRoot -and $Test -is [Pester.Block] -and $Test.ErrorRecord -and $Test.Result -eq 'Failed') {
-    # This is probably a syntax error in a describe block
-    $null
-  } else {
+  if (-not $Test.Parent -and ($Test -is [Pester.Test])) {
     throw "Item $($Test.Name) is a test but doesn't have an ancestor. This is a bug."
   }
 
+  [String]$Parent = if ($Test.IsRoot) {
+    $null
+  } else {
+    New-TestItemId $Test.Parent
+  }
+
   if ($Test.ErrorRecord) {
-		if ($Test -is [Pester.Block]) {
-			[String]$DiscoveryError = $Test.ErrorRecord
-		} else {
-			#TODO: Better handling once pester adds support
-			#Reference: https://github.com/pester/Pester/issues/1993
-			$Message = [string]$Test.ErrorRecord
-			if ([string]$Test.ErrorRecord -match 'Expected (?<Expected>.+?), but (got )?(?<actual>.+?)\.$') {
-				$Expected = $matches['Expected']
-				$Actual = $matches['Actual']
-			}
-		}
+    if ($Test -is [Pester.Block]) {
+      [String]$DiscoveryError = $Test.ErrorRecord
+    } else {
+      #TODO: Better handling once pester adds support
+      #Reference: https://github.com/pester/Pester/issues/1993
+      $Message = [string]$Test.ErrorRecord
+      if ([string]$Test.ErrorRecord -match 'Expected (?<Expected>.+?), but (got )?(?<actual>.+?)\.$') {
+        $Expected = $matches['Expected']
+        $Actual = $matches['Actual']
+      }
+    }
   }
 
   # TypeScript does not validate these data types, so numbers must be expressly stated so they don't get converted to strings
   [PSCustomObject]@{
     type           = $Test.ItemType
     id             = New-TestItemId $Test
-		error					 = $DiscoveryError
+    error          = $DiscoveryError
     file           = $Test.ScriptBlock.File
     startLine      = [int]($Test.StartLine - 1) #Lines are zero-based in vscode
     endLine        = [int]($Test.ScriptBlock.StartPosition.EndLine - 1) #Lines are zero-based in vscode
@@ -267,7 +264,7 @@ function Get-TestItemParents {
   <#
     .SYNOPSIS
     Returns any parents not already known, top-down first, so that a hierarchy can be created in a streaming manner
-    #>
+  #>
   param (
     #Test to fetch parents of. For maximum efficiency this should be done one test at a time and then stack processed
     [Parameter(Mandatory, ValueFromPipeline)][Pester.Test[]]$Test,
@@ -302,15 +299,15 @@ function Get-TestItemParents {
 }
 
 $MyPlugin = @{
-  Name               = 'TestPlugin'
-  Start              = {
+  Name                = 'TestPlugin'
+  Start               = {
     $SCRIPT:__TestAdapterKnownParents = [HashSet[Pester.Block]]::new()
     Write-Host -ForegroundColor Green "Connecting to pipe $pipename"
     $SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
     $__TestAdapterNamedPipeClient.Connect(5000)
     $SCRIPT:__TestAdapterNamedPipeWriter = [System.IO.StreamWriter]::new($__TestAdapterNamedPipeClient)
   }
-  DiscoveryEnd       = {
+  DiscoveryEnd        = {
     param($Context)
     if (-not $Discovery) { continue }
     $discoveredTests = & (Get-Module Pester) { $Context.BlockContainers | View-Flat }
@@ -325,17 +322,16 @@ $MyPlugin = @{
           $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
         }
       }
-
       $testItem = New-TestObject $PSItem
       [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
       $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
     }
-	}
+  }
 
-	EachTestTeardownEnd = {
-		param($Context)
-		if (-not $Context) { continue }
-		$testItem = New-TestObject $context.test
+  EachTestTeardownEnd = {
+    param($Context)
+    if (-not $Context) { continue }
+    $testItem = New-TestObject $context.test
 		[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
 		$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
 	}
