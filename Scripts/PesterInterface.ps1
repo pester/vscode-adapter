@@ -174,7 +174,15 @@ function New-TestItemId {
 	}
 }
 
-function Test-IsPesterObject($Test) {
+function Test-IsPesterObject {
+	[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+		'PSUseDeclaredVarsMoreThanAssignments',
+		'',
+		Justification='Scriptanalyzer bug: Reference is not tracked through callback',
+		Scope='Function'
+	)]
+	param($Test)
+
 	#We don't use types here because they might not be loaded yet
 	$AllowedObjectTypes = [String[]]@(
 		'Test'
@@ -313,7 +321,8 @@ $MyPlugin = @{
   }
   DiscoveryEnd        = {
     param($Context)
-    if (-not $Discovery) { continue }
+		if (-not $Discovery) { continue }
+    $discoveredTests = & (Get-Module Pester) { $Context.BlockContainers | View-Flat }
     [Array]$discoveredTests = & (Get-Module Pester) { $Context.BlockContainers | View-Flat }
     $failedBlocks = $Context.BlockContainers | Where-Object -Property ErrorRecord
     $discoveredTests += $failedBlocks
