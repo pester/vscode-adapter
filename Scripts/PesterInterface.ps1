@@ -5,20 +5,18 @@ using namespace Pester
 
 [CmdletBinding()]
 param(
-  #Path(s) to search for tests. Paths can also contain line numbers (e.g. /path/to/file:25)
-  [Parameter(ValueFromRemainingArguments)][String[]]$Path = $PWD,
-  #Only return "It" Test Results and not the resulting hierarcy
-  [Switch]$TestsOnly,
-  #Only return the test information, don't actually run them. Also returns minimal output
-  [Switch]$Discovery,
-  #Only load the functions but don't execute anything. Used for testing.
-  [Parameter(DontShow)][Switch]$LoadFunctionsOnly,
-  #If specified, emit the output objects as a flattened json to the specified named pipe handle. Used for IPC to the extension
-  [String]$PipeName,
-  #If specified just emit the json to stdout instead of the pipe
-  [Switch]$PassThru,
-  #The verbosity to pass to the system
-  [String]$Verbosity
+	#Path(s) to search for tests. Paths can also contain line numbers (e.g. /path/to/file:25)
+	[Parameter(ValueFromRemainingArguments)][String[]]$Path = $PWD,
+	#Only return the test information, don't actually run them. Also returns minimal output
+	[Switch]$Discovery,
+	#Only load the functions but don't execute anything. Used for testing.
+	[Parameter(DontShow)][Switch]$LoadFunctionsOnly,
+	#If specified, emit the output objects as a flattened json to the specified named pipe handle. Used for IPC to the extension
+	[String]$PipeName,
+	#The verbosity to pass to the system
+	[String]$Verbosity,
+	#If specified, the shim will write to a temporary file at Pipename path and this script will output what would have been written to the stream. Useful for testing.
+	[Switch]$DryRun
 )
 
 $VerbosePreference = 'SilentlyContinue'
@@ -28,184 +26,192 @@ $DebugPreference = 'SilentlyContinue'
 #region Functions
 # Maps pester result status to vscode result status
 enum ResultStatus {
-  Unset
-  Queued
-  Running
-  Passed
-  Failed
-  Skipped
-  Errored
-  NotRun #Pester Specific, this should be ignored
+	Unset
+	Queued
+	Running
+	Passed
+	Failed
+	Skipped
+	Errored
+	NotRun #Pester Specific, this should be ignored
 }
 
 function Merge-TestData () {
-  #Produce a unified test Data object from this object and its parents
-  #Merge the local data and block data. Local data takes precedence.
-  #Used in Test ID creation
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory, ValueFromPipeline)]
-    [ValidateScript( {
-        [bool]($_.PSTypeNames -match '(Pester\.)?(Test|Block)$')
-      })]$Test
-  )
-  #TODO: Nested Describe/Context Foreach?
-  #TODO: Edge cases
-  #Non-String Object
-  #Non-String Hashtable
-  #Other dictionaries
-  #Nested Hashtables
-  #Fancy TestCases, maybe just iterate them as TestCaseN or exclude
+	#Produce a unified test Data object from this object and its parents
+	#Merge the local data and block data. Local data takes precedence.
+	#Used in Test ID creation
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateScript( {
+				[bool]($_.PSTypeNames -match '(Pester\.)?(Test|Block)$')
+			})]$Test
+	)
+	#TODO: Nested Describe/Context Foreach?
+	#TODO: Edge cases
+	#Non-String Object
+	#Non-String Hashtable
+	#Other dictionaries
+	#Nested Hashtables
+	#Fancy TestCases, maybe just iterate them as TestCaseN or exclude
 
 
-  #If data is not iDictionary array, we will store it as _ to standardize this is a bit
-  $Data = [SortedDictionary[string, object]]::new()
+	#If data is not iDictionary array, we will store it as _ to standardize this is a bit
+	$Data = [SortedDictionary[string, object]]::new()
 
-  #Block and parent are interchangeable
-  if ($Test -is [Pester.Test]) {
-    Add-Member -InputObject $Test -NotePropertyName 'Parent' -NotePropertyValue $Test.Block -Force
-  }
+	#Block and parent are interchangeable
+	if ($Test -is [Pester.Test]) {
+		Add-Member -InputObject $Test -NotePropertyName 'Parent' -NotePropertyValue $Test.Block -Force
+	}
 
-  #This will merge the block data, with the lowest level data taking precedence
-  #TODO: Use a stack to iterate this
-  $DataSources = ($Test.Parent.Parent.Data, $Test.Parent.Data, $Test.Data).where{ $PSItem }
-  foreach ($DataItem in $DataSources) {
-    if ($DataItem) {
-      if ($DataItem -is [IDictionary]) {
-        $DataItem.GetEnumerator().foreach{
-          $Data.$($PSItem.Name) = $PSItem.Value
-        }
-      } else {
-        #Save to the "_" key if it was an array input since that's what Pester uses for substitution
-        $Data._ = $DataItem
-      }
-    }
-  }
-  return $Data
+	#This will merge the block data, with the lowest level data taking precedence
+	#TODO: Use a stack to iterate this
+	$DataSources = ($Test.Parent.Parent.Data, $Test.Parent.Data, $Test.Data).where{ $PSItem }
+	foreach ($DataItem in $DataSources) {
+		if ($DataItem) {
+			if ($DataItem -is [IDictionary]) {
+				$DataItem.GetEnumerator().foreach{
+					$Data.$($PSItem.Name) = $PSItem.Value
+				}
+			} else {
+				#Save to the "_" key if it was an array input since that's what Pester uses for substitution
+				$Data._ = $DataItem
+			}
+		}
+	}
+	return $Data
 }
 
 function Expand-TestCaseName {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory, ValueFromPipeline)]
-    $Test
-  )
-  begin {
-    Test-IsPesterObject $Test
-  }
-  process {
-    [String]$Name = $Test.Name.ToString()
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		$Test
+	)
+	begin {
+		Test-IsPesterObject $Test
+	}
+	process {
+		[String]$Name = $Test.Name.ToString()
 
-    $Data = Merge-TestData $Test
+		$Data = Merge-TestData $Test
 
-    # Array value was stored as _ by Merge-TestData
-    $Data.GetEnumerator().ForEach{
-      $Name = $Name -replace ('<{0}>' -f $PSItem.Key), $PSItem.Value
-    }
+		# Array value was stored as _ by Merge-TestData
+		$Data.GetEnumerator().ForEach{
+			$Name = $Name -replace ('<{0}>' -f $PSItem.Key), $PSItem.Value
+		}
 
-    return $Name
-  }
+		return $Name
+	}
 }
 
 function New-TestItemId {
-  <#
+	<#
     .SYNOPSIS
     Create a string that uniquely identifies a test or test suite
     .NOTES
     Can be replaced with expandedpath if https://github.com/pester/Pester/issues/2005 is fixed
     #>
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory, ValueFromPipeline)]
-    [ValidateScript( {
-        $null -ne ($_.PSTypeNames -match '(Pester\.)?(Block|Test)$')
-      })]$Test,
-    $TestIdDelimiter = '>>',
-    [Parameter(DontShow)][Switch]$AsString,
-    [Parameter(DontShow)][Switch]$AsHash
-  )
-  process {
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory, ValueFromPipeline)]
+		[ValidateScript( {
+				$null -ne ($_.PSTypeNames -match '(Pester\.)?(Block|Test)$')
+			})]$Test,
+		$TestIdDelimiter = '>>',
+		[Parameter(DontShow)][Switch]$AsString,
+		[Parameter(DontShow)][Switch]$AsHash
+	)
+	process {
 
-    if ($Test.Path -match $TestIdDelimiter) {
-      throw [NotSupportedException]"The delimiter $TestIdDelimiter is not supported in test names with this adapter. Please remove all pipes from test/context/describe names"
-    }
+		if ($Test.Path -match $TestIdDelimiter) {
+			throw [NotSupportedException]"The delimiter $TestIdDelimiter is not supported in test names with this adapter. Please remove all pipes from test/context/describe names"
+		}
 
-    $Data = Merge-TestData $Test
+		$Data = Merge-TestData $Test
 
-    #Add a suffix of the testcase/foreach info that should uniquely identify the etst
-    #TODO: Maybe use a hash of the serialized object if it is not natively a string?
-    #TODO: Or maybe just hash the whole thing. The ID would be somewhat useless for troubleshooting
-    $DataItems = $Data.GetEnumerator() | Sort-Object Key | ForEach-Object {
-      [String]([String]$PSItem.Key + '=' + [String]$PSItem.Value)
-    }
+		#Add a suffix of the testcase/foreach info that should uniquely identify the etst
+		#TODO: Maybe use a hash of the serialized object if it is not natively a string?
+		#TODO: Or maybe just hash the whole thing. The ID would be somewhat useless for troubleshooting
+		$DataItems = $Data.GetEnumerator() | Sort-Object Key | ForEach-Object {
+			[String]([String]$PSItem.Key + '=' + [String]$PSItem.Value)
+		}
 
 		# If this is a root container, just return the file path, since root containers can only be files (for now)
 		if ($Test -is [Pester.Block] -and $Test.IsRoot) {
 			return $Test.BlockContainer.Item.ToString().ToUpper()
 		}
 
-    [String]$TestID = @(
-      # Javascript uses lowercase drive letters
-      $Test.ScriptBlock.File
-      # Can NOT Use expandedPath here, because when test runs it extrapolates
-      $Test.Path
-      $DataItems
-    ).Where{ $PSItem } -join '>>'
+		[String]$TestID = @(
+			# Javascript uses lowercase drive letters
+			$Test.ScriptBlock.File
+			# Can NOT Use expandedPath here, because when test runs it extrapolates
+			$Test.Path
+			$DataItems
+		).Where{ $PSItem } -join '>>'
 
-    if (-not $TestID) { throw 'A test ID was not generated. This is a bug.' }
+		if (-not $TestID) { throw 'A test ID was not generated. This is a bug.' }
 
-    if ($AsHash) {
-      #Clever: https://www.reddit.com/r/PowerShell/comments/dr3taf/does_powershell_have_a_native_command_to_hash_a/
-      #TODO: This should probably be a helper function
-      Write-Debug "Non-Hashed Test ID for $($Test.ExpandedPath): $TestID"
-      return (Get-FileHash -InputStream (
-          [IO.MemoryStream]::new(
-            [Text.Encoding]::UTF8.GetBytes($TestID)
-          )
-        ) -Algorithm SHA256).hash
-    }
+		if ($AsHash) {
+			#Clever: https://www.reddit.com/r/PowerShell/comments/dr3taf/does_powershell_have_a_native_command_to_hash_a/
+			#TODO: This should probably be a helper function
+			Write-Debug "Non-Hashed Test ID for $($Test.ExpandedPath): $TestID"
+			return (Get-FileHash -InputStream (
+					[IO.MemoryStream]::new(
+						[Text.Encoding]::UTF8.GetBytes($TestID)
+					)
+				) -Algorithm SHA256).hash
+		}
 
-    # -AsString is now the default, keeping for other existing references
+		# -AsString is now the default, keeping for other existing references
 
-    # ToUpper is used to normalize windows paths to all uppercase
-    if ($IsWindows -or $PSEdition -eq 'Desktop') {
-      $TestID = $TestID.ToUpper()
-    }
-    return $TestID
+		# ToUpper is used to normalize windows paths to all uppercase
+		if ($IsWindows -or $PSEdition -eq 'Desktop') {
+			$TestID = $TestID.ToUpper()
+		}
+		return $TestID
 
-  }
+	}
 }
 
-function Test-IsPesterObject($Test) {
-  #We don't use types here because they might not be loaded yet
-  $AllowedObjectTypes = [String[]]@(
-    'Test'
-    'Block'
-    'Pester.Test'
-    'Pester.Block'
-    'Deserialized.Pester.Test'
-    'Deserialized.Pester.Block'
-  )
-  $AllowedObjectTypes.foreach{
-    if ($PSItem -eq $Test.PSTypeNames[0]) {
-      $MatchesType = $true
-      return
-    }
-  }
-  if (-not $MatchesType) { throw 'Provided object is not a Pester Test or Pester Block' }
+function Test-IsPesterObject {
+	[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+		'PSUseDeclaredVarsMoreThanAssignments',
+		'',
+		Justification='Scriptanalyzer bug: Reference is not tracked through callback',
+		Scope='Function'
+	)]
+	param($Test)
+
+	#We don't use types here because they might not be loaded yet
+	$AllowedObjectTypes = [String[]]@(
+		'Test'
+		'Block'
+		'Pester.Test'
+		'Pester.Block'
+		'Deserialized.Pester.Test'
+		'Deserialized.Pester.Block'
+	)
+	$AllowedObjectTypes.foreach{
+		if ($PSItem -eq $Test.PSTypeNames[0]) {
+			$MatchesType = $true
+			return
+		}
+	}
+	if (-not $MatchesType) { throw 'Provided object is not a Pester Test or Pester Block' }
 }
 
 function Get-DurationString($Test) {
-  if (-not ($Test.UserDuration -and $Test.FrameworkDuration)) { return }
-  $p = Get-Module Pester
-  & ($p) {
-    $Test = $args[0]
-    '({0}|{1})' -f (Get-HumanTime $Test.UserDuration), (Get-HumanTime $Test.FrameworkDuration)
-  } $Test
+	if (-not ($Test.UserDuration -and $Test.FrameworkDuration)) { return }
+	$p = Get-Module Pester
+	& ($p) {
+		$Test = $args[0]
+		'({0}|{1})' -f (Get-HumanTime $Test.UserDuration), (Get-HumanTime $Test.FrameworkDuration)
+	} $Test
 }
 
 function New-TestObject ($Test) {
-  Test-IsPesterObject $Test
+	Test-IsPesterObject $Test
 
   #HACK: Block and Parent are equivalent so this simplifies further code
   if ($Test -is [Pester.Test]) {
@@ -302,15 +308,22 @@ $MyPlugin = @{
   Name                = 'TestPlugin'
   Start               = {
     $SCRIPT:__TestAdapterKnownParents = [HashSet[Pester.Block]]::new()
-    Write-Host -ForegroundColor Green "Connecting to pipe $pipename"
-    $SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
-    $__TestAdapterNamedPipeClient.Connect(5000)
-    $SCRIPT:__TestAdapterNamedPipeWriter = [System.IO.StreamWriter]::new($__TestAdapterNamedPipeClient)
+    if ($DryRun) {
+      Write-Host -ForegroundColor Magenta "Dryrun Detected. Writing to file $PipeName"
+    } else {
+      Write-Host -ForegroundColor Green "Connecting to pipe $PipeName"
+    }
+    if (!$DryRun) {
+      $SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
+      $__TestAdapterNamedPipeClient.Connect(5000)
+      $SCRIPT:__TestAdapterNamedPipeWriter = [System.IO.StreamWriter]::new($__TestAdapterNamedPipeClient)
+    }
   }
   DiscoveryEnd        = {
     param($Context)
-    if (-not $Discovery) { continue }
+		if (-not $Discovery) { continue }
     $discoveredTests = & (Get-Module Pester) { $Context.BlockContainers | View-Flat }
+    [Array]$discoveredTests = & (Get-Module Pester) { $Context.BlockContainers | View-Flat }
     $failedBlocks = $Context.BlockContainers | Where-Object -Property ErrorRecord
     $discoveredTests += $failedBlocks
     $discoveredTests.foreach{
@@ -319,12 +332,20 @@ $MyPlugin = @{
         $testSuites.foreach{
           $testItem = New-TestObject $PSItem
           [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-          $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+          if (!$DryRun) {
+            $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+          } else {
+            $jsonObject >> $PipeName
+          }
         }
       }
       $testItem = New-TestObject $PSItem
       [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-      $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+      if (!$DryRun) {
+        $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+      } else {
+        $jsonObject >> $PipeName
+      }
     }
   }
 
@@ -332,54 +353,60 @@ $MyPlugin = @{
     param($Context)
     if (-not $Context) { continue }
     $testItem = New-TestObject $context.test
-		[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-		$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
-	}
-	End                 = {
-		$SCRIPT:__TestAdapterNamedPipeWriter.flush()
-		$SCRIPT:__TestAdapterNamedPipeWriter.dispose()
-		$SCRIPT:__TestAdapterNamedPipeClient.Close()
-	}
+    [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+    if (!$DryRun) {
+      $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+    } else {
+      $jsonObject >> $PipeName
+    }
+  }
+
+  End                 = {
+    if (!$DryRun) {
+      $SCRIPT:__TestAdapterNamedPipeWriter.flush()
+      $SCRIPT:__TestAdapterNamedPipeWriter.dispose()
+      $SCRIPT:__TestAdapterNamedPipeClient.Close()
+    }
+  }
 }
 
 function Add-PesterPluginShim([Hashtable]$PluginConfiguration) {
-	<#
+  <#
 .SYNOPSIS
 A dirty hack that parasitically infects another plugin function and generates this function in addition to that one
 .NOTES
 Warning: This only works once, not designed for repeated plugin injection
 #>
-	$Pester = Import-Module Pester -PassThru
-	& $Pester {
-		param($SCRIPT:PluginConfiguration)
-		if ($SCRIPT:ShimmedPlugin) { return }
-		[ScriptBlock]$SCRIPT:ShimmedPlugin = (Get-Item 'Function:\Get-RSpecObjectDecoratorPlugin').ScriptBlock
-		function SCRIPT:Get-RSpecObjectDecoratorPlugin {
-			# Our plugin must come first because teardowns are done in reverse and we need the RSpec to add result status
-			New-PluginObject @SCRIPT:PluginConfiguration
-			. $ShimmedPlugin $args
-		}
-	} $PluginConfiguration
+  $Pester = Import-Module Pester -PassThru
+  & $Pester {
+    param($SCRIPT:PluginConfiguration)
+    if ($SCRIPT:ShimmedPlugin) { return }
+    [ScriptBlock]$SCRIPT:ShimmedPlugin = (Get-Item 'Function:\Get-RSpecObjectDecoratorPlugin').ScriptBlock
+    function SCRIPT:Get-RSpecObjectDecoratorPlugin {
+      # Our plugin must come first because teardowns are done in reverse and we need the RSpec to add result status
+      New-PluginObject @SCRIPT:PluginConfiguration
+      . $ShimmedPlugin $args
+    }
+  } $PluginConfiguration
 }
 
 #endregion Functions
 
 #Main Function
 function Invoke-Main {
-	# These should be unique which is why we use a hashset
-	$paths = [HashSet[string]]::new()
-	$lines = [HashSet[string]]::new()
-	# Including both the path and the line speeds up the script by limiting the discovery surface
-	# Specifying just the line will still scan all files
-	$Path.foreach{
-		if ($PSItem -match '(?<Path>.+?):(?<Line>\d+)$') {
-			[void]$paths.Add($matches['Path'])
-			[void]$lines.Add($PSItem)
-		} else {
-			[void]$paths.Add($PSItem)
-		}
-	}
-
+  # These should be unique which is why we use a hashset
+  $paths = [HashSet[string]]::new()
+  $lines = [HashSet[string]]::new()
+  # Including both the path and the line speeds up the script by limiting the discovery surface
+  # Specifying just the line will still scan all files
+  $Path.foreach{
+    if ($PSItem -match '(?<Path>.+?):(?<Line>\d+)$') {
+      [void]$paths.Add($matches['Path'])
+      [void]$lines.Add($PSItem)
+    } else {
+      [void]$paths.Add($PSItem)
+    }
+  }
 	$config = New-PesterConfiguration @{
 		Run    = @{
 			SkipRun  = [bool]$Discovery
