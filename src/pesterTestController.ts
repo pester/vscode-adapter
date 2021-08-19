@@ -4,6 +4,7 @@ import {
 	Extension,
 	ExtensionContext,
 	Location,
+	MarkdownString,
 	Position,
 	Range,
 	RelativePattern,
@@ -113,10 +114,23 @@ export class PesterTestController implements Disposable {
 		const testItemDiscoveryHandler = (t: unknown) => {
 			// TODO: This should be done before onDidReceiveObject maybe as a handler callback?
 			const testDef = t as TestDefinition
+
+			// If there was a syntax error, set the error and short circuit the rest
+			if (testDef.error !== undefined) {
+				const existingTest = this.testController.items.get(testDef.id)
+				if (existingTest) {
+					existingTest.error = new MarkdownString(
+						`$(error) ${testDef.error}`,
+						true
+					)
+					return
+				}
+			}
+
 			const parent =
 				testItemLookup.get(testDef.parent) ??
-				this.testController.items.get(testDef.file)
-			if (parent === undefined) {
+				this.testController.items.get(testDef.parent)
+			if (parent === undefined && testDef.error === undefined) {
 				log.fatal(
 					`Test Item ${testDef.label} does not have a parent. This is a bug and should not happen`
 				)
@@ -131,9 +145,16 @@ export class PesterTestController implements Disposable {
 			)
 			newTestItem.range = new Range(testDef.startLine, 0, testDef.endLine, 0)
 			newTestItem.description = testDef.tags ? testDef.tags : undefined
+			if (testDef.error !== undefined) {
+				newTestItem.error = testDef.error
+			}
+
 			TestData.set(newTestItem, testDef)
 			testItemLookup.set(newTestItem.id, newTestItem)
-			parent.children.add(newTestItem)
+			if (parent !== undefined) {
+				log.debug(`Adding ${newTestItem.label} to ${parent.label}`)
+				parent.children.add(newTestItem)
+			}
 		}
 
 		if (
@@ -145,7 +166,7 @@ export class PesterTestController implements Disposable {
 			testItem.busy = true
 
 			// Run Pester and get tests
-			log.info('Adding to Discovery Queue: ', testItem.id)
+			log.debug('Adding to Discovery Queue: ', testItem.id)
 			this.resolveQueue.push(testItem)
 			// For discovery we don't care about the terminal output, thats why no assignment to var here
 			await this.startTestDiscovery(testItemDiscoveryHandler)
@@ -277,7 +298,7 @@ export class PesterTestController implements Disposable {
 						testDataItem instanceof TestFile &&
 						!testDataItem.testsDiscovered
 					) {
-						log.info(
+						log.debug(
 							`Run invoked on undiscovered testFile ${testItem.label}, discovery will be run first`
 						)
 						return [this.resolveHandler(testItem)]
