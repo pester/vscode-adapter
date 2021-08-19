@@ -99,9 +99,59 @@ Describe 'PesterInterface' {
 			Expand-TestCaseName $baseMock | Should -Be 'Array aCoolTest TestCase pester'
 		}
 
-		It 'Works with Pester.Block' {
-			$Block = Import-Clixml $Mocks/Block.clixml
-			Expand-TestCaseName $Block | Should -Be 'Describe Nested Foreach giraffe'
-		}
-	}
+    It 'Works with Pester.Block' {
+            $Block = Import-Clixml $Mocks/Block.clixml
+            Expand-TestCaseName $Block | Should -Be 'Describe Nested Foreach giraffe'
+        }
+    }
+
+    Context 'Get-DurationString' {
+        BeforeAll {
+            . $testScript 'fakepath' -LoadFunctionsOnly
+        }
+        Context 'When argument contains values for properties UserDuration and FrameworkDuration' {
+            It 'Should return the correct string' {
+                $mockTestParameter = [PSCustomObject] @{
+                    UserDuration = 10000
+                    FrameworkDuration = 20000
+                }
+                $getDurationStringResult = Get-DurationString $mockTestParameter
+                $getDurationStringResult | Should -Be '(1ms|2ms)'
+            }
+        }
+        Context 'When there are no value for property UserDuration' {
+            It 'Should return nothing' {
+                $mockTestParameter = [PSCustomObject] @{
+                    UserDuration = $null
+                    FrameworkDuration = 20000
+                }
+                $getDurationStringResult = Get-DurationString $mockTestParameter
+                $getDurationStringResult | Should -BeNullOrEmpty
+            }
+        }
+        Context 'When there are no value for property FrameworkDuration' {
+            It 'Should return nothing' {
+                $mockTestParameter = [PSCustomObject] @{
+                    UserDuration = 10000
+                    FrameworkDuration = $null
+                }
+                $getDurationStringResult = Get-DurationString $mockTestParameter
+                $getDurationStringResult | Should -BeNullOrEmpty
+            }
+        }
+        Context 'When there exist multiple Pester modules in the session' {
+            BeforeAll {
+                Mock -CommandName Get-Module -MockWith {
+                    return @('First','Second')
+                }
+            }
+            It 'Should throw an error' {
+                $mockTestParameter = [PSCustomObject] @{
+                    UserDuration = 10000
+                    FrameworkDuration = 20000
+                }
+                { Get-DurationString $mockTestParameter } | Should -Throw -ExpectedMessage '*Multiple Pester Modules found*'
+            }
+        }
+    }
 }
