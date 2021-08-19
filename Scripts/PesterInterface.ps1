@@ -204,6 +204,9 @@ function Test-IsPesterObject {
 function Get-DurationString($Test) {
 	if (-not ($Test.UserDuration -and $Test.FrameworkDuration)) { return }
 	$p = Get-Module Pester
+    if ($p.Count -ge 2) {
+        throw 'Multiple Pester modules found. Make sure to only have one Pester module imported in the session.'
+    }
 	& ($p) {
 		$Test = $args[0]
 		'({0}|{1})' -f (Get-HumanTime $Test.UserDuration), (Get-HumanTime $Test.FrameworkDuration)
