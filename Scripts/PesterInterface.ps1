@@ -205,197 +205,199 @@ function Get-DurationString($Test) {
 function New-TestObject ($Test) {
 	Test-IsPesterObject $Test
 
-	#HACK: Block and Parent are equivalent so this simplifies further code
-	if ($Test -is [Pester.Test]) {
-		Add-Member -InputObject $Test -NotePropertyName 'Parent' -NotePropertyValue $Test.Block -Force
-	}
+  #HACK: Block and Parent are equivalent so this simplifies further code
+  if ($Test -is [Pester.Test]) {
+    Add-Member -InputObject $Test -NotePropertyName 'Parent' -NotePropertyValue $Test.Block -Force
+  }
 
-	if (-not $Test.Parent -and ($Test -is [Pester.Test])) {
-		throw "Item $($Test.Name) is a test but doesn't have an ancestor. This is a bug."
-	}
+  if (-not $Test.Parent -and ($Test -is [Pester.Test])) {
+    throw "Item $($Test.Name) is a test but doesn't have an ancestor. This is a bug."
+  }
 
-	[String]$Parent = if ($Test.IsRoot) {
-		$null
-	} else {
-		New-TestItemId $Test.Parent
-	}
+  [String]$Parent = if ($Test.IsRoot) {
+    $null
+  } else {
+    New-TestItemId $Test.Parent
+  }
 
-	if ($Test.ErrorRecord) {
-		if ($Test -is [Pester.Block]) {
-			[String]$DiscoveryError = $Test.ErrorRecord
-		} else {
-			#TODO: Better handling once pester adds support
-			#Reference: https://github.com/pester/Pester/issues/1993
-			$Message = [string]$Test.ErrorRecord
-			if ([string]$Test.ErrorRecord -match 'Expected (?<Expected>.+?), but (got )?(?<actual>.+?)\.$') {
-				$Expected = $matches['Expected']
-				$Actual = $matches['Actual']
-			}
-		}
-	}
+  if ($Test.ErrorRecord) {
+    if ($Test -is [Pester.Block]) {
+      [String]$DiscoveryError = $Test.ErrorRecord
+    } else {
+      #TODO: Better handling once pester adds support
+      #Reference: https://github.com/pester/Pester/issues/1993
+      $Message = [string]$Test.ErrorRecord
+      if ([string]$Test.ErrorRecord -match 'Expected (?<Expected>.+?), but (got )?(?<actual>.+?)\.$') {
+        $Expected = $matches['Expected']
+        $Actual = $matches['Actual']
+      }
+    }
+  }
 
-	# TypeScript does not validate these data types, so numbers must be expressly stated so they don't get converted to strings
-	[PSCustomObject]@{
-		type           = $Test.ItemType
-		id             = New-TestItemId $Test
-		error          = $DiscoveryError
-		file           = $Test.ScriptBlock.File
-		startLine      = [int]($Test.StartLine - 1) #Lines are zero-based in vscode
-		endLine        = [int]($Test.ScriptBlock.StartPosition.EndLine - 1) #Lines are zero-based in vscode
-		label          = Expand-TestCaseName $Test
-		result         = [ResultStatus]$(if ($null -eq $Test.Result) { 'NotRun' } else { $Test.Result })
-		duration       = $Test.UserDuration.TotalMilliseconds #I don't think anyone is doing sub-millisecond code performance testing in Powershell :)
-		durationDetail = Get-DurationString $Test
-		message        = $Message
-		expected       = $Expected
-		actual         = $Actual
-		targetFile     = $Test.ErrorRecord.TargetObject.File
-		targetLine     = [int]$Test.ErrorRecord.TargetObject.Line - 1
-		parent         = $Parent
-		tags           = $Test.Tag.Where{ $PSItem } -join ', '
-		#TODO: Severity. Failed = Error Skipped = Warning
-	}
+  # TypeScript does not validate these data types, so numbers must be expressly stated so they don't get converted to strings
+  [PSCustomObject]@{
+    type           = $Test.ItemType
+    id             = New-TestItemId $Test
+    error          = $DiscoveryError
+    file           = $Test.ScriptBlock.File
+    startLine      = [int]($Test.StartLine - 1) #Lines are zero-based in vscode
+    endLine        = [int]($Test.ScriptBlock.StartPosition.EndLine - 1) #Lines are zero-based in vscode
+    label          = Expand-TestCaseName $Test
+    result         = [ResultStatus]$(if ($null -eq $Test.Result) { 'NotRun' } else { $Test.Result })
+    duration       = $Test.UserDuration.TotalMilliseconds #I don't think anyone is doing sub-millisecond code performance testing in Powershell :)
+    durationDetail = Get-DurationString $Test
+    message        = $Message
+    expected       = $Expected
+    actual         = $Actual
+    targetFile     = $Test.ErrorRecord.TargetObject.File
+    targetLine     = [int]$Test.ErrorRecord.TargetObject.Line - 1
+    parent         = $Parent
+    tags           = $Test.Tag.Where{ $PSItem } -join ', '
+    #TODO: Severity. Failed = Error Skipped = Warning
+  }
 }
 
 
 function Get-TestItemParents {
-	<#
+  <#
     .SYNOPSIS
     Returns any parents not already known, top-down first, so that a hierarchy can be created in a streaming manner
   #>
-	param (
-		#Test to fetch parents of. For maximum efficiency this should be done one test at a time and then stack processed
-		[Parameter(Mandatory, ValueFromPipeline)][Pester.Test[]]$Test,
-		[HashSet[Pester.Block]]$KnownParents = [HashSet[Pester.Block]]::new()
-	)
+  param (
+    #Test to fetch parents of. For maximum efficiency this should be done one test at a time and then stack processed
+    [Parameter(Mandatory, ValueFromPipeline)][Pester.Test[]]$Test,
+    [HashSet[Pester.Block]]$KnownParents = [HashSet[Pester.Block]]::new()
+  )
 
-	begin {
-		[Stack[Pester.Block]]$NewParents = [Stack[Pester.Block]]::new()
-	}
-	process {
-		# Output all parents that we don't know yet (distinct parents), in order from the top most
-		# to the child most.
-		foreach ($TestItem in $Test) {
-			$NewParents.Clear()
-			$parent = $TestItem.Block
+  begin {
+    [Stack[Pester.Block]]$NewParents = [Stack[Pester.Block]]::new()
+  }
+  process {
+    # Output all parents that we don't know yet (distinct parents), in order from the top most
+    # to the child most.
+    foreach ($TestItem in $Test) {
+      $NewParents.Clear()
+      $parent = $TestItem.Block
 
-			while ($null -ne $parent -and -not $parent.IsRoot) {
-				if (-not $KnownParents.Add($parent)) {
-					# We know this parent, so we must know all of its parents as well.
-					# We don't need to go further.
-					break
-				}
+      while ($null -ne $parent -and -not $parent.IsRoot) {
+        if (-not $KnownParents.Add($parent)) {
+          # We know this parent, so we must know all of its parents as well.
+          # We don't need to go further.
+          break
+        }
 
-				$NewParents.Push($parent)
-				$parent = $parent.Parent
-			}
+        $NewParents.Push($parent)
+        $parent = $parent.Parent
+      }
 
-			# Output the unknown parent objects from the top most, to the one closest to our test.
-			foreach ($p in $NewParents) { $p }
-		}
-	}
+      # Output the unknown parent objects from the top most, to the one closest to our test.
+      foreach ($p in $NewParents) { $p }
+    }
+  }
 }
 
 $MyPlugin = @{
-	Name                = 'TestPlugin'
-	Start               = {
-		$SCRIPT:__TestAdapterKnownParents = [HashSet[Pester.Block]]::new()
-		if ($DryRun) {
-			Write-Host -ForegroundColor Magenta "Dryrun Detected. Writing to file $PipeName"
-		} else {
-			Write-Host -ForegroundColor Green "Connecting to pipe $PipeName"
-		}
-		if (!$DryRun) {
-			$SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
-			$__TestAdapterNamedPipeClient.Connect(5000)
-			$SCRIPT:__TestAdapterNamedPipeWriter = [System.IO.StreamWriter]::new($__TestAdapterNamedPipeClient)
-		}
-	}
-	DiscoveryEnd        = {
-		param($Context)
-		if (-not $Discovery) { continue }
-		$discoveredTests = & (Get-Module Pester) { $Context.BlockContainers | View-Flat }
-		$Context.BlockContainers
-		$discoveredTests.foreach{
-			[Pester.Block[]]$testSuites = Get-TestItemParents -Test $PSItem -KnownParents $SCRIPT:__TestAdapterKnownParents
-			$testSuites.foreach{
-				$testItem = New-TestObject $PSItem
-				[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-				if (!$DryRun) {
-					$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
-				} else {
-					$jsonObject >> $PipeName
-				}
-			}
-			$testItem = New-TestObject $PSItem
-			[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-			if (!$DryRun) {
-				$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
-			} else {
-				$jsonObject >> $PipeName
-			}
-		}
-	}
+  Name                = 'TestPlugin'
+  Start               = {
+    $SCRIPT:__TestAdapterKnownParents = [HashSet[Pester.Block]]::new()
+    if ($DryRun) {
+      Write-Host -ForegroundColor Magenta "Dryrun Detected. Writing to file $PipeName"
+    } else {
+      Write-Host -ForegroundColor Green "Connecting to pipe $PipeName"
+    }
+    if (!$DryRun) {
+      $SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
+      $__TestAdapterNamedPipeClient.Connect(5000)
+      $SCRIPT:__TestAdapterNamedPipeWriter = [System.IO.StreamWriter]::new($__TestAdapterNamedPipeClient)
+    }
+  }
+  DiscoveryEnd        = {
+    param($Context)
+    if (-not $Discovery) { continue }
+    [Array]$discoveredTests = & (Get-Module Pester) { $Context.BlockContainers | View-Flat }
+    $failedBlocks = $Context.BlockContainers | Where-Object -Property ErrorRecord
+    $discoveredTests += $failedBlocks
+    $discoveredTests.foreach{
+      if ($PSItem -is [Pester.Test]) {
+        [Pester.Block[]]$testSuites = Get-TestItemParents -Test $PSItem -KnownParents $SCRIPT:__TestAdapterKnownParents
+        $testSuites.foreach{
+          $testItem = New-TestObject $PSItem
+          [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+          if (!$DryRun) {
+            $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+          } else {
+            $jsonObject >> $PipeName
+          }
+        }
+      }
+      $testItem = New-TestObject $PSItem
+      [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+      if (!$DryRun) {
+        $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+      } else {
+        $jsonObject >> $PipeName
+      }
+    }
+  }
 
-	EachTestTeardownEnd = {
-		param($Context)
-		if (-not $Context) { continue }
-		$testItem = New-TestObject $context.test
-		[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-		if (!$DryRun) {
-			$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
-		} else {
-			$jsonObject >> $PipeName
-		}
-	}
+  EachTestTeardownEnd = {
+    param($Context)
+    if (-not $Context) { continue }
+    $testItem = New-TestObject $context.test
+    [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+    if (!$DryRun) {
+      $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+    } else {
+      $jsonObject >> $PipeName
+    }
+  }
 
-	End                 = {
-		if (!$DryRun) {
-			$SCRIPT:__TestAdapterNamedPipeWriter.flush()
-			$SCRIPT:__TestAdapterNamedPipeWriter.dispose()
-			$SCRIPT:__TestAdapterNamedPipeClient.Close()
-		}
-	}
+  End                 = {
+    if (!$DryRun) {
+      $SCRIPT:__TestAdapterNamedPipeWriter.flush()
+      $SCRIPT:__TestAdapterNamedPipeWriter.dispose()
+      $SCRIPT:__TestAdapterNamedPipeClient.Close()
+    }
+  }
 }
 
 function Add-PesterPluginShim([Hashtable]$PluginConfiguration) {
-	<#
+  <#
 .SYNOPSIS
 A dirty hack that parasitically infects another plugin function and generates this function in addition to that one
 .NOTES
 Warning: This only works once, not designed for repeated plugin injection
 #>
-	$Pester = Import-Module Pester -PassThru
-	& $Pester {
-		param($SCRIPT:PluginConfiguration)
-		if ($SCRIPT:ShimmedPlugin) { return }
-		[ScriptBlock]$SCRIPT:ShimmedPlugin = (Get-Item 'Function:\Get-RSpecObjectDecoratorPlugin').ScriptBlock
-		function SCRIPT:Get-RSpecObjectDecoratorPlugin {
-			# Our plugin must come first because teardowns are done in reverse and we need the RSpec to add result status
-			New-PluginObject @SCRIPT:PluginConfiguration
-			. $ShimmedPlugin $args
-		}
-	} $PluginConfiguration
+  $Pester = Import-Module Pester -PassThru
+  & $Pester {
+    param($SCRIPT:PluginConfiguration)
+    if ($SCRIPT:ShimmedPlugin) { return }
+    [ScriptBlock]$SCRIPT:ShimmedPlugin = (Get-Item 'Function:\Get-RSpecObjectDecoratorPlugin').ScriptBlock
+    function SCRIPT:Get-RSpecObjectDecoratorPlugin {
+      # Our plugin must come first because teardowns are done in reverse and we need the RSpec to add result status
+      New-PluginObject @SCRIPT:PluginConfiguration
+      . $ShimmedPlugin $args
+    }
+  } $PluginConfiguration
 }
 
 #endregion Functions
 
 #Main Function
 function Invoke-Main {
-	# These should be unique which is why we use a hashset
-	$paths = [HashSet[string]]::new()
-	$lines = [HashSet[string]]::new()
-	# Including both the path and the line speeds up the script by limiting the discovery surface
-	# Specifying just the line will still scan all files
-	$Path.foreach{
-		if ($PSItem -match '(?<Path>.+?):(?<Line>\d+)$') {
-			[void]$paths.Add($matches['Path'])
-			[void]$lines.Add($PSItem)
-		} else {
-			[void]$paths.Add($PSItem)
-		}
-	}
-
+  # These should be unique which is why we use a hashset
+  $paths = [HashSet[string]]::new()
+  $lines = [HashSet[string]]::new()
+  # Including both the path and the line speeds up the script by limiting the discovery surface
+  # Specifying just the line will still scan all files
+  $Path.foreach{
+    if ($PSItem -match '(?<Path>.+?):(?<Line>\d+)$') {
+      [void]$paths.Add($matches['Path'])
+      [void]$lines.Add($PSItem)
+    } else {
+      [void]$paths.Add($PSItem)
+    }
+  }
 	$config = New-PesterConfiguration @{
 		Run    = @{
 			SkipRun  = [bool]$Discovery
