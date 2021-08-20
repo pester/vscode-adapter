@@ -358,10 +358,10 @@ export class PesterTestController implements Disposable {
 			? pesterSettings.get<string>('debugOutputVerbosity')
 			: pesterSettings.get<string>('outputVerbosity')
 
-		if (discovery) {
-			verbosity = 'None'
+		if (verbosity === 'FromPreference') {
+			verbosity = undefined
 		}
-		if (verbosity && verbosity != 'FromPreference') {
+		if (verbosity) {
 			scriptArgs.push('-Verbosity')
 			scriptArgs.push(verbosity)
 		}
@@ -426,7 +426,10 @@ export class PesterTestController implements Disposable {
 				if (!isPesterTestFile.test(e.fileName)) {
 					return
 				}
-				this.testController.resolveHandler!(
+				if (this.testController.resolveHandler === undefined) {
+					throw 'onDidOpenTextDocument was called but the testcontroller resolve handler wasnt defined. This is a bug'
+				}
+				this.testController.resolveHandler(
 					TestFile.getOrCreate(testController, e.uri)
 				)
 			})
