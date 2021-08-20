@@ -30,32 +30,30 @@ jobs:
         with:
           path: |
             node_modules
-            ~/.dotnet/tools
-            .git/gitversion_cache
-            .config/dotnet-tools.ci.json
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
 
       - name: ➕ Dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           & npm ci
-          & dotnet tool install -g gitversion.tool --version 5.6.11
 
-      - name: 🔍 GitVersion
+      - name: 🔍 Get Calendar Version
         id: version
         run: |
-          $semanticVersion = & dotnet-gitversion /nofetch | ConvertFrom-Json | % SemVer
-          "Calculated Version: $semanticVersion"
-          "::set-output name=semanticVersion::$semanticVersion"
+          [string]$version = & .github\Get-CalendarVersion.ps1
+          "Calculated Version: $version"
+          "::set-output name=version::$version"
+          "::set-output name=calendarVersion::$version"
+          "::set-output name=semanticVersion::$version"
 
       - name: 👷‍♂️ Build
         run: |
-          npm run build ${{steps.version.outputs.semanticVersion}}
+          npm run build ${{steps.version.outputs.version}}
 
       - name: ⬆ Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: vsix-${{steps.version.outputs.semanticVersion}}
+          name: vsix-${{steps.version.outputs.version}}
           path: '*.vsix'
 
       - name: 📝 Draft Github Release
@@ -64,5 +62,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          version: '${{steps.version.outputs.semanticVersion}}'
+          version: '${{steps.version.outputs.version}}'
           prerelease: true
