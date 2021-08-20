@@ -23,8 +23,15 @@ function Get-CalendarVersion {
 		return [SemanticVersion]::new($year, $month, $releaseCount)
 	}
 
-	$branchName = $releaseBranchName -eq 'main' ? 'beta' : (git branch --show-current).split('/') | Select-Object -Last 1
-	[int]$commitsSince = @(git log main..HEAD --oneline).count
+	[string]$currentBranchName = & git branch --show-current
+
+	$branchName = if ($currentBranchName -eq $releaseBranchName) {
+		'beta'
+	} else {
+		(& git branch --show-current).split('/') | Select-Object -Last 1
+	}
+
+	[int]$commitsSince = @(& git log --oneline -- "$currentBranchName..HEAD").count
 	$prereleaseTag = $branchName, $commitsSince.ToString().PadLeft(3, '0') -join '+'
 
 	return [SemanticVersion]::new($year, $month, $releaseCount, $prereleaseTag)
