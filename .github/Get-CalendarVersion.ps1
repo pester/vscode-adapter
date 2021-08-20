@@ -25,6 +25,7 @@ function Get-CalendarVersion {
 
 	[string]$currentBranchName = & git branch --show-current
 	Write-Host "Current Branch Name: $currentBranchName"
+	Get-ChildItem env: | Format-Table | Out-String | Write-Host
 
 	$branchName = if ($currentBranchName -eq $releaseBranchName) {
 		'beta'
