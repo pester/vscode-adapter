@@ -5,9 +5,9 @@
 
 name: ➡️ Assigned Issue Move to In Progress
 on:
-  pull_request:
-    types:
-      - assigned
+  issues:
+		types:
+			- Assigned
 jobs:
   move-assigned-card:
     runs-on: ubuntu-latest
