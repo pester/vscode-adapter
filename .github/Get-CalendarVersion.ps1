@@ -24,11 +24,12 @@ function Get-CalendarVersion {
 	}
 
 	[string]$currentBranchName = & git branch --show-current
+	Write-Host "Current Branch Name: $currentBranchName"
 
 	$branchName = if ($currentBranchName -eq $releaseBranchName) {
 		'beta'
 	} else {
-		(& git branch --show-current).split('/') | Select-Object -Last 1
+		$currentBranchName.split('/') | Select-Object -Last 1
 	}
 
 	[int]$commitsSince = @(& git log --oneline -- "$currentBranchName..HEAD").count
