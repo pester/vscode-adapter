@@ -24,16 +24,23 @@ function Get-CalendarVersion {
 	}
 
 	[string]$currentBranchName = & git branch --show-current
-	Write-Host "Current Branch Name: $currentBranchName"
-	Get-ChildItem env: | Format-Table | Out-String | Write-Host
+	if (-not $currentBranchName -and $env:GITHUB_REF) {
+		$currentBranchName = $env:GITHUB_REF
+	}
+
+	Write-Verbose "Current Branch Name: $currentBranchName"
+
+	[int]$commitsSince = @(& git log --oneline -- "$currentBranchName..HEAD").count
 
 	$branchName = if ($currentBranchName -eq $releaseBranchName) {
 		'beta'
+	} elseif ($branchName -match '^refs/pull/(\d+)/merge$') {
+		'pr' + $matches[1]
+		Write-Verbose "Pull Request Branch Detected, branchname is now pr$($matches[1])"
 	} else {
 		$currentBranchName.split('/') | Select-Object -Last 1
 	}
 
-	[int]$commitsSince = @(& git log --oneline -- "$currentBranchName..HEAD").count
 	$prereleaseTag = $branchName, $commitsSince.ToString().PadLeft(3, '0') -join '+'
 
 	return [SemanticVersion]::new($year, $month, $releaseCount, $prereleaseTag)
