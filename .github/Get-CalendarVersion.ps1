@@ -32,9 +32,9 @@ function Get-CalendarVersion {
 
 	[int]$commitsSince = @(& git log --oneline -- "$currentBranchName..HEAD").count
 
-	$branchName = if ($currentBranchName -eq $releaseBranchName) {
+	[string]$branchName = if ($currentBranchName -eq $releaseBranchName) {
 		'beta'
-	} elseif ($branchName -match '^refs/pull/(\d+)/merge$') {
+	} elseif ($currentBranchName -match '^refs/pull/(\d+)/merge$') {
 		'pr' + $matches[1]
 		Write-Verbose "Pull Request Branch Detected, branchname is now pr$($matches[1])"
 	} else {
