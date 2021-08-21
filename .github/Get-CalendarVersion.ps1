@@ -11,7 +11,7 @@ function Get-CalendarVersion {
 	param(
 		#The branch where releases are produced. Untagged releases will have the "beta" label
 		[string]$releaseBranchName = 'main',
-		#Add the build number to the release number. Basically replace the "+" with a "."
+		#Add the build number to the release number. Basically replace the "+" with a "-"
 		[switch]$MergeBuild
 	)
 	$date = [DateTime]::Now
@@ -42,7 +42,7 @@ function Get-CalendarVersion {
 		$currentBranchName.split('/') | Select-Object -Last 1
 	}
 
-	$delimiter = $MergeBuild ? '+' : '.'
+	$delimiter = $MergeBuild ? '+' : '-'
 	[int]$commitsSince = @(& git log --oneline -- "$currentBranchName..HEAD").count
 	[string]$prereleaseTag = $branchName, $commitsSince.ToString().PadLeft(3, '0') -join $delimiter
 
