@@ -15,15 +15,13 @@ function Get-CalendarVersion {
 		[switch]$MergeBuild
 	)
 	$date = [DateTime]::Now
-	$month = $date.Month.ToString().PadLeft(2, '0')
-	$year = $date.Year
-	[string]$datePrefix = $month, $year -join '.'
+	[string]$datePrefix = $date.Year, $date.Month -join '.'
 
 	#This version component is zero-based so it should be 0 for the first release of the month, 1 for the second, etc.
 	$releaseCount = @(& git tag -l "v$DatePrefix*").count
 
 	if ($releaseBranchName -eq [string](git describe --tags)) {
-		return [SemanticVersion]::new($year, $month, $releaseCount)
+		return [SemanticVersion]::new($date.Year, $date.Month, $releaseCount)
 	}
 
 	[string]$currentBranchName = & git branch --show-current
@@ -46,7 +44,7 @@ function Get-CalendarVersion {
 	[int]$commitsSince = @(& git log --oneline -- "$currentBranchName..HEAD").count
 	[string]$prereleaseTag = $branchName, $commitsSince.ToString().PadLeft(3, '0') -join $delimiter
 
-	return [SemanticVersion]::new($year, $month, $releaseCount, $prereleaseTag)
+	return [SemanticVersion]::new($date.Year, $date.Month, $releaseCount, $prereleaseTag)
 }
 
 Get-CalendarVersion
