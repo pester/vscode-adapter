@@ -9,7 +9,10 @@ Generates a CalendarVersion based on the current commit
 #>
 function Get-CalendarVersion {
 	param(
-		[string]$releaseBranchName = 'main'
+		#The branch where releases are produced. Untagged releases will have the "beta" label
+		[string]$releaseBranchName = 'main',
+		#Add the build number to the release number. Basically replace the "+" with a "."
+		[switch]$MergeBuild
 	)
 	$date = [DateTime]::Now
 	$month = $date.Month.ToString().PadLeft(2, '0')
@@ -30,8 +33,6 @@ function Get-CalendarVersion {
 
 	Write-Verbose "Current Branch Name: $currentBranchName"
 
-	[int]$commitsSince = @(& git log --oneline -- "$currentBranchName..HEAD").count
-
 	[string]$branchName = if ($currentBranchName -eq $releaseBranchName) {
 		'beta'
 	} elseif ($currentBranchName -match '^refs/pull/(\d+)/merge$') {
@@ -41,7 +42,9 @@ function Get-CalendarVersion {
 		$currentBranchName.split('/') | Select-Object -Last 1
 	}
 
-	$prereleaseTag = $branchName, $commitsSince.ToString().PadLeft(3, '0') -join '+'
+	$delimiter = $MergeBuild ? '+' : '.'
+	[int]$commitsSince = @(& git log --oneline -- "$currentBranchName..HEAD").count
+	[string]$prereleaseTag = $branchName, $commitsSince.ToString().PadLeft(3, '0') -join $delimiter
 
 	return [SemanticVersion]::new($year, $month, $releaseCount, $prereleaseTag)
 }

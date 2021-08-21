@@ -40,7 +40,7 @@ jobs:
       - name: 🔍 Get Calendar Version
         id: version
         run: |
-          [string]$version = & .github\Get-CalendarVersion.ps1
+          [string]$version = & .github\Get-CalendarVersion.ps1 -MergeBuild
           "Calculated Version: $version"
           "::set-output name=version::$version"
           "::set-output name=calendarVersion::$version"
