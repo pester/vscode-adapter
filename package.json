@@ -17,7 +17,7 @@
 				"pester.testFilePath": {
 					"type": ["array"],
 					"default": ["**/*.[tT]ests.[pP][sS]1"],
-					"markdownDescription": "Specify an array of [Glob Patterns](https://code.visualstudio.com/docs/editor/codebasics#_advanced-search-options) of Pester test folder(s) or file(s) for the adapter to scan, relative to your workspace. This is useful if you want to limit what test files or scanned, or you want to use a different test format than `.tests.ps1`. This is case sensitive!"
+					"markdownDescription": "Specify an array of [Glob Patterns](https://code.visualstudio.com/docs/editor/codebasics#_advanced-search-options) of Pester test files for the adapter to scan, relative to your workspace. This is useful if you want to limit what test files or scanned, or you want to use a different test format than `.tests.ps1`. You must specify files, so if you want to include an entire folder, add a wildcard, for instance `Tests\\*.Tests.ps1`. **This is case sensitive!** Here is a case insensitive example: `[tT]ests\\*.[tT]ests.[pP][sS]1`"
 				}
 			}
 		}
