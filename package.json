@@ -15,9 +15,9 @@
 			"title": "Pester",
 			"properties": {
 				"pester.testFilePath": {
-					"type": ["string","null"],
-					"default": null,
-					"markdownDescription": "Specify the path to the Pester test folder(s) or file(s) for the adapter to scan, relative to your workspace. This is useful if you want to limit what test files or scanned, or you want to use a different test format than `.tests.ps1`. [Glob Patterns](https://code.visualstudio.com/docs/editor/codebasics#_advanced-search-options) (`**/Test*`) are supported"
+					"type": ["array"],
+					"default": ["**/*.[tT]ests.[pP][sS]1"],
+					"markdownDescription": "Specify an array of [Glob Patterns](https://code.visualstudio.com/docs/editor/codebasics#_advanced-search-options) of Pester test folder(s) or file(s) for the adapter to scan, relative to your workspace. This is useful if you want to limit what test files or scanned, or you want to use a different test format than `.tests.ps1`. This is case sensitive!"
 				}
 			}
 		}

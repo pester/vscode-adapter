@@ -415,7 +415,7 @@ export class PesterTestController implements Disposable {
 				)
 				testWatcher.onDidDelete(uri => tests.delete(uri.toString()))
 				testWatcher.onDidChange(uri =>
-					TestFile.getOrCreate(testController, uri).invalidateResults()
+					this.resolveHandler(TestFile.getOrCreate(testController, uri))
 				)
 
 				// TODO: Fix this for non-file based pester tests and
