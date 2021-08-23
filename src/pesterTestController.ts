@@ -401,43 +401,44 @@ export class PesterTestController implements Disposable {
 			log.warn('No workspace folders detected.')
 			return
 		}
+		const pathToWatch: string[] = workspace
+			.getConfiguration('pester')
+			.get<string[]>('testFilePath', ['**/*.[tT]ests.[pP][sS]1'])
+
 		for (const workspaceFolder of workspace.workspaceFolders) {
-			const pattern = new RelativePattern(
-				workspaceFolder,
-				'**/*.[tT]ests.[pP][sS]1'
-			)
-
-			const testWatcher = workspace.createFileSystemWatcher(pattern)
-			const tests = this.testController.items
-			testWatcher.onDidCreate(uri =>
-				tests.add(TestFile.getOrCreate(testController, uri))
-			)
-			testWatcher.onDidDelete(uri => tests.delete(uri.toString()))
-			testWatcher.onDidChange(uri =>
-				this.testController.resolveHandler!(
-					TestFile.getOrCreate(testController, uri)
+			for (const pathToWatchItem of pathToWatch) {
+				const pattern = new RelativePattern(workspaceFolder, pathToWatchItem)
+				const testWatcher = workspace.createFileSystemWatcher(pattern)
+				const tests = this.testController.items
+				testWatcher.onDidCreate(uri =>
+					tests.add(TestFile.getOrCreate(testController, uri))
 				)
-			)
-
-			// TODO: Make this a setting
-			const isPesterTestFile = /\.[tT]ests\.[pP][sS]1$/
-
-			workspace.onDidOpenTextDocument(e => {
-				if (!isPesterTestFile.test(e.fileName)) {
-					return
-				}
-				if (this.testController.resolveHandler === undefined) {
-					throw 'onDidOpenTextDocument was called but the testcontroller resolve handler wasnt defined. This is a bug'
-				}
-				this.testController.resolveHandler(
-					TestFile.getOrCreate(testController, e.uri)
+				testWatcher.onDidDelete(uri => tests.delete(uri.toString()))
+				testWatcher.onDidChange(uri =>
+					this.resolveHandler(TestFile.getOrCreate(testController, uri))
 				)
-			})
 
-			const files = await workspace.findFiles(pattern)
-			for (const file of files) {
-				log.info('Detected Pester File: ', file.fsPath)
-				TestFile.getOrCreate(testController, file)
+				// TODO: Fix this for non-file based pester tests and
+				// workspace.onDidOpenTextDocument(async e => {
+				// 	const inScopeFiles = await workspace.findFiles(pattern)
+				// 	// Only work on in-scope files
+				// 	if (inScopeFiles.indexOf(e.uri) === -1) {
+				// 		return
+				// 	}
+				// 	if (this.testController.resolveHandler === undefined) {
+				// 		throw 'onDidOpenTextDocument was called but the testcontroller resolve handler wasnt defined. This is a bug'
+				// 	}
+				// 	const testFile = TestFile.getOrCreate(testController, e.uri)
+				// 	if testFile.
+				// 	this.testController.resolveHandler(
+				// 	)
+				// })
+
+				const files = await workspace.findFiles(pattern)
+				for (const file of files) {
+					log.info('Detected Pester File: ', file.fsPath)
+					TestFile.getOrCreate(testController, file)
+				}
 			}
 		}
 	}
