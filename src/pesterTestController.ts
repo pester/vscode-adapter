@@ -217,16 +217,16 @@ export class PesterTestController implements Disposable {
 				return
 			}
 
-			// BUG: Find out why this doesn't match. Maybe get isn't recursive?
 			const testRequestItem = findTestItem(
 				testResult.id,
 				this.testController.items
 			)
 
 			if (testRequestItem === undefined) {
-				throw new Error(
+				log.error(
 					`${testResult.id} was returned from Pester but was not tracked in the test controller. This is probably a bug in test discovery.`
 				)
+				return
 			}
 			if (exclude.has(testRequestItem)) {
 				log.warn(`${testResult.id} was run in Pester but excluded from results`)
@@ -254,8 +254,27 @@ export class PesterTestController implements Disposable {
 						new Position(testResult.targetLine, 0)
 					)
 				}
+
+				if (
+					testResult.result === TestResultState.Skipped &&
+					testResult.message === 'is skipped'
+				) {
+					return run.skipped(testRequestItem)
+				} else if (
+					testResult.result === TestResultState.Skipped &&
+					testResult.message &&
+					!workspace
+						.getConfiguration('pester')
+						.get<boolean>('hideSkippedBecauseMessages')
+				) {
+					// We use "errored" because there is no "skipped" message support in the vscode UI
+					return run.errored(testRequestItem, message, testResult.duration)
+				} else if (testResult.result === TestResultState.Skipped) {
+					return run.skipped(testRequestItem)
+				}
+
 				if (message.message) {
-					run.failed(testRequestItem, message, testResult.duration)
+					return run.failed(testRequestItem, message, testResult.duration)
 				}
 			}
 		}

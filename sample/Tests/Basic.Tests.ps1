@@ -16,6 +16,18 @@ Describe 'Basic' {
 	}
 	It 'Describe-Level Succeeds' { $true | Should -Be $true }
 	It 'Describe-Level Fails' { $true | Should -Be $false }
+	It 'Skipped' {
+		Set-ItResult -Skipped
+	}
+	It 'Skipped Because' {
+		Set-ItResult -Skipped -Because 'It was skipped'
+	}
+	It 'Inconclusive' {
+		Set-ItResult -Inconclusive
+	}
+	It 'Inconclusive Because' {
+		Set-ItResult -Inconclusive -Because 'It was Inconclusive'
+	}
 }
 
 Describe 'TestCases' {
