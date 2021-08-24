@@ -262,10 +262,15 @@ export class PesterTestController implements Disposable {
 					return run.skipped(testRequestItem)
 				} else if (
 					testResult.result === TestResultState.Skipped &&
-					testResult.message
+					testResult.message &&
+					!workspace
+						.getConfiguration('pester')
+						.get<boolean>('hideSkippedBecauseMessages')
 				) {
 					// We use "errored" because there is no "skipped" message support in the vscode UI
 					return run.errored(testRequestItem, message, testResult.duration)
+				} else if (testResult.result === TestResultState.Skipped) {
+					return run.skipped(testRequestItem)
 				}
 
 				if (message.message) {
