@@ -139,7 +139,12 @@ function New-TestItemId {
 
 		# If this is a root container, just return the file path, since root containers can only be files (for now)
 		if ($Test -is [Pester.Block] -and $Test.IsRoot) {
-			return $Test.BlockContainer.Item.ToString().ToUpper()
+      [string]$path = $Test.BlockContainer.Item
+      if ($IsWindows -or $PSEdition -eq 'Desktop') {
+        return $path.ToUpper()
+      } else {
+        return $path
+      }
 		}
 
 		[String]$TestID = @(

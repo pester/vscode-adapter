@@ -46,7 +46,7 @@ export class DotnetNamedPipeServer implements Disposable {
 		} else {
 			// Windows uses NamedPipes where non-Windows platforms use Unix Domain Sockets.
 			// This requires connecting to the pipe file in different locations on Windows vs non-Windows.
-			return join(tmpdir(), pipeName)
+			return join(tmpdir(), `CoreFxPipe_${pipeName}`)
 		}
 	}
 
