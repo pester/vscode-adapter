@@ -1,4 +1,7 @@
 {
 	"github-actions.workflows.pinned.workflows": [".github/workflows/ci.yml"],
-	"editor.detectIndentation": false
+	"editor.detectIndentation": false,
+	"pester.testFilePath": [
+		"Scripts/*.[tT]ests.[pP][sS]1"
+	]
 }
