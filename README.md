@@ -31,16 +31,15 @@ This extension provides the ability to run [Pester](https://pester.dev/) tests u
 The extension will automatically discover all `.Tests.ps1` Pester files in your workspace, you can then run tests either
 from the Tests pane or from the green arrows that will appear adjacent to your tests.
 
-### Installing the latest beta VSIX
+### Installing the latest preview VSIX
 
-Beta VSIX extension packages are generated upon every commit to master and every pull request update. To install a beta build:
+Preview VSIX extension packages are generated upon every commit to main and every pull request update. To install a beta build:
 
 1. Click the green checkmark next to the latest commit
 1. Click `Details` next to the `👷‍♂️ Build Visual Studio Code Extension` task
 1. Click `Artifacts` in the upper right of the window
-1. Download the latest artifact zip, it should be named `vsix-{version}`
-1. Unzip the artifact and open the related folder
-1. Open the folder in vscode, right click the `.vsix` file, and choose `Install Extension VSIX` near the bottom.
+1. Download the latest artifact zip and unzip it, it should be named `vsix-{version}`
+1. Open the resulting folder in vscode, right click the `.vsix` file, and choose `Install Extension VSIX` near the bottom.
 1. Alternatively in vscode you can hit F1 and choose `Extensions: Install from VSIX` and browse for the vsix file.
 
 ### Configuration
