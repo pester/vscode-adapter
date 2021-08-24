@@ -111,7 +111,7 @@ Describe 'PesterInterface' {
 
   Context 'Get-DurationString' {
     BeforeAll {
-      . $testScript 'fakepath' -LoadFunctionsOnly
+      . $PesterInterface 'fakepath' -LoadFunctionsOnly
     }
     Context 'When argument contains values for properties UserDuration and FrameworkDuration' {
       It 'Should return the correct string' {
@@ -145,7 +145,7 @@ Describe 'PesterInterface' {
     }
     Context 'When there exist multiple Pester modules in the session' {
       BeforeAll {
-        Mock -CommandName Get-Module -MockWith {
+        Mock -CommandName Get-Module {
           return @('First', 'Second')
         }
       }
@@ -154,7 +154,7 @@ Describe 'PesterInterface' {
           UserDuration      = 10000
           FrameworkDuration = 20000
         }
-        { Get-DurationString $mockTestParameter } | Should -Throw -ExpectedMessage '*Multiple Pester Modules found*'
+        { Get-DurationString @mockTestParameter } | Should -Throw '*Multiple Pester Modules found*'
       }
     }
   }
