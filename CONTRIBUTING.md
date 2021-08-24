@@ -7,6 +7,9 @@ submit a pull request, all without ever having to clone the repository locally.
 
 TODO: "Peek with VSCode Remote Repositories" button
 
+# Running Tests
+This project uses the Jest test framework with the esbuild-jest plugin to quickly compile the typescript for testing.
+
 # Development
 
 The extension is broken into the following abstraction layers:
