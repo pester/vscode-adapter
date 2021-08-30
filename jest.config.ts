@@ -2,7 +2,8 @@ import type { Config } from '@jest/types'
 
 export default async (): Promise<Config.InitialOptions> => {
 	return {
-		bail: true,
+		bail: 1,
+		modulePathIgnorePatterns: ['dist', '.vscode-test'],
 		transform: {
 			'^.+\\.tsx?$': [
 				'esbuild-jest',
