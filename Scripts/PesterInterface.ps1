@@ -435,6 +435,9 @@ function Invoke-Main {
 
 	Add-PesterPluginShim $MyPlugin
 	Invoke-Pester -Configuration $config | Out-Null
+
+	#Reset the Pester module to remove the plugin shim
+	Import-Module Pester -Force
 }
 
 #Run Main function
