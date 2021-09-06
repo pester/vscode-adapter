@@ -16,8 +16,12 @@ export function createJsonParseTransform() {
 	})
 }
 
-/** Streams for Powershell Output: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_output_streams?view=powershell-7.1 */
-export interface PSOutputStreams {
+/** Streams for Powershell Output: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_output_streams?view=powershell-7.1
+ *
+ * You can either extend this interface and use custom streams to handle the incoming objects, or use the default
+ * implementation and subscribe to data events on the streams
+ */
+export interface IPSOutput {
 	success: Readable
 	error: Readable
 	warning: Readable
@@ -27,8 +31,48 @@ export interface PSOutputStreams {
 	progress: Readable
 }
 
+/** A simple Readable that emits events when new objects are pushed from powershell.
+ * read() does nothing and generally should not be called, you should subscribe to the events instead
+ */
+export function createPSReadableStream() {
+	return new Readable({
+		objectMode: true,
+		read() {
+			return
+		}
+	})
+}
+
+export class PSOutput implements IPSOutput {
+	constructor(
+		public success: Readable = createPSReadableStream(),
+		public error: Readable = createPSReadableStream(),
+		public warning: Readable = createPSReadableStream(),
+		public verbose: Readable = createPSReadableStream(),
+		public debug: Readable = createPSReadableStream(),
+		public information: Readable = createPSReadableStream(),
+		public progress: Readable = createPSReadableStream()
+	) {}
+}
+
+/** An implementation of IPSOutput that takes all result objects and collects them to a single stream */
+export class PSOutputUnified implements IPSOutput {
+	constructor(
+		public success: Readable = createPSReadableStream(),
+		public error: Readable = success,
+		public warning: Readable = success,
+		public verbose: Readable = success,
+		public debug: Readable = success,
+		public information: Readable = success,
+		public progress: Readable = success
+	) {}
+	read<T>() {
+		return this.success.read() as T
+	}
+}
+
 /** takes a unified stream of PS Objects and splits them into their appropriate streams */
-export function createSplitPSOutputStream(streams: PSOutputStreams) {
+export function createSplitPSOutputStream(streams: IPSOutput) {
 	return new Writable({
 		objectMode: true,
 		write(chunk, _, done) {
@@ -83,20 +127,13 @@ export class PowerShell {
 		}
 	}
 
-	/** Runs the specified powershell script and returns objects representing the results. Includes all streams.
-	 * The promise will resolve when the script completes.
+	/** Run a PowerShell script asynchronously, result objects will arrive via the provided PSOutput streams
+	 * the returned Promise will complete when the script has finished running
 	 */
-	async run<T>(script: string) {
-		// We can only currently run one script at a time.
+	async run(script: string, psOutput: IPSOutput = new PSOutput()) {
 		if (this.currentInvocation) {
 			await this.currentInvocation
 		}
-		const jsonResultStream = createStream(this.psProcess.stdout)
-		const jsonParseTransform = createJsonParseTransform()
-		const streams = new Array<NodeJS.ReadWriteStream | NodeJS.ReadableStream>(
-			jsonResultStream,
-			jsonParseTransform
-		)
 
 		this.psProcess.stderr.once('data', (data: Buffer) => {
 			const message: PSResult = JSON.parse(data.toString())
@@ -107,43 +144,23 @@ export class PowerShell {
 			}
 		})
 
-		const pipelineCompleted = pipelineWithPromise(streams)
+		const jsonResultStream = createStream(this.psProcess.stdout)
+		const pipelineCompleted = pipelineWithPromise([
+			jsonResultStream,
+			createJsonParseTransform(),
+			createSplitPSOutputStream(psOutput)
+		])
 		const runnerScript = './Scripts/powershellRunner.ps1'
 		this.currentInvocation = pipelineCompleted
 		this.psProcess.stdin.write(`${runnerScript} {${script}}\n`)
-		await pipelineCompleted
-		return jsonParseTransform.read() as T
+		return pipelineCompleted
 	}
 
-	async stream(script: string, psOutputStreams: PSOutputStreams) {
-		if (this.currentInvocation) {
-			await this.currentInvocation
-		}
-		const jsonResultStream = createStream(this.psProcess.stdout)
-		const jsonParseTransform = createJsonParseTransform()
-		const streams = new Array<NodeJS.ReadWriteStream | NodeJS.ReadableStream>(
-			jsonResultStream,
-			jsonParseTransform
-		)
-
-		this.psProcess.stderr.once('data', (data: Buffer) => {
-			const message: PSResult = JSON.parse(data.toString())
-			if (message.finished) {
-				jsonResultStream.end()
-			} else {
-				throw new Error(data.toString())
-			}
-		})
-
-		const pipelineCompleted = pipelineWithPromise(
-			jsonResultStream,
-			jsonParseTransform,
-			createSplitPSOutputStream(psOutputStreams)
-		)
-		const runnerScript = './Scripts/powershellRunner.ps1'
-		this.currentInvocation = pipelineCompleted
-		this.psProcess.stdin.write(`${runnerScript} {${script}}\n`)
-		await pipelineCompleted
+	/** Runs a script and returns all objects generated by the script. This is a simplified interface to run */
+	async exec<T>(script: string, successOutputOnly?: boolean) {
+		const psOutput = successOutputOnly ? new PSOutputUnified() : new PSOutput()
+		await this.run(script, psOutput)
+		return psOutput.success.read() as T
 	}
 
 	dispose() {

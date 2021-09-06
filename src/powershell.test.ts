@@ -5,7 +5,9 @@ import { promisify } from 'util'
 import {
 	createJsonParseTransform,
 	PowerShell,
-	PSOutputStreams
+	IPSOutput,
+	createSplitPSOutputStream,
+	PSOutput
 } from './powershell'
 
 const pipelineWithPromise = promisify(pipeline)
@@ -48,27 +50,49 @@ describe('jsonParseTransform', () => {
 })
 
 describe('run', () => {
-	const pp = new PowerShell()
+	test('success', done => {
+		const streams = new PSOutput()
+		const p = new PowerShell()
+		streams.success.on('data', data => {
+			expect(data).toBe('JEST')
+			p.dispose()
+			done()
+		})
+		p.run(`'JEST'`, streams)
+	})
 
+	test('verbose', done => {
+		const streams = new PSOutput()
+		const p = new PowerShell()
+		streams.verbose.on('data', data => {
+			expect(data.Message).toBe('JEST')
+			p.dispose()
+			done()
+		})
+		p.run(`Write-Verbose -verbose 'JEST'`, streams)
+	})
+})
+
+describe('exec', () => {
 	test('Get-Item', async () => {
 		const p = new PowerShell()
-		const result = await p.run<any>(`Get-Item .`)
+		const result = await p.exec<any>(`Get-Item .`)
 		expect(result.PSIsContainer).toBe(true)
 		p.dispose()
 	})
 
 	test('Get-Item Preload', async () => {
-		const pp = new PowerShell()
-		const result = await pp.run<any>(`Get-Item .`)
+		const p = new PowerShell()
+		const result = await p.exec<any>(`Get-Item .`)
 		expect(result.PSIsContainer).toBe(true)
-		pp.dispose()
+		p.dispose()
 	})
 
 	/** Verify that if two commands are run at the same time, they queue and complete independently without interfering with each other */
 	test('Parallel', async () => {
 		const p = new PowerShell()
-		const result = p.run<any>(`'Item1';sleep 0.05`)
-		const result2 = p.run<any>(`'Item2'`)
+		const result = p.exec<any>(`'Item1';sleep 0.05`)
+		const result2 = p.exec<any>(`'Item2'`)
 		expect(await result2).toBe('Item2')
 		expect(await result).toBe('Item1')
 		p.dispose()
@@ -80,52 +104,3 @@ describe('run', () => {
 	})
 })
 
-describe('stream', () => {
-	test('success', done => {
-		const streams: PSOutputStreams = {
-			success: new Readable({
-				objectMode: true,
-				read: () => {
-					return
-				}
-			}),
-			error: new Readable(),
-			warning: new Readable(),
-			verbose: new Readable(),
-			debug: new Readable(),
-			information: new Readable(),
-			progress: new Readable()
-		}
-		streams.success.on('data', data => {
-			expect(data).toBe('JEST')
-			p.dispose()
-			done()
-		})
-		const p = new PowerShell()
-		p.stream(`'JEST'`, streams)
-	})
-
-	test('verbose', done => {
-		const streams: PSOutputStreams = {
-			success: new Readable(),
-			error: new Readable(),
-			warning: new Readable(),
-			verbose: new Readable({
-				objectMode: true,
-				read: () => {
-					return
-				}
-			}),
-			debug: new Readable(),
-			information: new Readable(),
-			progress: new Readable()
-		}
-		streams.verbose.on('data', data => {
-			expect(data.Message).toBe('JEST')
-			p.dispose()
-			done()
-		})
-		const p = new PowerShell()
-		p.stream(`Write-Verbose -verbose 'JEST'`, streams)
-	})
-})
