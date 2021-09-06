@@ -14,13 +14,22 @@ param(
 	#How often to check for script completion, in seconds. You should only need to maybe increase this if there is an averse performance impact.
 	[double]$sleepInterval = 0.05,
 	#Safety timeout in seconds. This avoids infinite loops. Increase for very long running scripts.
-	[int]$timeout = 3600
+	[int]$timeout = 3600,
+	#Include ANSI characters in the output. This is only supported on 7.2 or above.
+	[Switch]$IncludeAnsi
 )
 Set-StrictMode -Version 3
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 #This is required to ensure dates get ISO8601 formatted during json serialization
 Get-TypeData System.DateTime | Remove-TypeData
 
+if ($psversiontable.psversion -ge '7.2.0') {
+	if ($IncludeAnsi) {
+		$PSStyle.OutputRendering = 'ANSI'
+	} else {
+		$PSStyle.OutputRendering = 'PlainText'
+	}
+}
 
 # $ScriptBlock = [ScriptBlock]::Create($script)
 $psInstance = [powershell]::Create()

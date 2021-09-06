@@ -1,6 +1,6 @@
 import { createStream } from 'byline'
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process'
-import { pipeline, Transform } from 'stream'
+import { pipeline, Readable, Transform, Writable } from 'stream'
 import { promisify } from 'util'
 
 const pipelineWithPromise = promisify(pipeline)
@@ -11,6 +11,52 @@ export function createJsonParseTransform() {
 		objectMode: true,
 		write(chunk: string, encoding: string, done) {
 			this.push(JSON.parse(chunk))
+			done()
+		}
+	})
+}
+
+/** Streams for Powershell Output: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_output_streams?view=powershell-7.1 */
+export interface PSOutputStreams {
+	success: Readable
+	error: Readable
+	warning: Readable
+	verbose: Readable
+	debug: Readable
+	information: Readable
+	progress: Readable
+}
+
+/** takes a unified stream of PS Objects and splits them into their appropriate streams */
+export function createSplitPSOutputStream(streams: PSOutputStreams) {
+	return new Writable({
+		objectMode: true,
+		write(chunk, _, done) {
+			switch (chunk.__PSStream) {
+				case undefined:
+					streams.success.push(chunk)
+					break
+				case 'Error':
+					streams.error.push(chunk)
+					break
+				case 'Warning':
+					streams.warning.push(chunk)
+					break
+				case 'Verbose':
+					streams.verbose.push(chunk)
+					break
+				case 'Debug':
+					streams.debug.push(chunk)
+					break
+				case 'Information':
+					streams.information.push(chunk)
+					break
+				case 'Progress':
+					streams.information.push(chunk)
+					break
+				default:
+					throw new Error(`Unknown PSStream Reported: ${chunk.__PSStream}`)
+			}
 			done()
 		}
 	})
@@ -67,6 +113,37 @@ export class PowerShell {
 		this.psProcess.stdin.write(`${runnerScript} {${script}}\n`)
 		await pipelineCompleted
 		return jsonParseTransform.read() as T
+	}
+
+	async stream(script: string, psOutputStreams: PSOutputStreams) {
+		if (this.currentInvocation) {
+			await this.currentInvocation
+		}
+		const jsonResultStream = createStream(this.psProcess.stdout)
+		const jsonParseTransform = createJsonParseTransform()
+		const streams = new Array<NodeJS.ReadWriteStream | NodeJS.ReadableStream>(
+			jsonResultStream,
+			jsonParseTransform
+		)
+
+		this.psProcess.stderr.once('data', (data: Buffer) => {
+			const message: PSResult = JSON.parse(data.toString())
+			if (message.finished) {
+				jsonResultStream.end()
+			} else {
+				throw new Error(data.toString())
+			}
+		})
+
+		const pipelineCompleted = pipelineWithPromise(
+			jsonResultStream,
+			jsonParseTransform,
+			createSplitPSOutputStream(psOutputStreams)
+		)
+		const runnerScript = './Scripts/powershellRunner.ps1'
+		this.currentInvocation = pipelineCompleted
+		this.psProcess.stdin.write(`${runnerScript} {${script}}\n`)
+		await pipelineCompleted
 	}
 
 	dispose() {
