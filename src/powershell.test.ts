@@ -42,13 +42,19 @@ describe('jsonParseTransform', () => {
 	})
 })
 
+
 describe('run', () => {
+	let ps: PowerShell
+	beforeEach(() => {
+		ps = new PowerShell()
+	})
+	afterEach(() => {
+		ps.dispose()
+	})
 	it('success', done => {
 		const streams = new PSOutput()
-		const ps = new PowerShell()
 		streams.success.on('data', data => {
 			expect(data).toBe('JEST')
-			ps.dispose()
 			done()
 		})
 		ps.run(`'JEST'`, streams)
@@ -56,10 +62,8 @@ describe('run', () => {
 
 	it('verbose', done => {
 		const streams = new PSOutput()
-		const ps = new PowerShell()
 		streams.verbose.on('data', data => {
 			expect(data.Message).toBe('JEST')
-			ps.dispose()
 			done()
 		})
 		ps.run(`Write-Verbose -verbose 'JEST'`, streams)
@@ -96,12 +100,5 @@ describe('exec', () => {
 	it('pwsh baseline', () => {
 		const result = execSync('pwsh -c "echo hello"')
 		expect(result.toString()).toMatch('hello')
-	})
-
-	it('mixed', () => {
-		const result = ps.exec<any>(`'Item1';sleep 0.05`)
-		const result2 = ps.exec<any>(`'Item2'`)
-		expect(result2).rejects.toThrow('Command is already running')
-		expect(result).resolves.toBe('Item1')
 	})
 })
