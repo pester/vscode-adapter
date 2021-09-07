@@ -45,54 +45,63 @@ describe('jsonParseTransform', () => {
 describe('run', () => {
 	it('success', done => {
 		const streams = new PSOutput()
-		const p = new PowerShell()
+		const ps = new PowerShell()
 		streams.success.on('data', data => {
 			expect(data).toBe('JEST')
-			p.dispose()
+			ps.dispose()
 			done()
 		})
-		p.run(`'JEST'`, streams)
+		ps.run(`'JEST'`, streams)
 	})
 
 	it('verbose', done => {
 		const streams = new PSOutput()
-		const p = new PowerShell()
+		const ps = new PowerShell()
 		streams.verbose.on('data', data => {
 			expect(data.Message).toBe('JEST')
-			p.dispose()
+			ps.dispose()
 			done()
 		})
-		p.run(`Write-Verbose -verbose 'JEST'`, streams)
+		ps.run(`Write-Verbose -verbose 'JEST'`, streams)
 	})
 })
 
 describe('exec', () => {
+	let ps: PowerShell
+	beforeEach(() => {
+		ps = new PowerShell()
+	})
+	afterEach(() => {
+		ps.dispose()
+	})
+
 	it('Get-Item', async () => {
-		const p = new PowerShell()
-		const result = await p.exec<any>(`Get-Item .`)
+		const result = await ps.exec<any>(`Get-Item .`)
 		expect(result.PSIsContainer).toBe(true)
-		p.dispose()
 	})
 
 	it('Get-Item Preload', async () => {
-		const p = new PowerShell()
-		const result = await p.exec<any>(`Get-Item .`)
+		const result = await ps.exec<any>(`Get-Item .`)
 		expect(result.PSIsContainer).toBe(true)
-		p.dispose()
 	})
 
 	/** Verify that if two commands are run at the same time, they queue and complete independently without interfering with each other */
 	it('Parallel', async () => {
-		const p = new PowerShell()
-		const result = p.exec<any>(`'Item1';sleep 0.05`)
-		const result2 = p.exec<any>(`'Item2'`)
+		const result = ps.exec<any>(`'Item1';sleep 0.05`)
+		const result2 = ps.exec<any>(`'Item2'`)
 		expect(await result2).toBe('Item2')
 		expect(await result).toBe('Item1')
-		p.dispose()
 	})
 
 	it('pwsh baseline', () => {
 		const result = execSync('pwsh -c "echo hello"')
 		expect(result.toString()).toMatch('hello')
+	})
+
+	it('mixed', () => {
+		const result = ps.exec<any>(`'Item1';sleep 0.05`)
+		const result2 = ps.exec<any>(`'Item2'`)
+		expect(result2).rejects.toThrow('Command is already running')
+		expect(result).resolves.toBe('Item1')
 	})
 })
