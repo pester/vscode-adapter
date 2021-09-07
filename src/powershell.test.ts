@@ -1,17 +1,10 @@
-import { doesNotMatch } from 'assert'
-import { execSync, spawn } from 'child_process'
+import { execSync } from 'child_process'
 import { pipeline, Readable } from 'stream'
 import { promisify } from 'util'
-import {
-	createJsonParseTransform,
-	PowerShell,
-	IPSOutput,
-	createSplitPSOutputStream,
-	PSOutput
-} from './powershell'
+import { createJsonParseTransform, PowerShell, PSOutput } from './powershell'
 
 const pipelineWithPromise = promisify(pipeline)
-jest.setTimeout(30000)
+// jest.setTimeout(30000)
 
 describe('jsonParseTransform', () => {
 	interface TestObject {
@@ -50,7 +43,7 @@ describe('jsonParseTransform', () => {
 })
 
 describe('run', () => {
-	test('success', done => {
+	it('success', done => {
 		const streams = new PSOutput()
 		const p = new PowerShell()
 		streams.success.on('data', data => {
@@ -61,7 +54,7 @@ describe('run', () => {
 		p.run(`'JEST'`, streams)
 	})
 
-	test('verbose', done => {
+	it('verbose', done => {
 		const streams = new PSOutput()
 		const p = new PowerShell()
 		streams.verbose.on('data', data => {
@@ -74,14 +67,14 @@ describe('run', () => {
 })
 
 describe('exec', () => {
-	test('Get-Item', async () => {
+	it('Get-Item', async () => {
 		const p = new PowerShell()
 		const result = await p.exec<any>(`Get-Item .`)
 		expect(result.PSIsContainer).toBe(true)
 		p.dispose()
 	})
 
-	test('Get-Item Preload', async () => {
+	it('Get-Item Preload', async () => {
 		const p = new PowerShell()
 		const result = await p.exec<any>(`Get-Item .`)
 		expect(result.PSIsContainer).toBe(true)
@@ -89,7 +82,7 @@ describe('exec', () => {
 	})
 
 	/** Verify that if two commands are run at the same time, they queue and complete independently without interfering with each other */
-	test('Parallel', async () => {
+	it('Parallel', async () => {
 		const p = new PowerShell()
 		const result = p.exec<any>(`'Item1';sleep 0.05`)
 		const result2 = p.exec<any>(`'Item2'`)
@@ -98,9 +91,8 @@ describe('exec', () => {
 		p.dispose()
 	})
 
-	test('pwsh baseline', () => {
+	it('pwsh baseline', () => {
 		const result = execSync('pwsh -c "echo hello"')
 		expect(result.toString()).toMatch('hello')
 	})
 })
-

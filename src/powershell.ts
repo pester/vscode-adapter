@@ -1,7 +1,7 @@
 import { createStream } from 'byline'
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process'
 import { pipeline, Readable, Transform, Writable } from 'stream'
-import { promisify } from 'util'
+import { isPrimitive, promisify } from 'util'
 
 const pipelineWithPromise = promisify(pipeline)
 
@@ -77,7 +77,11 @@ export function createSplitPSOutputStream(streams: IPSOutput) {
 		objectMode: true,
 		write(chunk, _, done) {
 			switch (chunk.__PSStream) {
+				// Unless a stream is explicitly set, the default is to use the success stream
 				case undefined:
+					streams.success.push(chunk)
+					break
+				case 'Success':
 					streams.success.push(chunk)
 					break
 				case 'Error':

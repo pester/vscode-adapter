@@ -16,9 +16,12 @@ param(
 	#Safety timeout in seconds. This avoids infinite loops. Increase for very long running scripts.
 	[int]$timeout = 3600,
 	#Include ANSI characters in the output. This is only supported on 7.2 or above.
-	[Switch]$IncludeAnsi
+	[Switch]$IncludeAnsi,
+	#Do not reuse a previously found session, useful for pester tests or environments that leave a dirty state.
+	[Switch]$NoSessionReuse
 )
 Set-StrictMode -Version 3
+$ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 #This is required to ensure dates get ISO8601 formatted during json serialization
 Get-TypeData System.DateTime | Remove-TypeData
@@ -32,7 +35,11 @@ if ($psversiontable.psversion -ge '7.2.0') {
 }
 
 # $ScriptBlock = [ScriptBlock]::Create($script)
-$psInstance = [powershell]::Create()
+[PowerShell]$psinstance = if (!$NoSessionReuse -and (Test-Path Variable:__NODEPSINSTANCE)) {
+	$GLOBAL:__NODEPSINSTANCE
+} else {
+	[powershell]::Create()
+}
 [void]$psInstance.AddScript($ScriptBlock)
 $psInstance.Commands[0].Commands[0].MergeMyResults([PipeLineResultTypes]::All, [PipeLineResultTypes]::Output)
 $psInput = [PSDataCollection[Object]]::new()
@@ -40,27 +47,17 @@ $psOutput = [PSDataCollection[Object]]::new()
 
 
 function Add-StreamIdentifier ($inputObject) {
-	switch ($true) {
-		($inputObject -is [DebugRecord]) {
-			Add-Member -InputObject $inputObject -NotePropertyName '__PSStream' -NotePropertyValue 'Debug'
-			break
-		}
-		($inputObject -is [VerboseRecord]) {
-			Add-Member -InputObject $inputObject -NotePropertyName '__PSStream' -NotePropertyValue 'Verbose'
-			break
-		}
-		($inputObject -is [WarningRecord]) {
-			Add-Member -InputObject $inputObject -NotePropertyName '__PSStream' -NotePropertyValue 'Warning'
-			break
-		}
-		($inputObject -is [ErrorRecord]) {
-			Add-Member -InputObject $inputObject -NotePropertyName '__PSStream' -NotePropertyValue 'Error'
-			break
-		}
-		($inputObject -is [ProgressRecord]) {
-			Add-Member -InputObject $inputObject -NotePropertyName '__PSStream' -NotePropertyValue 'Progress'
-			break
-		}
+	$streamObjectTypes = @(
+		[DebugRecord],
+		[VerboseRecord],
+		[WarningRecord],
+		[ErrorRecord],
+		[InformationRecord],
+		[ProgressRecord]
+	)
+	if ($inputObject.gettype() -in $StreamObjectTypes) {
+		$streamName = $inputObject.getType().Name -replace 'Record$', ''
+		Add-Member -InputObject $inputObject -NotePropertyName '__PSStream' -NotePropertyValue $streamName
 	}
 }
 
@@ -99,6 +96,8 @@ $psStatus = $psInstance.BeginInvoke($psInput, $psOutput)
 # $psOutput while enumerating will block the pipeline while waiting for a new item, and will release when script is finished.
 $psOutput | Out-JsonToStdOut -Depth $Depth
 $psInstance.EndInvoke($psStatus)
-
+$psInstance.Commands.Clear()
+# Store the runspace where it can be reused for performance
+$GLOBAL:__NODEPSINSTANCE = $psInstance
 #Special event object to indicate the script is complete and the reader pipe can be closed.
 [Console]::Error.Write('{"finished": true}')
