@@ -11,7 +11,8 @@ param(
 	[Switch]$Discovery,
 	#Only load the functions but don't execute anything. Used for testing.
 	[Parameter(DontShow)][Switch]$LoadFunctionsOnly,
-	#If specified, emit the output objects as a flattened json to the specified named pipe handle. Used for IPC to the extension
+	#If specified, emit the output objects as a flattened json to the specified named pipe handle. Used for IPC to the extension host.
+	#If this value is the special value 'stdout', then the output object is written to stdout.
 	[String]$PipeName,
 	#The verbosity to pass to the system
 	[String]$Verbosity,
@@ -139,12 +140,12 @@ function New-TestItemId {
 
 		# If this is a root container, just return the file path, since root containers can only be files (for now)
 		if ($Test -is [Pester.Block] -and $Test.IsRoot) {
-      [string]$path = $Test.BlockContainer.Item
-      if ($IsWindows -or $PSEdition -eq 'Desktop') {
-        return $path.ToUpper()
-      } else {
-        return $path
-      }
+			[string]$path = $Test.BlockContainer.Item
+			if ($IsWindows -or $PSEdition -eq 'Desktop') {
+				return $path.ToUpper()
+			} else {
+				return $path
+			}
 		}
 
 		[String]$TestID = @(
@@ -322,9 +323,11 @@ $MyPlugin = @{
 			Write-Host -ForegroundColor Green "Connecting to pipe $PipeName"
 		}
 		if (!$DryRun) {
-			$SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
-			$__TestAdapterNamedPipeClient.Connect(5000)
-			$SCRIPT:__TestAdapterNamedPipeWriter = [System.IO.StreamWriter]::new($__TestAdapterNamedPipeClient)
+			if ($pipeName -ne 'stdout') {
+				$SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
+				$__TestAdapterNamedPipeClient.Connect(5000)
+				$SCRIPT:__TestAdapterNamedPipeWriter = [System.IO.StreamWriter]::new($__TestAdapterNamedPipeClient)
+			}
 		}
 	}
 	DiscoveryEnd        = {
@@ -341,7 +344,11 @@ $MyPlugin = @{
 					$testItem = New-TestObject $PSItem
 					[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
 					if (!$DryRun) {
-						$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+						if ($pipeName -eq 'stdout') {
+							[Console]::WriteLine($jsonObject)
+						} else {
+							$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+						}
 					} else {
 						$jsonObject >> $PipeName
 					}
@@ -350,7 +357,11 @@ $MyPlugin = @{
 			$testItem = New-TestObject $PSItem
 			[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
 			if (!$DryRun) {
-				$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+				if ($pipeName -eq 'stdout') {
+					[Console]::WriteLine($jsonObject)
+				} else {
+					$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+				}
 			} else {
 				$jsonObject >> $PipeName
 			}
@@ -363,14 +374,18 @@ $MyPlugin = @{
 		$testItem = New-TestObject $context.test
 		[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
 		if (!$DryRun) {
-			$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+			if ($pipeName -eq 'stdout') {
+				[Console]::WriteLine($jsonObject)
+			} else {
+				$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+			}
 		} else {
 			$jsonObject >> $PipeName
 		}
 	}
 
 	End                 = {
-		if (!$DryRun) {
+		if (!$DryRun -and $pipeName -ne 'stdout') {
 			$SCRIPT:__TestAdapterNamedPipeWriter.flush()
 			$SCRIPT:__TestAdapterNamedPipeWriter.dispose()
 			$SCRIPT:__TestAdapterNamedPipeClient.Close()
