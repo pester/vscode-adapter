@@ -1,5 +1,6 @@
 import { createStream } from 'byline'
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process'
+import { lookpath } from 'lookpath'
 import { resolve } from 'path'
 import { finished, pipeline, Readable, Transform, Writable } from 'stream'
 import { promisify } from 'util'
@@ -129,19 +130,40 @@ interface PSResult {
 	finished: boolean
 }
 
+/** Represents an instance of a PowerShell process. By default this will use pwsh if installed, and will fall back to Powershell on Windows,
+ * unless the exepath parameter is specified. Use the exePath parameter to specify specific powershell executables
+ * such as pwsh-preview or a pwsh executable not located in the PATH
+ */
 export class PowerShell {
-	private readonly psProcess: ChildProcessWithoutNullStreams
+	private psProcess: ChildProcessWithoutNullStreams | undefined
 	private currentInvocation: Promise<any> | undefined
-	constructor(private exePath: string = 'pwsh') {
-		this.psProcess = spawn(this.exePath, [
-			'-NoProfile',
-			'-NonInteractive',
-			'-NoExit',
-			'-Command',
-			'-'
-		])
-		if (!this.psProcess.pid) {
-			throw new Error(`Failed to start PowerShell process.`)
+	private resolvedExePath: string | undefined
+	constructor(public exePath?: string) {}
+
+	/** lazy-start a pwsh instance. If pwsh is not found but powershell is present, it will silently use that instead. */
+	private async initialize() {
+		if (this.psProcess === undefined) {
+			const pathToResolve = this.exePath ?? 'pwsh'
+			const path = await lookpath(pathToResolve)
+			if (path !== undefined) {
+				this.resolvedExePath = path
+			} else if (process.platform === 'win32') {
+				this.resolvedExePath = 'powershell'
+			} else {
+				throw new Error(
+					'pwsh not found in your path and you are not on Windows so Powershell 5.1 is not an option. Did you install PowerShell first?'
+				)
+			}
+			this.psProcess = spawn(this.resolvedExePath, [
+				'-NoProfile',
+				'-NonInteractive',
+				'-NoExit',
+				'-Command',
+				'-'
+			])
+			if (!this.psProcess.pid) {
+				throw new Error(`Failed to start PowerShell process.`)
+			}
 		}
 	}
 
@@ -149,6 +171,12 @@ export class PowerShell {
 	 * the returned Promise will complete when the script has finished running
 	 */
 	async run(script: string, psOutput: IPSOutput) {
+		await this.initialize()
+		if (this.psProcess === undefined) {
+			throw new Error('Powershell initialization failed')
+		}
+		// We only run one command at a time for now
+		// TODO: Use a runspace pool and tag each invocation with a unique ID
 		if (this.currentInvocation) {
 			await this.currentInvocation
 		}
@@ -188,6 +216,8 @@ export class PowerShell {
 	}
 
 	dispose() {
-		this.psProcess.kill()
+		if (this.psProcess !== undefined) {
+			this.psProcess.kill()
+		}
 	}
 }
