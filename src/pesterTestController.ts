@@ -372,14 +372,7 @@ export class PesterTestController implements Disposable {
 			})
 		)
 
-		if (!this.powerShellExtensionClient) {
-			this.powerShellExtensionClient = await PowerShellExtensionClient.create(
-				this.context,
-				this.powershellExtension
-			)
-		}
-
-		const pesterSettings = this.powerShellExtensionClient.GetPesterSettings()
+		const pesterSettings = PowerShellExtensionClient.GetPesterSettings()
 		let verbosity = debug
 			? pesterSettings.get<string>('debugOutputVerbosity')
 			: pesterSettings.get<string>('outputVerbosity')
@@ -392,14 +385,21 @@ export class PesterTestController implements Disposable {
 			scriptArgs.push(verbosity)
 		}
 
-		const runObjectListenEvent =
-			this.returnServer.onDidReceiveObject(returnHandler)
-
-		// HACK: Calling this function indirectly starts/waits for PSIC to be available
-		await this.powerShellExtensionClient.GetVersionDetails()
-
 		// No idea if this will work or not
 		if (usePSIC) {
+			if (!this.powerShellExtensionClient) {
+				this.powerShellExtensionClient = await PowerShellExtensionClient.create(
+					this.context,
+					this.powershellExtension
+				)
+			}
+
+			// HACK: Calling this function indirectly starts/waits for PSIC to be available
+			await this.powerShellExtensionClient.GetVersionDetails()
+
+			const runObjectListenEvent =
+				this.returnServer.onDidReceiveObject(returnHandler)
+
 			const terminalData = new Promise<string>(resolve =>
 				this.powerShellExtensionClient!.RunCommand(
 					scriptPath,

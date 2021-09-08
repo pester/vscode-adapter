@@ -133,7 +133,7 @@ export class PowerShell {
 	private readonly psProcess: ChildProcessWithoutNullStreams
 	private currentInvocation: Promise<any> | undefined
 	constructor(private exePath: string = 'pwsh') {
-		this.psProcess = spawn(exePath, [
+		this.psProcess = spawn(this.exePath, [
 			'-NoProfile',
 			'-NonInteractive',
 			'-NoExit',

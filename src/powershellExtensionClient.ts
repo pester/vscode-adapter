@@ -92,16 +92,16 @@ export class PowerShellExtensionClient {
 	/**
 	 * Lazily fetches the current terminal instance of the Powershell Integrated Console or starts it if not present
 	 */
-	public GetPowerShellIntegratedConsole() {
+	public static GetPowerShellIntegratedConsole() {
 		return window.terminals.find(
 			t => t.name === 'PowerShell Integrated Console'
 		)
 	}
 
-	public GetPowerShellSettings() {
+	public static GetPowerShellSettings() {
 		return workspace.getConfiguration('powershell')
 	}
-	public GetPesterSettings() {
+	public static GetPesterSettings() {
 		return workspace.getConfiguration('powershell.pester')
 	}
 
@@ -113,7 +113,7 @@ export class PowerShellExtensionClient {
 	) {
 		// This indirectly loads the PSES extension
 		await this.GetVersionDetails()
-		const psic = this.GetPowerShellIntegratedConsole()
+		const psic = PowerShellExtensionClient.GetPowerShellIntegratedConsole()
 
 		const debugConfig: DebugConfiguration = {
 			request: 'launch',
