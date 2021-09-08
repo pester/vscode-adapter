@@ -20,7 +20,7 @@ export function createJsonParseTransform() {
 	})
 }
 
-/** Streams for Powershell Output: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_output_streams?view=powershell-7.1
+/** Streams for PowerShell Output: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_output_streams?view=powershell-7.1
  *
  * You can either extend this interface and use custom streams to handle the incoming objects, or use the default
  * implementation and subscribe to data events on the streams
@@ -130,7 +130,7 @@ interface PSResult {
 	finished: boolean
 }
 
-/** Represents an instance of a PowerShell process. By default this will use pwsh if installed, and will fall back to Powershell on Windows,
+/** Represents an instance of a PowerShell process. By default this will use pwsh if installed, and will fall back to PowerShell on Windows,
  * unless the exepath parameter is specified. Use the exePath parameter to specify specific powershell executables
  * such as pwsh-preview or a pwsh executable not located in the PATH
  */
@@ -151,7 +151,7 @@ export class PowerShell {
 				this.resolvedExePath = 'powershell'
 			} else {
 				throw new Error(
-					'pwsh not found in your path and you are not on Windows so Powershell 5.1 is not an option. Did you install PowerShell first?'
+					'pwsh not found in your path and you are not on Windows so PowerShell 5.1 is not an option. Did you install PowerShell first?'
 				)
 			}
 			this.psProcess = spawn(this.resolvedExePath, [
@@ -173,7 +173,7 @@ export class PowerShell {
 	async run(script: string, psOutput: IPSOutput) {
 		await this.initialize()
 		if (this.psProcess === undefined) {
-			throw new Error('Powershell initialization failed')
+			throw new Error('PowerShell initialization failed')
 		}
 		// We only run one command at a time for now
 		// TODO: Use a runspace pool and tag each invocation with a unique ID
@@ -196,14 +196,15 @@ export class PowerShell {
 			}
 		})
 
-		const runnerScript = resolve(
+		const runnerScriptPath = resolve(
 			__dirname,
 			'..',
 			'Scripts',
 			'powershellRunner.ps1'
 		)
 		this.currentInvocation = pipelineCompleted
-		this.psProcess.stdin.write(`${runnerScript} {${script}}\n`)
+		const fullScript = `${runnerScriptPath} {${script}}\n`
+		this.psProcess.stdin.write(fullScript)
 		return pipelineCompleted
 	}
 

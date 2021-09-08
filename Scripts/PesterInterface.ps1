@@ -12,7 +12,7 @@ param(
 	#Only load the functions but don't execute anything. Used for testing.
 	[Parameter(DontShow)][Switch]$LoadFunctionsOnly,
 	#If specified, emit the output objects as a flattened json to the specified named pipe handle. Used for IPC to the extension host.
-	#If this value is the special value 'stdout', then the output object is written to stdout.
+	#If this value is the special value 'stdout' or undefined, then the output object is written to stdout.
 	[String]$PipeName,
 	#The verbosity to pass to the system
 	[String]$Verbosity,
@@ -261,7 +261,7 @@ function New-TestObject ($Test) {
 		endLine        = [int]($Test.ScriptBlock.StartPosition.EndLine - 1) #Lines are zero-based in vscode
 		label          = Expand-TestCaseName $Test
 		result         = [ResultStatus]$(if ($null -eq $Test.Result) { 'NotRun' } else { $Test.Result })
-		duration       = $Test.UserDuration.TotalMilliseconds #I don't think anyone is doing sub-millisecond code performance testing in Powershell :)
+		duration       = $Test.UserDuration.TotalMilliseconds #I don't think anyone is doing sub-millisecond code performance testing in PowerShell :)
 		durationDetail = Get-DurationString $Test
 		message        = $Message
 		expected       = $Expected
@@ -320,10 +320,15 @@ $MyPlugin = @{
 		if ($DryRun) {
 			Write-Host -ForegroundColor Magenta "Dryrun Detected. Writing to file $PipeName"
 		} else {
-			Write-Host -ForegroundColor Green "Connecting to pipe $PipeName"
+			if ($pipeName) {
+				Write-Host -ForegroundColor Green "Connecting to pipe $PipeName"
+			} else {
+				Write-Host -ForegroundColor Green 'Connecting to stdout'
+			}
+
 		}
 		if (!$DryRun) {
-			if ($pipeName -ne 'stdout') {
+			if (-not (!$pipeName -or $pipeName -eq 'stdout')) {
 				$SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
 				$__TestAdapterNamedPipeClient.Connect(5000)
 				$SCRIPT:__TestAdapterNamedPipeWriter = [System.IO.StreamWriter]::new($__TestAdapterNamedPipeClient)
@@ -344,7 +349,7 @@ $MyPlugin = @{
 					$testItem = New-TestObject $PSItem
 					[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
 					if (!$DryRun) {
-						if ($pipeName -eq 'stdout') {
+						if (!$pipeName -or $pipeName -eq 'stdout') {
 							[Console]::WriteLine($jsonObject)
 						} else {
 							$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
@@ -357,7 +362,7 @@ $MyPlugin = @{
 			$testItem = New-TestObject $PSItem
 			[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
 			if (!$DryRun) {
-				if ($pipeName -eq 'stdout') {
+				if (!$pipeName -or $pipeName -eq 'stdout') {
 					[Console]::WriteLine($jsonObject)
 				} else {
 					$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
@@ -374,7 +379,7 @@ $MyPlugin = @{
 		$testItem = New-TestObject $context.test
 		[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
 		if (!$DryRun) {
-			if ($pipeName -eq 'stdout') {
+			if (!$pipeName -or $pipeName -eq 'stdout') {
 				[Console]::WriteLine($jsonObject)
 			} else {
 				$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
@@ -385,7 +390,7 @@ $MyPlugin = @{
 	}
 
 	End                 = {
-		if (!$DryRun -and $pipeName -ne 'stdout') {
+		if (!$DryRun -and -not (!$pipeName -or $pipeName -eq 'stdout')) {
 			$SCRIPT:__TestAdapterNamedPipeWriter.flush()
 			$SCRIPT:__TestAdapterNamedPipeWriter.dispose()
 			$SCRIPT:__TestAdapterNamedPipeClient.Close()

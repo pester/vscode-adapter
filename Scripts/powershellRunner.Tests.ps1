@@ -1,4 +1,4 @@
-Describe 'PowershellRunner Types' {
+Describe 'PowerShellRunner Types' {
   It '<Name>' {
     function Invoke-Runner ([ScriptBlock]$ScriptBlock) {
       ". C:\Users\JGrote\Projects\vscode-adapter\Scripts\powershellRunner.ps1 {$ScriptBlock}" | pwsh -noprofile -noni -c - 2>$null

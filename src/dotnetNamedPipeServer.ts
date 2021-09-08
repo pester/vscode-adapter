@@ -4,7 +4,7 @@ import { join } from 'path'
 import { createInterface } from 'readline'
 import { Disposable, EventEmitter } from 'vscode'
 
-/** Provides a simple server listener to a .NET named pipe. This is useful as a IPC method to child processes like a Powershell Script */
+/** Provides a simple server listener to a .NET named pipe. This is useful as a IPC method to child processes like a PowerShell Script */
 export class DotnetNamedPipeServer implements Disposable {
 	// We will use this emitter to notify any subscribers of new objects to process
 	// TODO: Tighten up the types here

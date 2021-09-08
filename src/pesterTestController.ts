@@ -305,8 +305,7 @@ export class PesterTestController implements Disposable {
 		returnHandler: (event: unknown) => void,
 		discovery?: boolean,
 		debug?: boolean,
-		usePSIC?: boolean,
-		usePSICExePath?: boolean
+		usePSIC?: boolean
 	) {
 		if (!discovery) {
 			// HACK: Using flatMap to filter out undefined in a type-safe way. Unintuitive but effective
@@ -360,12 +359,6 @@ export class PesterTestController implements Disposable {
 			scriptArgs.push('-Discovery')
 		}
 
-		scriptArgs.push('-PipeName')
-		if (usePSIC) {
-			scriptArgs.push(this.returnServer.name)
-		} else {
-			scriptArgs.push('stdout')
-		}
 		// Quotes are required when passing to integrated terminal if the test path has spaces
 		scriptArgs.push(
 			...testsToRun.map(testFilePath => {
@@ -387,6 +380,9 @@ export class PesterTestController implements Disposable {
 		}
 
 		if (usePSIC) {
+			scriptArgs.push('-PipeName')
+			scriptArgs.push(this.returnServer.name)
+
 			if (this.powerShellExtensionClient === undefined) {
 				this.powerShellExtensionClient = await PowerShellExtensionClient.create(
 					this.context,
@@ -437,6 +433,11 @@ export class PesterTestController implements Disposable {
 			// Restart PS to use the requested version if it is different from the current one
 			if (this.ps === undefined || this.ps.exePath !== exePath) {
 				log.info(`Starting PowerShell testing instance: ${exePath}`)
+				if (this.ps !== undefined) {
+					log.warn(
+						`Detected PowerShell Session change from ${this.ps.exePath} to ${exePath}. Restarting Pester Runner.`
+					)
+				}
 				this.ps = new PowerShell(exePath)
 			}
 

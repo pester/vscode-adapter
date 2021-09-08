@@ -18,13 +18,13 @@ This extension provides the ability to run [Pester](https://pester.dev/) tests u
 
 🔍 **Pester Test Browser** <br>
 🐞 **Debugging Support** <br>
-👩‍💻 **Uses Powershell Integrated Terminal** <br>
+👩‍💻 **Uses PowerShell Integrated Terminal** <br>
 👨‍👧‍👦 **Expands Test Cases** <br>
 
 ### Extension Prerequisites
 
 - Pester 5.2.0 or later (sorry, no Pester 4 support)
-- Powershell 7+ or Windows Powershell 5.1
+- PowerShell 7+ or Windows PowerShell 5.1
 
 ### Usage
 
@@ -44,4 +44,4 @@ Preview VSIX extension packages are generated upon every commit to main and ever
 
 ### Configuration
 
-This extension will use the Powershell Extension Pester verbosity settings for the output.
+This extension will use the PowerShell Extension Pester verbosity settings for the output.

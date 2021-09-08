@@ -75,8 +75,12 @@ function Add-StreamIdentifier ($inputObject) {
 		# The record types know how to adjust their messaging accordingly
 		$streamName = $inputObject.getType().Name -replace 'Record$', ''
 		if (!$FullMessages) {
-			$InputObject = [String]$inputObject
+			# The pscustomobject is required for PS 7.2+
+			$InputObject = [PSCustomObject]@{
+				value = [String]$inputObject
+			}
 		}
+
 		Add-Member -InputObject $inputObject -NotePropertyName '__PSStream' -NotePropertyValue $streamName -PassThru
 	} else {
 		$inputObject
