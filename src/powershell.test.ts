@@ -1,9 +1,10 @@
 import { execSync } from 'child_process'
-import { pipeline, Readable } from 'stream'
+import { finished, pipeline, Readable } from 'stream'
 import { promisify } from 'util'
 import { createJsonParseTransform, PowerShell, PSOutput } from './powershell'
 
 const pipelineWithPromise = promisify(pipeline)
+const isFinished = promisify(finished)
 // jest.setTimeout(30000)
 
 describe('jsonParseTransform', () => {
@@ -42,7 +43,6 @@ describe('jsonParseTransform', () => {
 	})
 })
 
-
 describe('run', () => {
 	let ps: PowerShell
 	beforeEach(() => {
@@ -63,10 +63,35 @@ describe('run', () => {
 	it('verbose', done => {
 		const streams = new PSOutput()
 		streams.verbose.on('data', data => {
-			expect(data.Message).toBe('JEST')
+			expect(data).toBe('JEST')
 			done()
 		})
 		ps.run(`Write-Verbose -verbose 'JEST'`, streams)
+	})
+
+	it('mixed', async () => {
+		expect.assertions(3)
+		const successResult = []
+		const infoResult = []
+		const streams = new PSOutput()
+		streams.success
+			.on('data', data => {
+				successResult.push(data)
+			})
+			.on('close', () => {
+				expect(successResult[0]).toBe('JEST')
+			})
+		streams.information
+			.on('data', data => {
+				infoResult.push(data)
+			})
+			.on('close', () => {
+				expect(infoResult.length).toBe(32)
+			})
+		streams.error.on('data', data => {
+			expect(data).toBe('oops!')
+		})
+		await ps.run(`1..32 | Write-Host;Write-Error 'oops!';'JEST';1..2`, streams)
 	})
 })
 
