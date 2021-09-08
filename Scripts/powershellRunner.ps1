@@ -40,26 +40,13 @@ if ($psversiontable.psversion -ge '7.2.0') {
 } else {
 	[powershell]::Create()
 }
+
 [void]$psInstance.AddScript($ScriptBlock)
 $psInstance.Commands[0].Commands[0].MergeMyResults([PipeLineResultTypes]::All, [PipeLineResultTypes]::Output)
 $psInput = [PSDataCollection[Object]]::new()
 $psOutput = [PSDataCollection[Object]]::new()
 
 
-function Add-StreamIdentifier ($inputObject) {
-	$streamObjectTypes = @(
-		[DebugRecord],
-		[VerboseRecord],
-		[WarningRecord],
-		[ErrorRecord],
-		[InformationRecord],
-		[ProgressRecord]
-	)
-	if ($inputObject.gettype() -in $StreamObjectTypes) {
-		$streamName = $inputObject.getType().Name -replace 'Record$', ''
-		Add-Member -InputObject $inputObject -NotePropertyName '__PSStream' -NotePropertyValue $streamName
-	}
-}
 
 function Test-IsPrimitive ($InputObject) {
 	($InputObject.gettype().IsPrimitive -or $InputObject -is [string] -or $InputObject -is [datetime])
@@ -74,6 +61,28 @@ function Add-TypeIdentifier ($InputObject) {
 	Add-Member -InputObject $InputObject -NotePropertyName '__PSType' -NotePropertyValue $typeName
 }
 
+function Add-StreamIdentifier ($inputObject) {
+	$streamObjectTypes = @(
+		[DebugRecord],
+		[VerboseRecord],
+		[WarningRecord],
+		[ErrorRecord],
+		[InformationRecord],
+		[ProgressRecord]
+	)
+	if ($inputObject.gettype() -in $StreamObjectTypes) {
+		# Generate 'simple' records for these types by converting them to strings
+		# The record types know how to adjust their messaging accordingly
+		$streamName = $inputObject.getType().Name -replace 'Record$', ''
+		if (!$FullMessages) {
+			$InputObject = [String]$inputObject
+		}
+		Add-Member -InputObject $inputObject -NotePropertyName '__PSStream' -NotePropertyValue $streamName -PassThru
+	} else {
+		$inputObject
+	}
+}
+
 function Out-JsonToStdOut {
 	[CmdletBinding()]
 	param(
@@ -84,8 +93,8 @@ function Out-JsonToStdOut {
 		if (!(Test-IsPrimitive $InputObject)) {
 			Add-TypeIdentifier $inputObject
 		}
-		Add-StreamIdentifier $inputObject
-		$json = ConvertTo-Json -InputObject $InputObject -Compress -Depth $Depth -WarningAction SilentlyContinue
+		$finalObject = Add-StreamIdentifier $inputObject
+		$json = ConvertTo-Json -InputObject $finalObject -Compress -Depth $Depth -WarningAction SilentlyContinue
 		[Console]::WriteLine($json)
 	}
 }

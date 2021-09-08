@@ -1,9 +1,10 @@
 import { createStream } from 'byline'
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process'
-import { pipeline, Readable, Transform, Writable } from 'stream'
+import { finished, pipeline, Readable, Transform, Writable } from 'stream'
 import { isPrimitive, promisify } from 'util'
 
 const pipelineWithPromise = promisify(pipeline)
+const isFinished = promisify(finished)
 
 /** Takes JSON string from the input stream and generates objects */
 export function createJsonParseTransform() {
@@ -76,6 +77,7 @@ export function createSplitPSOutputStream(streams: IPSOutput) {
 	return new Writable({
 		objectMode: true,
 		write(chunk, _, done) {
+			const record = chunk.value ?? chunk
 			switch (chunk.__PSStream) {
 				// Unless a stream is explicitly set, the default is to use the success stream
 				case undefined:
@@ -85,26 +87,36 @@ export function createSplitPSOutputStream(streams: IPSOutput) {
 					streams.success.push(chunk)
 					break
 				case 'Error':
-					streams.error.push(chunk)
+					streams.error.push(record)
 					break
 				case 'Warning':
-					streams.warning.push(chunk)
+					streams.warning.push(record)
 					break
 				case 'Verbose':
-					streams.verbose.push(chunk)
+					streams.verbose.push(record)
 					break
 				case 'Debug':
-					streams.debug.push(chunk)
+					streams.debug.push(record)
 					break
 				case 'Information':
-					streams.information.push(chunk)
+					streams.information.push(record)
 					break
 				case 'Progress':
-					streams.information.push(chunk)
+					streams.progress.push(record)
 					break
 				default:
 					throw new Error(`Unknown PSStream Reported: ${chunk.__PSStream}`)
 			}
+			done()
+		},
+		final(done) {
+			streams.success.destroy()
+			streams.error.destroy()
+			streams.warning.destroy()
+			streams.verbose.destroy()
+			streams.debug.destroy()
+			streams.information.destroy()
+			streams.progress.destroy()
 			done()
 		}
 	})
@@ -134,10 +146,16 @@ export class PowerShell {
 	/** Run a PowerShell script asynchronously, result objects will arrive via the provided PSOutput streams
 	 * the returned Promise will complete when the script has finished running
 	 */
-	async run(script: string, psOutput: IPSOutput = new PSOutput()) {
+	async run(script: string, psOutput: IPSOutput) {
 		if (this.currentInvocation) {
 			await this.currentInvocation
 		}
+		const jsonResultStream = createStream(this.psProcess.stdout)
+		const pipelineCompleted = pipelineWithPromise([
+			jsonResultStream,
+			createJsonParseTransform(),
+			createSplitPSOutputStream(psOutput)
+		])
 
 		this.psProcess.stderr.once('data', (data: Buffer) => {
 			const message: PSResult = JSON.parse(data.toString())
@@ -148,12 +166,6 @@ export class PowerShell {
 			}
 		})
 
-		const jsonResultStream = createStream(this.psProcess.stdout)
-		const pipelineCompleted = pipelineWithPromise([
-			jsonResultStream,
-			createJsonParseTransform(),
-			createSplitPSOutputStream(psOutput)
-		])
 		const runnerScript = './Scripts/powershellRunner.ps1'
 		this.currentInvocation = pipelineCompleted
 		this.psProcess.stdin.write(`${runnerScript} {${script}}\n`)
@@ -164,6 +176,7 @@ export class PowerShell {
 	async exec<T>(script: string, successOutputOnly?: boolean) {
 		const psOutput = successOutputOnly ? new PSOutputUnified() : new PSOutput()
 		await this.run(script, psOutput)
+		await isFinished(psOutput.success)
 		return psOutput.success.read() as T
 	}
 
