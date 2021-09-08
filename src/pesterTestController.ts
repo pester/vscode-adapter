@@ -39,16 +39,16 @@ import debounce = require('debounce-promise')
  * This should only be instantiated once in the extension activate method.
  */
 export class PesterTestController implements Disposable {
+	private ps: PowerShell | undefined
+	private powerShellExtensionClient: PowerShellExtensionClient | undefined
 	constructor(
 		private readonly powershellExtension: Extension<IPowerShellExtensionClient>,
 		private readonly context: ExtensionContext,
 		public readonly id: string = 'Pester',
 		public testController: TestController = tests.createTestController(id, id),
-		private powerShellExtensionClient?: PowerShellExtensionClient,
 		private returnServer = new DotnetNamedPipeServer(
 			id + 'TestController-' + process.pid
-		),
-		private ps = new PowerShell()
+		)
 	) {
 		// wire up our custom handlers to the managed instance
 		// HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
@@ -305,7 +305,8 @@ export class PesterTestController implements Disposable {
 		returnHandler: (event: unknown) => void,
 		discovery?: boolean,
 		debug?: boolean,
-		usePSIC?: boolean
+		usePSIC?: boolean,
+		usePSICExePath?: boolean
 	) {
 		if (!discovery) {
 			// HACK: Using flatMap to filter out undefined in a type-safe way. Unintuitive but effective
@@ -385,9 +386,8 @@ export class PesterTestController implements Disposable {
 			scriptArgs.push(verbosity)
 		}
 
-		// No idea if this will work or not
 		if (usePSIC) {
-			if (!this.powerShellExtensionClient) {
+			if (this.powerShellExtensionClient === undefined) {
 				this.powerShellExtensionClient = await PowerShellExtensionClient.create(
 					this.context,
 					this.powershellExtension
@@ -414,6 +414,32 @@ export class PesterTestController implements Disposable {
 			return terminalData
 		} else {
 			// Newer implementation
+			const psicLoaded = window.terminals.find(
+				t => t.name === 'PowerShell Integrated Console'
+			)
+
+			// We want to match what the user is using
+			if (psicLoaded) {
+				if (this.powerShellExtensionClient === undefined) {
+					this.powerShellExtensionClient =
+						await PowerShellExtensionClient.create(
+							this.context,
+							this.powershellExtension
+						)
+				}
+			}
+
+			// TODO: detect powershell version (maybe let powershell do this)
+			const exePath = psicLoaded
+				? (await this.powerShellExtensionClient!.GetVersionDetails()).exePath
+				: undefined
+
+			// Restart PS to use the requested version if it is different from the current one
+			if (this.ps === undefined || this.ps.exePath !== exePath) {
+				log.info(`Starting PowerShell testing instance: ${exePath}`)
+				this.ps = new PowerShell(exePath)
+			}
+
 			const psOutput = new PSOutput()
 			const script = `& '${scriptPath}' ${scriptArgs.join(' ')}`
 			psOutput.success.on('data', returnHandler)

@@ -111,9 +111,9 @@ export class PowerShellExtensionClient {
 		isDebug?: boolean,
 		onComplete?: (terminalData: string) => void
 	) {
-		// This indirectly loads the PSES extension
+		// This indirectly loads the PSES extension and console
 		await this.GetVersionDetails()
-		const psic = PowerShellExtensionClient.GetPowerShellIntegratedConsole()
+		PowerShellExtensionClient.GetPowerShellIntegratedConsole()
 
 		const debugConfig: DebugConfiguration = {
 			request: 'launch',
