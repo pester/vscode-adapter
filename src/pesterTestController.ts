@@ -25,16 +25,15 @@ import {
 	TestDefinition,
 	TestFile,
 	TestResult,
-	TestResultState,
-	TestTree
+	TestResultState
 } from './pesterTestTree'
+import { PowerShell, PSOutput } from './powershell'
 import {
 	IPowerShellExtensionClient,
 	PowerShellExtensionClient
 } from './powershellExtensionClient'
-import { findTestItem, getUniqueTestItems } from './testItemUtils'
+import { findTestItem } from './testItemUtils'
 import debounce = require('debounce-promise')
-import { info } from 'console'
 
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
@@ -46,9 +45,10 @@ export class PesterTestController implements Disposable {
 		public readonly id: string = 'Pester',
 		public testController: TestController = tests.createTestController(id, id),
 		private powerShellExtensionClient?: PowerShellExtensionClient,
-		private returnServer: DotnetNamedPipeServer = new DotnetNamedPipeServer(
+		private returnServer = new DotnetNamedPipeServer(
 			id + 'TestController-' + process.pid
-		)
+		),
+		private ps = new PowerShell()
 	) {
 		// wire up our custom handlers to the managed instance
 		// HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
@@ -304,7 +304,8 @@ export class PesterTestController implements Disposable {
 		testItems: TestItem[],
 		returnHandler: (event: unknown) => void,
 		discovery?: boolean,
-		debug?: boolean
+		debug?: boolean,
+		usePSIC?: boolean
 	) {
 		if (!discovery) {
 			// HACK: Using flatMap to filter out undefined in a type-safe way. Unintuitive but effective
@@ -329,6 +330,9 @@ export class PesterTestController implements Disposable {
 			// The resolve handler is debounced, this will wait until the delayed resolve handler completes
 			await Promise.all(undiscoveredTestFiles)
 		}
+
+		// Debug should always use PSIC for now, so if it is not explicity set, use it
+		usePSIC ??= debug
 
 		// Derive Pester-friendly test line identifiers from the testItem info
 		const testsToRun = testItems.map(testItem => {
@@ -356,7 +360,11 @@ export class PesterTestController implements Disposable {
 		}
 
 		scriptArgs.push('-PipeName')
-		scriptArgs.push(this.returnServer.name)
+		if (usePSIC) {
+			scriptArgs.push(this.returnServer.name)
+		} else {
+			scriptArgs.push('stdout')
+		}
 		// Quotes are required when passing to integrated terminal if the test path has spaces
 		scriptArgs.push(
 			...testsToRun.map(testFilePath => {
@@ -372,7 +380,6 @@ export class PesterTestController implements Disposable {
 		}
 
 		const pesterSettings = this.powerShellExtensionClient.GetPesterSettings()
-
 		let verbosity = debug
 			? pesterSettings.get<string>('debugOutputVerbosity')
 			: pesterSettings.get<string>('outputVerbosity')
@@ -392,18 +399,26 @@ export class PesterTestController implements Disposable {
 		await this.powerShellExtensionClient.GetVersionDetails()
 
 		// No idea if this will work or not
-		const terminalData = new Promise<string>(resolve =>
-			this.powerShellExtensionClient!.RunCommand(
-				scriptPath,
-				scriptArgs,
-				debug,
-				terminalData => {
-					runObjectListenEvent.dispose()
-					return resolve(terminalData)
-				}
+		if (usePSIC) {
+			const terminalData = new Promise<string>(resolve =>
+				this.powerShellExtensionClient!.RunCommand(
+					scriptPath,
+					scriptArgs,
+					debug,
+					terminalData => {
+						runObjectListenEvent.dispose()
+						return resolve(terminalData)
+					}
+				)
 			)
-		)
-		return terminalData
+			return terminalData
+		} else {
+			// Newer implementation
+			const psOutput = new PSOutput()
+			const script = `& '${scriptPath}' ${scriptArgs.join(' ')}`
+			psOutput.success.on('data', returnHandler)
+			await this.ps.run(script, psOutput)
+		}
 	}
 
 	/**

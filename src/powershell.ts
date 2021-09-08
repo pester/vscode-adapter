@@ -1,8 +1,10 @@
 import { createStream } from 'byline'
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process'
+import { resolve } from 'path'
 import { finished, pipeline, Readable, Transform, Writable } from 'stream'
-import { isPrimitive, promisify } from 'util'
+import { promisify } from 'util'
 
+// TODO: Use native promise API in NodeJS 16.x when it becomes avalable in vscode
 const pipelineWithPromise = promisify(pipeline)
 const isFinished = promisify(finished)
 
@@ -166,7 +168,12 @@ export class PowerShell {
 			}
 		})
 
-		const runnerScript = './Scripts/powershellRunner.ps1'
+		const runnerScript = resolve(
+			__dirname,
+			'..',
+			'Scripts',
+			'powershellRunner.ps1'
+		)
 		this.currentInvocation = pipelineCompleted
 		this.psProcess.stdin.write(`${runnerScript} {${script}}\n`)
 		return pipelineCompleted
