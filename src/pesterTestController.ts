@@ -11,6 +11,7 @@ import {
 	TestController,
 	TestItem,
 	TestMessage,
+	TestRun,
 	TestRunProfileKind,
 	TestRunRequest,
 	tests,
@@ -34,6 +35,9 @@ import {
 } from './powershellExtensionClient'
 import { findTestItem } from './testItemUtils'
 import debounce = require('debounce-promise')
+import { promisify } from 'util'
+import { finished } from 'stream'
+import { run } from '../test/testRunner'
 
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
@@ -285,13 +289,14 @@ export class PesterTestController implements Disposable {
 			Array.from(testItems),
 			runResultHandler.bind(this),
 			false,
-			debug
+			debug,
+			false,
+			run
 		)
 		// FIXME: Terminal Output relied on a proposed API that won't be published, need a workaround
 		// // Because we are capturing from a terminal, some intermediate line breaks can be introduced
 		// // due to window resizing so we want to strip those out
 		// const fullWidthTerminalOutput = terminalOutput.replace(/\r?\n/g, '')
-		// run.appendOutput(fullWidthTerminalOutput)
 		run.end()
 	}
 
@@ -305,7 +310,8 @@ export class PesterTestController implements Disposable {
 		returnHandler: (event: unknown) => void,
 		discovery?: boolean,
 		debug?: boolean,
-		usePSIC?: boolean
+		usePSIC?: boolean,
+		testRun?: TestRun
 	) {
 		if (!discovery) {
 			// HACK: Using flatMap to filter out undefined in a type-safe way. Unintuitive but effective
@@ -444,6 +450,11 @@ export class PesterTestController implements Disposable {
 			const psOutput = new PSOutput()
 			const script = `& '${scriptPath}' ${scriptArgs.join(' ')}`
 			psOutput.success.on('data', returnHandler)
+			if (testRun !== undefined) {
+				psOutput.information.on('data', (data: string) => {
+					testRun.appendOutput(data.trimEnd() + '\r\n')
+				})
+			}
 			await this.ps.run(script, psOutput)
 		}
 	}

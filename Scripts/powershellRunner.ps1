@@ -33,7 +33,6 @@ if ($psversiontable.psversion -ge '7.2.0') {
 		$PSStyle.OutputRendering = 'PlainText'
 	}
 }
-
 # $ScriptBlock = [ScriptBlock]::Create($script)
 [PowerShell]$psinstance = if (!$NoSessionReuse -and (Test-Path Variable:__NODEPSINSTANCE)) {
 	$GLOBAL:__NODEPSINSTANCE
