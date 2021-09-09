@@ -90,18 +90,18 @@ export class PowerShellExtensionClient {
 	}
 
 	/**
-	 * Lazily fetches the current terminal instance of the Powershell Integrated Console or starts it if not present
+	 * Lazily fetches the current terminal instance of the PowerShell Integrated Console or starts it if not present
 	 */
-	public GetPowerShellIntegratedConsole() {
+	public static GetPowerShellIntegratedConsole() {
 		return window.terminals.find(
 			t => t.name === 'PowerShell Integrated Console'
 		)
 	}
 
-	public GetPowerShellSettings() {
+	public static GetPowerShellSettings() {
 		return workspace.getConfiguration('powershell')
 	}
-	public GetPesterSettings() {
+	public static GetPesterSettings() {
 		return workspace.getConfiguration('powershell.pester')
 	}
 
@@ -111,9 +111,9 @@ export class PowerShellExtensionClient {
 		isDebug?: boolean,
 		onComplete?: (terminalData: string) => void
 	) {
-		// This indirectly loads the PSES extension
+		// This indirectly loads the PSES extension and console
 		await this.GetVersionDetails()
-		const psic = this.GetPowerShellIntegratedConsole()
+		PowerShellExtensionClient.GetPowerShellIntegratedConsole()
 
 		const debugConfig: DebugConfiguration = {
 			request: 'launch',
@@ -162,8 +162,8 @@ export interface IExternalPowerShellDetails {
 	architecture: string
 }
 
-export function getPowershellExtension(context: ExtensionContext) {
-	const powershellExtension = findPowershellExtension()
+export function getPowerShellExtension(context: ExtensionContext) {
+	const powershellExtension = findPowerShellExtension()
 	if (powershellExtension) {
 		return powershellExtension as Extension<IPowerShellExtensionClient>
 	} else {
@@ -171,10 +171,10 @@ export function getPowershellExtension(context: ExtensionContext) {
 			'You must first install or enable the PowerShell or PowerShell Preview extension to ' +
 				'use the Pester Test Adapter. It will be activated automatically.'
 		)
-		// Register an event that watch for the Powershell Extension to show up
+		// Register an event that watch for the PowerShell Extension to show up
 		const activatedEvent = extensions.onDidChange(() => {
-			// Stay registered until Powershell is detected as installed
-			if (findPowershellExtension()) {
+			// Stay registered until PowerShell is detected as installed
+			if (findPowerShellExtension()) {
 				activate(context)
 				activatedEvent.dispose()
 			}
@@ -182,10 +182,10 @@ export function getPowershellExtension(context: ExtensionContext) {
 	}
 }
 
-/** Retrieves either the Powershell or Powershell Preview extension. This is used in place of a package.json extension dependency
+/** Retrieves either the PowerShell or PowerShell Preview extension. This is used in place of a package.json extension dependency
  * because either/or is acceptable and there's no way to do this with an extension depenency.
  */
-function findPowershellExtension() {
+function findPowerShellExtension() {
 	return (
 		extensions.getExtension('ms-vscode.PowerShell-Preview') ||
 		extensions.getExtension('ms-vscode.PowerShell')

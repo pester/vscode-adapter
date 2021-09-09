@@ -7,7 +7,6 @@
 		"sourceMap": true,
 		"inlineSources": true,
 		"strict": true,
-		"rootDir": "src",
 		"experimentalDecorators": true
 	},
 	"exclude": ["node_modules", ".vscode-test", "**/*.test.ts"]
