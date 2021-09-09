@@ -18,11 +18,14 @@ param(
 	#Include ANSI characters in the output. This is only supported on 7.2 or above.
 	[Switch]$IncludeAnsi,
 	#Do not reuse a previously found session, useful for pester tests or environments that leave a dirty state.
-	[Switch]$NoSessionReuse
+	[Switch]$NoSessionReuse,
+	#Specify an invocation ID to track individual invocations. This will be supplied in the finish message.
+	[string]$Id = (New-Guid)
 )
 Set-StrictMode -Version 3
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
+
 #This is required to ensure dates get ISO8601 formatted during json serialization
 Get-TypeData System.DateTime | Remove-TypeData
 
@@ -98,18 +101,25 @@ function Out-JsonToStdOut {
 		}
 		$finalObject = Add-StreamIdentifier $inputObject
 		$json = ConvertTo-Json -InputObject $finalObject -Compress -Depth $Depth -WarningAction SilentlyContinue
-		[Console]::WriteLine($json)
+		[Console]::Error.WriteLine($json)
 	}
 }
 
 # InvokeAsync doesn't exist in 5.1
 $psStatus = $psInstance.BeginInvoke($psInput, $psOutput)
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
+
 # $psOutput while enumerating will block the pipeline while waiting for a new item, and will release when script is finished.
 $psOutput | Out-JsonToStdOut -Depth $Depth
 $psInstance.EndInvoke($psStatus)
 $psInstance.Commands.Clear()
+
 # Store the runspace where it can be reused for performance
 $GLOBAL:__NODEPSINSTANCE = $psInstance
+
 #Special event object to indicate the script is complete and the reader pipe can be closed.
-[Console]::Error.Write('{"finished": true}')
+$finishedMessage = [PSCustomObject]@{
+	__PSINVOCATIONID = $Id
+	finished         = $true
+} | ConvertTo-Json -Compress -Depth 1
+[Console]::Error.WriteLine($finishedMessage)

@@ -14,7 +14,24 @@ export function createJsonParseTransform() {
 	return new Transform({
 		objectMode: true,
 		write(chunk: string, encoding: string, done) {
-			this.push(JSON.parse(chunk))
+			const obj = JSON.parse(chunk)
+			this.push(obj)
+			done()
+		}
+	})
+}
+
+/** Awaits the special finished object and ends the provided stream  */
+export function watchForScriptFinishedMessage(streamToEnd: Writable) {
+	return new Transform({
+		objectMode: true,
+		write(chunk: any, encoding: string, done) {
+			// If special message
+			if (chunk.__PSINVOCATIONID && chunk.finished === true) {
+				streamToEnd.end()
+			} else {
+				this.push(chunk)
+			}
 			done()
 		}
 	})
@@ -180,21 +197,22 @@ export class PowerShell {
 		if (this.currentInvocation) {
 			await this.currentInvocation
 		}
-		const jsonResultStream = createStream(this.psProcess.stdout)
+		const jsonResultStream = createStream(this.psProcess.stderr)
 		const pipelineCompleted = pipelineWithPromise([
 			jsonResultStream,
 			createJsonParseTransform(),
+			watchForScriptFinishedMessage(jsonResultStream),
 			createSplitPSOutputStream(psOutput)
 		])
 
-		this.psProcess.stderr.once('data', (data: Buffer) => {
-			const message: PSResult = JSON.parse(data.toString())
-			if (message.finished) {
-				jsonResultStream.end()
-			} else {
-				throw new Error(data.toString())
-			}
-		})
+		// this.psProcess.stderr.once('data', (data: Buffer) => {
+		// 	const message: PSResult = JSON.parse(data.toString())
+		// 	if (message.finished) {
+		// 		jsonResultStream.end()
+		// 	} else {
+		// 		throw new Error(data.toString())
+		// 	}
+		// })
 
 		const runnerScriptPath = resolve(
 			__dirname,
