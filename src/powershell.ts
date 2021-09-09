@@ -197,7 +197,7 @@ export class PowerShell {
 		if (this.currentInvocation) {
 			await this.currentInvocation
 		}
-		const jsonResultStream = createStream(this.psProcess.stderr)
+		const jsonResultStream = createStream(this.psProcess.stdout)
 		const pipelineCompleted = pipelineWithPromise([
 			jsonResultStream,
 			createJsonParseTransform(),
@@ -205,14 +205,10 @@ export class PowerShell {
 			createSplitPSOutputStream(psOutput)
 		])
 
-		// this.psProcess.stderr.once('data', (data: Buffer) => {
-		// 	const message: PSResult = JSON.parse(data.toString())
-		// 	if (message.finished) {
-		// 		jsonResultStream.end()
-		// 	} else {
-		// 		throw new Error(data.toString())
-		// 	}
-		// })
+		// TODO: More robust stderr handling
+		this.psProcess.stderr.once('data', (data: Buffer) => {
+			throw new Error(`Error Received on stderr from pwsh: ` + data.toString())
+		})
 
 		const runnerScriptPath = resolve(
 			__dirname,
