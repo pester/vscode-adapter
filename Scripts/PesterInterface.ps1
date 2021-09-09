@@ -24,6 +24,14 @@ $VerbosePreference = 'SilentlyContinue'
 $WarningPreference = 'SilentlyContinue'
 $DebugPreference = 'SilentlyContinue'
 
+if ($psversiontable.psversion -ge '7.2.0') {
+	if ($IncludeAnsi) {
+		$PSStyle.OutputRendering = 'ANSI'
+	} else {
+		$PSStyle.OutputRendering = 'PlainText'
+	}
+}
+
 #region Functions
 # Maps pester result status to vscode result status
 enum ResultStatus {
@@ -320,15 +328,8 @@ $MyPlugin = @{
 		if ($DryRun) {
 			Write-Host -ForegroundColor Magenta "Dryrun Detected. Writing to file $PipeName"
 		} else {
-			if ($pipeName) {
-				Write-Host -ForegroundColor Green "Connecting to pipe $PipeName"
-			} else {
-				Write-Host -ForegroundColor Green 'Connecting to stdout'
-			}
-
-		}
-		if (!$DryRun) {
 			if (-not (!$pipeName -or $pipeName -eq 'stdout')) {
+				Write-Host -ForegroundColor Green "Connecting to pipe $PipeName"
 				$SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
 				$__TestAdapterNamedPipeClient.Connect(5000)
 				$SCRIPT:__TestAdapterNamedPipeWriter = [System.IO.StreamWriter]::new($__TestAdapterNamedPipeClient)
