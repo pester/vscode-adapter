@@ -71,19 +71,6 @@ export class PesterTestController implements Disposable {
 		)
 	}
 
-	private initialized = false
-	/** Start up the test controller. This includes watching all workspaces for Pester files */
-	async initialize() {
-		try {
-			await Promise.all([this.watchWorkspaces(), this.returnServer.listen()])
-			this.initialized = true
-		} catch (err: any) {
-			if (err) {
-				throw new Error(err)
-			}
-		}
-	}
-
 	/** Queues up testItems from resolveHandler requests because pester works faster scanning multiple files together **/
 	private resolveQueue = new Array<TestItem>()
 
@@ -91,13 +78,12 @@ export class PesterTestController implements Disposable {
 	 * for Pester, this is only relevant to TestFiles as this is pester's lowest level of test resolution
 	 */
 	private async resolveHandler(testItem: TestItem | undefined) {
-		if (!this.initialized) {
-			// HACK: Avoid a race condition when resolveHandler is called multiple times. This can be done better
-			this.initialized = true
-			await this.initialize()
-		}
-		// For the controller root, children are resolved via the watchers
-		if (!testItem) {
+		// If testitem is undefined, this is a signal to initialize the controller
+		if (testItem === undefined) {
+			log.info(
+				'Initializing Pester Test Controller and watching for Pester Files'
+			)
+			Promise.all([this.watchWorkspaces(), this.returnServer.listen()])
 			return
 		}
 
@@ -197,10 +183,6 @@ export class PesterTestController implements Disposable {
 
 	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
 	private async testHandler(request: TestRunRequest) {
-		if (!this.initialized) {
-			await this.initialize()
-		}
-
 		const run = this.testController.createTestRun(request)
 		if (request.profile === undefined) {
 			throw new Error('No profile provided. This is (currently) a bug.')
@@ -300,7 +282,7 @@ export class PesterTestController implements Disposable {
 		run.end()
 	}
 
-	/** Runs pester in the PSIC. Results will be sent via a named pipe and handled as events
+	/** Runs pester either using the nodejs powershell adapterin the PSIC. Results will be sent via a named pipe and handled as events
 	 * Returns a promise that completes with the terminal output during the pester run
 	 * returnHandler will run on each object that comes back from the Pester Interface
 	 */
@@ -486,9 +468,10 @@ export class PesterTestController implements Disposable {
 					tests.add(TestFile.getOrCreate(testController, uri))
 				)
 				testWatcher.onDidDelete(uri => tests.delete(uri.toString()))
-				testWatcher.onDidChange(uri =>
+				testWatcher.onDidChange(uri => {
+					TestFile.getOrCreate(testController, uri).invalidateResults()
 					this.resolveHandler(TestFile.getOrCreate(testController, uri))
-				)
+				})
 
 				// TODO: Fix this for non-file based pester tests and
 				// workspace.onDidOpenTextDocument(async e => {
