@@ -101,7 +101,7 @@ function Out-JsonToStdOut {
 		}
 		$finalObject = Add-StreamIdentifier $inputObject
 		$json = ConvertTo-Json -InputObject $finalObject -Compress -Depth $Depth -WarningAction SilentlyContinue
-		[void][Console]::WriteLineAsync($json)
+		[void][Console]::Out.WriteLineAsync($json)
 	}
 }
 
@@ -122,4 +122,4 @@ $finishedMessage = [PSCustomObject]@{
 	__PSINVOCATIONID = $Id
 	finished         = $true
 } | ConvertTo-Json -Compress -Depth 1
-[void][Console]::WriteLineAsync($finishedMessage)
+[void][Console]::Out.WriteLineAsync($finishedMessage)

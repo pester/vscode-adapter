@@ -351,20 +351,20 @@ $MyPlugin = @{
 					[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
 					if (!$DryRun) {
 						if (!$pipeName -or $pipeName -eq 'stdout') {
-							[void][Console]::WriteLineAsync($jsonObject)
-						} else {
-							$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
-						}
-					} else {
-						$jsonObject >> $PipeName
-					}
-				}
-			}
-			$testItem = New-TestObject $PSItem
-			[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-			if (!$DryRun) {
-				if (!$pipeName -or $pipeName -eq 'stdout') {
-					[void][Console]::WriteLineAsync($jsonObject)
+              [void][Console]::Out.WriteLineAsync($jsonObject)
+            } else {
+              $__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+            }
+          } else {
+            $jsonObject >> $PipeName
+          }
+        }
+      }
+      $testItem = New-TestObject $PSItem
+      [string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+      if (!$DryRun) {
+        if (!$pipeName -or $pipeName -eq 'stdout') {
+          [void][Console]::Out.WriteLineAsync($jsonObject)
 				} else {
 					$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
 				}
@@ -381,7 +381,7 @@ $MyPlugin = @{
 		[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
 		if (!$DryRun) {
 			if (!$pipeName -or $pipeName -eq 'stdout') {
-				[void][Console]::WriteLineAsync($jsonObject)
+				[void][Console]::Out.WriteLineAsync($jsonObject)
 			} else {
 				$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
 			}

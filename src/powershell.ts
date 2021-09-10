@@ -21,7 +21,8 @@ export function createJsonParseTransform() {
 	})
 }
 
-/** Awaits the special finished object and ends the provided stream  */
+/** Awaits the special finshed message object and ends the provided stream, which will gracefully end the pipeline after all
+ * objects are processed */
 export function watchForScriptFinishedMessage(streamToEnd: Writable) {
 	return new Transform({
 		objectMode: true,
