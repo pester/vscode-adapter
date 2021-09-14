@@ -61,7 +61,7 @@ export class TestFile {
 		// Normalize paths to uppercase on windows due to formatting differences between Javascript and PowerShell
 		const uriFsPath =
 			process.platform === 'win32' ? uri.fsPath.toUpperCase() : uri.fsPath
-		const existing = controller.items.get(uri.toString())
+		const existing = controller.items.get(uriFsPath)
 		if (existing) {
 			return existing
 		}
