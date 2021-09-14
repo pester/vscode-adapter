@@ -143,11 +143,6 @@ export function createSplitPSOutputStream(streams: IPSOutput) {
 	})
 }
 
-/** A message sent via stderr by the powerShellRunner to indicate script completion */
-interface PSResult {
-	finished: boolean
-}
-
 /** Represents an instance of a PowerShell process. By default this will use pwsh if installed, and will fall back to PowerShell on Windows,
  * unless the exepath parameter is specified. Use the exePath parameter to specify specific powershell executables
  * such as pwsh-preview or a pwsh executable not located in the PATH

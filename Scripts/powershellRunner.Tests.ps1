@@ -5,7 +5,8 @@ Describe 'PowerShellRunner Types' {
     }
 
     $runResult = Invoke-Runner $TestValue
-    $result = ($runResult | ConvertFrom-Json)
+		#The last message is a script finished message, not relevant to this test
+		$result = ($runResult | ConvertFrom-Json | Select-Object -SkipLast 1)
     $result.__PSStream | Should -Be $Stream
     $result.__PSType | Should -Be $Type
     if ($result.message -is [datetime]) {
