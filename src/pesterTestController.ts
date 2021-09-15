@@ -80,7 +80,7 @@ export class PesterTestController implements Disposable {
 			log.info(
 				'Initializing Pester Test Controller and watching for Pester Files'
 			)
-			Promise.all([this.watchWorkspaces(), this.returnServer.listen()])
+			await this.watchWorkspaces()
 			return
 		}
 
