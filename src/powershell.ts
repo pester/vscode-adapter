@@ -182,8 +182,11 @@ export class PowerShell {
 
 	/** Run a PowerShell script asynchronously, result objects will arrive via the provided PSOutput streams
 	 * the returned Promise will complete when the script has finished running
+	 * @param inputStream
+	 * Specify a Readable (such as a named pipe stream) that supplies single-line JSON objects from a PowerShell execution.
+	 * If script is null then it will simply listen and process objects incoming on the stream until it closes
 	 */
-	async run(script: string, psOutput: IPSOutput) {
+	async run(script: string, psOutput: IPSOutput, inputStream?: Readable) {
 		await this.initialize()
 		if (this.psProcess === undefined) {
 			throw new Error('PowerShell initialization failed')
@@ -193,7 +196,7 @@ export class PowerShell {
 		if (this.currentInvocation) {
 			await this.currentInvocation
 		}
-		const jsonResultStream = createStream(this.psProcess.stdout)
+		const jsonResultStream = createStream(inputStream ?? this.psProcess.stdout)
 		const pipelineCompleted = pipelineWithPromise([
 			jsonResultStream,
 			createJsonParseTransform(),
@@ -213,8 +216,12 @@ export class PowerShell {
 			'powershellRunner.ps1'
 		)
 		this.currentInvocation = pipelineCompleted
-		const fullScript = `${runnerScriptPath} {${script}}\n`
-		this.psProcess.stdin.write(fullScript)
+
+		if (!inputStream) {
+			const fullScript = `${runnerScriptPath} {${script}}\n`
+			this.psProcess.stdin.write(fullScript)
+		}
+
 		return pipelineCompleted
 	}
 

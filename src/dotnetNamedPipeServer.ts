@@ -1,7 +1,6 @@
 import { createServer, Server, Socket } from 'net'
 import { platform, tmpdir } from 'os'
 import { join } from 'path'
-import { createInterface } from 'readline'
 import { Disposable, EventEmitter } from 'vscode'
 
 /** Provides a simple server listener to a .NET named pipe. This is useful as a IPC method to child processes like a PowerShell Script */
@@ -12,32 +11,34 @@ export class DotnetNamedPipeServer implements Disposable {
 	// TODO: Make this not depend on vscode and use a general eventEmitter, then make an inherited class that is vscode specific
 
 	// FIXME: One socket per PSIC invocation and graceful cleanup
-	private readonly _onDidReceiveObject = new EventEmitter<unknown>()
-	stream?: Socket
-	get onDidReceiveObject() {
-		return this._onDidReceiveObject.event
-	}
 
-	private readonly listener: Server
+	private readonly server: Server
 	constructor(
 		public name: string = 'NodeNamedPipe-' + Math.random().toString(36)
 	) {
-		this.listener = createServer(stream => {
-			this.stream = stream
-			// const readLineClient = createInterface(stream)
-			// readLineClient.on('line', line => {
-			// 	const returnedObject = JSON.parse(line)
-			// 	this._onDidReceiveObject.fire(returnedObject)
-			// })
-		})
+		this.server = createServer()
 	}
 
+	/** Starts the server listening on the specified named pipe */
 	async listen() {
 		return new Promise<void>((resolve, reject) => {
-			this.listener
+			this.server
 				.listen(DotnetNamedPipeServer.getDotnetPipePath(this.name))
 				.once('listening', resolve)
 				.once('error', reject)
+		})
+	}
+
+	/** Will return a socket once a connection is provided. WARNING: If you set multiple listeners they will all get the
+	 * same socket, it is not sequential
+	 */
+	async waitForConnection() {
+		if (!this.server.listening) {
+			await this.listen()
+		}
+		return new Promise<Socket>((resolve, reject) => {
+			this.server.once('connection', resolve)
+			this.server.once('error', reject)
 		})
 	}
 
@@ -55,6 +56,6 @@ export class DotnetNamedPipeServer implements Disposable {
 	}
 
 	dispose() {
-		this.listener.close()
+		this.server.close()
 	}
 }
