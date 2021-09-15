@@ -1,4 +1,4 @@
-import { createServer, Server } from 'net'
+import { createServer, Server, Socket } from 'net'
 import { platform, tmpdir } from 'os'
 import { join } from 'path'
 import { createInterface } from 'readline'
@@ -10,7 +10,10 @@ export class DotnetNamedPipeServer implements Disposable {
 	// TODO: Tighten up the types here
 	// TODO: Optionally skip the json processing?
 	// TODO: Make this not depend on vscode and use a general eventEmitter, then make an inherited class that is vscode specific
+
+	// FIXME: One socket per PSIC invocation and graceful cleanup
 	private readonly _onDidReceiveObject = new EventEmitter<unknown>()
+	stream?: Socket
 	get onDidReceiveObject() {
 		return this._onDidReceiveObject.event
 	}
@@ -20,11 +23,12 @@ export class DotnetNamedPipeServer implements Disposable {
 		public name: string = 'NodeNamedPipe-' + Math.random().toString(36)
 	) {
 		this.listener = createServer(stream => {
-			const readLineClient = createInterface(stream)
-			readLineClient.on('line', line => {
-				const returnedObject = JSON.parse(line)
-				this._onDidReceiveObject.fire(returnedObject)
-			})
+			this.stream = stream
+			// const readLineClient = createInterface(stream)
+			// readLineClient.on('line', line => {
+			// 	const returnedObject = JSON.parse(line)
+			// 	this._onDidReceiveObject.fire(returnedObject)
+			// })
 		})
 	}
 
