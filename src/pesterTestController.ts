@@ -407,6 +407,7 @@ export class PesterTestController implements Disposable {
 		psOutput.success.on('data', returnHandler)
 
 		if (usePSIC) {
+			log.debug('Running Script in PSIC:', scriptPath, scriptArgs)
 			await this.powerShellExtensionClient!.RunCommand(
 				scriptPath,
 				scriptArgs,
@@ -420,6 +421,7 @@ export class PesterTestController implements Disposable {
 			)
 		} else {
 			const script = `& '${scriptPath}' ${scriptArgs.join(' ')}`
+			log.debug('Running Script in PS Worker:', script)
 			if (testRun !== undefined) {
 				psOutput.information.on('data', (data: string) => {
 					testRun.appendOutput(data.trimEnd() + '\r\n')

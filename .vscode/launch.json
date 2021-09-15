@@ -30,6 +30,7 @@
         "**\\app\\dist\\vs\\**",
         "<node_internals>/**"
       ],
+
       "preLaunchTask": "npm: watch"
     },
     {
