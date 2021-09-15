@@ -35,9 +35,6 @@ import {
 } from './powershellExtensionClient'
 import { findTestItem } from './testItemUtils'
 import debounce = require('debounce-promise')
-import { promisify } from 'util'
-import { finished } from 'stream'
-import { run } from '../test/testRunner'
 
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
@@ -187,13 +184,12 @@ export class PesterTestController implements Disposable {
 		if (request.profile === undefined) {
 			throw new Error('No profile provided. This is (currently) a bug.')
 		}
-		const debug = request.profile.kind === TestRunProfileKind.Debug
-
+		const isDebug = request.profile.kind === TestRunProfileKind.Debug
 		const testItems = this.getRunRequestTestItems(request)
+		const exclude = new Set<TestItem>(request.exclude)
+
 		// Indicate that the tests are ready to run
 		testItems.forEach(run.enqueued)
-
-		const exclude = new Set<TestItem>(request.exclude)
 
 		/** Takes the returned objects from Pester and resolves their status in the test controller **/
 		const runResultHandler = (item: unknown) => {
@@ -267,18 +263,14 @@ export class PesterTestController implements Disposable {
 
 		testItems.forEach(run.started)
 		// TODO: Adjust testItems parameter to a Set
-		const terminalOutput = await this.startPesterInterface(
+		await this.startPesterInterface(
 			Array.from(testItems),
 			runResultHandler.bind(this),
 			false,
-			debug,
-			false,
+			isDebug,
+			undefined,
 			run
 		)
-		// FIXME: Terminal Output relied on a proposed API that won't be published, need a workaround
-		// // Because we are capturing from a terminal, some intermediate line breaks can be introduced
-		// // due to window resizing so we want to strip those out
-		// const fullWidthTerminalOutput = terminalOutput.replace(/\r?\n/g, '')
 		run.end()
 	}
 
@@ -294,7 +286,7 @@ export class PesterTestController implements Disposable {
 		debug?: boolean,
 		usePSIC?: boolean,
 		testRun?: TestRun
-	) {
+	): Promise<void> {
 		if (!discovery) {
 			// HACK: Using flatMap to filter out undefined in a type-safe way. Unintuitive but effective
 			// https://stackoverflow.com/a/64480539/5511129
@@ -380,58 +372,54 @@ export class PesterTestController implements Disposable {
 
 			// HACK: Calling this function indirectly starts/waits for PSIC to be available
 			await this.powerShellExtensionClient.GetVersionDetails()
+		}
 
-			const runObjectListenEvent =
-				this.returnServer.onDidReceiveObject(returnHandler)
-
-			const terminalData = new Promise<string>(resolve =>
-				this.powerShellExtensionClient!.RunCommand(
-					scriptPath,
-					scriptArgs,
-					debug,
-					terminalData => {
-						runObjectListenEvent.dispose()
-						return resolve(terminalData)
-					}
+		// If PSIC is running, we will connect the PowershellExtensionClient to be able to fetch info about it
+		const psicLoaded = window.terminals.find(
+			t => t.name === 'PowerShell Integrated Console'
+		)
+		if (psicLoaded) {
+			if (this.powerShellExtensionClient === undefined) {
+				this.powerShellExtensionClient = await PowerShellExtensionClient.create(
+					this.context,
+					this.powershellExtension
 				)
+			}
+		}
+
+		const exePath = psicLoaded
+			? (await this.powerShellExtensionClient!.GetVersionDetails()).exePath
+			: undefined
+
+		// Restart PS to use the requested version if it is different from the current one
+		if (this.ps === undefined || this.ps.exePath !== exePath) {
+			log.info(`Starting PowerShell testing instance: ${exePath}`)
+			if (this.ps !== undefined) {
+				log.warn(
+					`Detected PowerShell Session change from ${this.ps.exePath} to ${exePath}. Restarting Pester Runner.`
+				)
+			}
+			this.ps = new PowerShell(exePath)
+		}
+
+		// Objects from the run will return to the success stream, which we then send to the return handler
+		const psOutput = new PSOutput()
+		psOutput.success.on('data', returnHandler)
+
+		if (usePSIC) {
+			await this.powerShellExtensionClient!.RunCommand(
+				scriptPath,
+				scriptArgs,
+				debug
 			)
-			return terminalData
+
+			await this.ps.run(
+				'',
+				psOutput,
+				await this.returnServer.waitForConnection()
+			)
 		} else {
-			// Newer implementation
-			const psicLoaded = window.terminals.find(
-				t => t.name === 'PowerShell Integrated Console'
-			)
-
-			// We want to match what the user is using
-			if (psicLoaded) {
-				if (this.powerShellExtensionClient === undefined) {
-					this.powerShellExtensionClient =
-						await PowerShellExtensionClient.create(
-							this.context,
-							this.powershellExtension
-						)
-				}
-			}
-
-			// TODO: detect powershell version (maybe let powershell do this)
-			const exePath = psicLoaded
-				? (await this.powerShellExtensionClient!.GetVersionDetails()).exePath
-				: undefined
-
-			// Restart PS to use the requested version if it is different from the current one
-			if (this.ps === undefined || this.ps.exePath !== exePath) {
-				log.info(`Starting PowerShell testing instance: ${exePath}`)
-				if (this.ps !== undefined) {
-					log.warn(
-						`Detected PowerShell Session change from ${this.ps.exePath} to ${exePath}. Restarting Pester Runner.`
-					)
-				}
-				this.ps = new PowerShell(exePath)
-			}
-
-			const psOutput = new PSOutput()
 			const script = `& '${scriptPath}' ${scriptArgs.join(' ')}`
-			psOutput.success.on('data', returnHandler)
 			if (testRun !== undefined) {
 				psOutput.information.on('data', (data: string) => {
 					testRun.appendOutput(data.trimEnd() + '\r\n')
