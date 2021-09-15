@@ -73,8 +73,13 @@ export class PesterTestController implements Disposable {
 
 	/** The test controller API calls this whenever it needs to get the resolveChildrenHandler
 	 * for Pester, this is only relevant to TestFiles as this is pester's lowest level of test resolution
+	 * @param testItem - The test item to get the resolveChildrenHandler for
+	 * @param force - If true, force the test to be re-resolved
 	 */
-	private async resolveHandler(testItem: TestItem | undefined) {
+	private async resolveHandler(
+		testItem: TestItem | undefined,
+		force?: boolean
+	): Promise<void> {
 		// If testitem is undefined, this is a signal to initialize the controller
 		if (testItem === undefined) {
 			log.info(
