@@ -12,6 +12,7 @@ import {
 	TestItem,
 	TestMessage,
 	TestRun,
+	TestRunProfile,
 	TestRunProfileKind,
 	TestRunRequest,
 	tests,
@@ -35,13 +36,14 @@ import {
 } from './powershellExtensionClient'
 import { findTestItem } from './testItemUtils'
 import debounce = require('debounce-promise')
-
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
  */
 export class PesterTestController implements Disposable {
 	private ps: PowerShell | undefined
 	private powerShellExtensionClient: PowerShellExtensionClient | undefined
+	private readonly runProfile: TestRunProfile
+	private readonly debugProfile: TestRunProfile
 	constructor(
 		private readonly powershellExtension: Extension<IPowerShellExtensionClient>,
 		private readonly context: ExtensionContext,
@@ -54,13 +56,13 @@ export class PesterTestController implements Disposable {
 		// wire up our custom handlers to the managed instance
 		// HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
 		testController.resolveHandler = testItem => this.resolveHandler(testItem)
-		testController.createRunProfile(
+		this.runProfile = testController.createRunProfile(
 			'Run',
 			TestRunProfileKind.Run,
 			this.testHandler.bind(this),
 			true
 		)
-		testController.createRunProfile(
+		this.debugProfile = testController.createRunProfile(
 			'Debug',
 			TestRunProfileKind.Debug,
 			this.testHandler.bind(this),
@@ -73,15 +75,23 @@ export class PesterTestController implements Disposable {
 
 	/** The test controller API calls this whenever it needs to get the resolveChildrenHandler
 	 * for Pester, this is only relevant to TestFiles as this is pester's lowest level of test resolution
+	 * @param testItem - The test item to get the resolveChildrenHandler for
+	 * @param force - If true, force the test to be re-resolved
 	 */
-	private async resolveHandler(testItem: TestItem | undefined) {
+	private async resolveHandler(
+		testItem: TestItem | undefined,
+		force?: boolean
+	): Promise<void> {
 		// If testitem is undefined, this is a signal to initialize the controller
 		if (testItem === undefined) {
 			log.info(
 				'Initializing Pester Test Controller and watching for Pester Files'
 			)
-			Promise.all([this.watchWorkspaces(), this.returnServer.listen()])
+			await this.watchWorkspaces()
 			return
+		} else {
+			// Reset any errors previously reported.
+			testItem.error = undefined
 		}
 
 		const testItemData = TestData.get(testItem)
@@ -119,10 +129,10 @@ export class PesterTestController implements Disposable {
 				this.testController.items.get(testDef.parent)
 			if (parent === undefined && testDef.error === undefined) {
 				log.fatal(
-					`Test Item ${testDef.label} does not have a parent. This is a bug and should not happen`
+					`Test Item ${testDef.label} does not have a TestFile parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
 				)
 				throw new Error(
-					`Test Item ${testDef.label} does not have a parent. This is a bug and should not happen`
+					`Test Item ${testDef.label} does not have a TestFile parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
 				)
 			}
 			const newTestItem = this.testController.createTestItem(
@@ -145,9 +155,10 @@ export class PesterTestController implements Disposable {
 		}
 
 		if (
-			testItemData instanceof TestFile &&
-			!testItemData.testsDiscovered &&
-			!testItem.busy
+			(testItemData instanceof TestFile &&
+				!testItemData.testsDiscovered &&
+				!testItem.busy) ||
+			(testItemData instanceof TestFile && force)
 		) {
 			// Indicate the start of a discovery, will cause the UI to show a spinner
 			testItem.busy = true
@@ -158,7 +169,6 @@ export class PesterTestController implements Disposable {
 			// For discovery we don't care about the terminal output, thats why no assignment to var here
 			await this.startTestDiscovery(testItemDiscoveryHandler)
 			testItem.busy = false
-			testItemData.testsDiscovered = true
 		} else {
 			log.info(
 				`Resolve for ${testItem.label} requested but it is already resolving/resolved`
@@ -454,12 +464,26 @@ export class PesterTestController implements Disposable {
 				const pattern = new RelativePattern(workspaceFolder, pathToWatchItem)
 				const testWatcher = workspace.createFileSystemWatcher(pattern)
 				const tests = this.testController.items
-				testWatcher.onDidCreate(uri =>
+				testWatcher.onDidCreate(uri => {
+					log.info(`File created: ${uri.toString()}`)
 					tests.add(TestFile.getOrCreate(testController, uri))
-				)
-				testWatcher.onDidDelete(uri => tests.delete(uri.toString()))
+				})
+				testWatcher.onDidDelete(uri => {
+					log.info(`File deleted: ${uri.toString()}`)
+					tests.delete(TestFile.getOrCreate(testController, uri).id)
+				})
 				testWatcher.onDidChange(uri => {
-					this.resolveHandler(TestFile.getOrCreate(testController, uri))
+					log.info(`File saved: ${uri.toString()}`)
+					const savedFile = TestFile.getOrCreate(testController, uri)
+					this.resolveHandler(savedFile, true).then(() => {
+						if (
+							workspace.getConfiguration('pester').get<boolean>('autoRunOnSave')
+						) {
+							this.testHandler(
+								new TestRunRequest([savedFile], undefined, this.runProfile)
+							)
+						}
+					})
 				})
 
 				// TODO: Fix this for non-file based pester tests and

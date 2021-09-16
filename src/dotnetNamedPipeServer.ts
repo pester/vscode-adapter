@@ -5,13 +5,6 @@ import { Disposable, EventEmitter } from 'vscode'
 
 /** Provides a simple server listener to a .NET named pipe. This is useful as a IPC method to child processes like a PowerShell Script */
 export class DotnetNamedPipeServer implements Disposable {
-	// We will use this emitter to notify any subscribers of new objects to process
-	// TODO: Tighten up the types here
-	// TODO: Optionally skip the json processing?
-	// TODO: Make this not depend on vscode and use a general eventEmitter, then make an inherited class that is vscode specific
-
-	// FIXME: One socket per PSIC invocation and graceful cleanup
-
 	private readonly server: Server
 	constructor(
 		public name: string = 'NodeNamedPipe-' + Math.random().toString(36)

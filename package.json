@@ -27,6 +27,11 @@
 				"pester.hideSkippedBecauseMessages": {
 					"type": "boolean",
 					"markdownDescription": "If a skipped test is inconclusive or `Set-ItResult` had the `-Because` parameter specified, those are surfaced as test errors for easy viewing. Enable this setting if you prefer these to be displayed simply as skipped. **NOTE:** If you do this then you cannot see any BECAUSE messages without looking directly at the Pester output."
+				},
+				"pester.autoRunOnSave": {
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "Automatically runs Pester test files upon changes being detected on save. Uncheck this box to disable this behavior."
 				}
 			}
 		}
