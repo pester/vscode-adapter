@@ -89,6 +89,9 @@ export class PesterTestController implements Disposable {
 			)
 			await this.watchWorkspaces()
 			return
+		} else {
+			// Reset any errors previously reported.
+			testItem.error = undefined
 		}
 
 		const testItemData = TestData.get(testItem)
