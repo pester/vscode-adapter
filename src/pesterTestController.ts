@@ -12,6 +12,7 @@ import {
 	TestItem,
 	TestMessage,
 	TestRun,
+	TestRunProfile,
 	TestRunProfileKind,
 	TestRunRequest,
 	tests,
@@ -35,13 +36,14 @@ import {
 } from './powershellExtensionClient'
 import { findTestItem } from './testItemUtils'
 import debounce = require('debounce-promise')
-
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
  */
 export class PesterTestController implements Disposable {
 	private ps: PowerShell | undefined
 	private powerShellExtensionClient: PowerShellExtensionClient | undefined
+	private readonly runProfile: TestRunProfile
+	private readonly debugProfile: TestRunProfile
 	constructor(
 		private readonly powershellExtension: Extension<IPowerShellExtensionClient>,
 		private readonly context: ExtensionContext,
@@ -54,13 +56,13 @@ export class PesterTestController implements Disposable {
 		// wire up our custom handlers to the managed instance
 		// HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
 		testController.resolveHandler = testItem => this.resolveHandler(testItem)
-		testController.createRunProfile(
+		this.runProfile = testController.createRunProfile(
 			'Run',
 			TestRunProfileKind.Run,
 			this.testHandler.bind(this),
 			true
 		)
-		testController.createRunProfile(
+		this.debugProfile = testController.createRunProfile(
 			'Debug',
 			TestRunProfileKind.Debug,
 			this.testHandler.bind(this),
@@ -467,7 +469,16 @@ export class PesterTestController implements Disposable {
 				})
 				testWatcher.onDidChange(uri => {
 					log.info(`File saved: ${uri.toString()}`)
-					this.resolveHandler(TestFile.getOrCreate(testController, uri), true)
+					const savedFile = TestFile.getOrCreate(testController, uri)
+					this.resolveHandler(savedFile, true).then(() => {
+						if (
+							workspace.getConfiguration('pester').get<boolean>('autoRunOnSave')
+						) {
+							this.testHandler(
+								new TestRunRequest([savedFile], undefined, this.runProfile)
+							)
+						}
+					})
 				})
 
 				// TODO: Fix this for non-file based pester tests and
