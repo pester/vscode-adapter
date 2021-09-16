@@ -124,10 +124,10 @@ export class PesterTestController implements Disposable {
 				this.testController.items.get(testDef.parent)
 			if (parent === undefined && testDef.error === undefined) {
 				log.fatal(
-					`Test Item ${testDef.label} does not have a parent. This is a bug and should not happen`
+					`Test Item ${testDef.label} does not have a TestFile parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
 				)
 				throw new Error(
-					`Test Item ${testDef.label} does not have a parent. This is a bug and should not happen`
+					`Test Item ${testDef.label} does not have a TestFile parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
 				)
 			}
 			const newTestItem = this.testController.createTestItem(
@@ -150,9 +150,10 @@ export class PesterTestController implements Disposable {
 		}
 
 		if (
-			testItemData instanceof TestFile &&
-			!testItemData.testsDiscovered &&
-			!testItem.busy
+			(testItemData instanceof TestFile &&
+				!testItemData.testsDiscovered &&
+				!testItem.busy) ||
+			(testItemData instanceof TestFile && force)
 		) {
 			// Indicate the start of a discovery, will cause the UI to show a spinner
 			testItem.busy = true
@@ -163,7 +164,6 @@ export class PesterTestController implements Disposable {
 			// For discovery we don't care about the terminal output, thats why no assignment to var here
 			await this.startTestDiscovery(testItemDiscoveryHandler)
 			testItem.busy = false
-			testItemData.testsDiscovered = true
 		} else {
 			log.info(
 				`Resolve for ${testItem.label} requested but it is already resolving/resolved`
@@ -457,12 +457,17 @@ export class PesterTestController implements Disposable {
 				const pattern = new RelativePattern(workspaceFolder, pathToWatchItem)
 				const testWatcher = workspace.createFileSystemWatcher(pattern)
 				const tests = this.testController.items
-				testWatcher.onDidCreate(uri =>
+				testWatcher.onDidCreate(uri => {
+					log.info(`File created: ${uri.toString()}`)
 					tests.add(TestFile.getOrCreate(testController, uri))
-				)
-				testWatcher.onDidDelete(uri => tests.delete(uri.toString()))
+				})
+				testWatcher.onDidDelete(uri => {
+					log.info(`File deleted: ${uri.toString()}`)
+					tests.delete(TestFile.getOrCreate(testController, uri).id)
+				})
 				testWatcher.onDidChange(uri => {
-					this.resolveHandler(TestFile.getOrCreate(testController, uri))
+					log.info(`File saved: ${uri.toString()}`)
+					this.resolveHandler(TestFile.getOrCreate(testController, uri), true)
 				})
 
 				// TODO: Fix this for non-file based pester tests and
