@@ -61,13 +61,13 @@ class VSCodeOutputChannelStream extends Writable {
 		callback()
 	}
 }
-class VSCodeOutputChannelTransport extends PrettyPrintTransport {
+export class VSCodeOutputChannelTransport extends PrettyPrintTransport {
 	constructor(title: string) {
 		super(new VSCodeOutputChannelStream(title, true))
 	}
 }
 
-class ConsoleLogTransport extends PrettyPrintTransport {
+export class ConsoleLogTransport extends PrettyPrintTransport {
 	constructor() {
 		super(
 			new Writable({
@@ -80,11 +80,17 @@ class ConsoleLogTransport extends PrettyPrintTransport {
 	}
 }
 
-const log = new Logger()
-// Log to nodejs console when debugging
+/** A global logger using tslog to use within the extension. You must attach transports to enable logging
+* Logging Examples:
+* Log to nodejs console when debugging
+
 if (process.env.VSCODE_DEBUG_MODE === 'true') {
 	log.attachTransport(new ConsoleLogTransport())
 }
-log.attachTransport(new VSCodeOutputChannelTransport('Pester'))
 
+Log to vscode output channel
+
+log.attachTransport(new VSCodeOutputChannelTransport('Pester'))
+ */
+const log = new Logger()
 export default log

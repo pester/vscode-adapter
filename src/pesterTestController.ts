@@ -21,7 +21,7 @@ import {
 	workspace
 } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
-import log from './log'
+import log, { ConsoleLogTransport, VSCodeOutputChannelTransport } from './log'
 import {
 	TestData,
 	TestDefinition,
@@ -53,6 +53,12 @@ export class PesterTestController implements Disposable {
 			id + 'TestController-' + process.pid
 		)
 	) {
+		// Log to nodejs console when debugging
+		if (process.env.VSCODE_DEBUG_MODE === 'true') {
+			log.attachTransport(new ConsoleLogTransport())
+		}
+		log.attachTransport(new VSCodeOutputChannelTransport(id))
+
 		// wire up our custom handlers to the managed instance
 		// HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
 		testController.resolveHandler = testItem => this.resolveHandler(testItem)
