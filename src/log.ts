@@ -1,47 +1,42 @@
-import { ILogObject, IStd, Logger, TTransportLogger } from 'tslog'
+import { createStream } from 'byline'
+import { PassThrough, pipeline, Writable } from 'stream'
+import { ILogObject, Logger, TTransportLogger } from 'tslog'
+import { promisify } from 'util'
+import { OutputChannel, window } from 'vscode'
 
-/** ASCII Section Break character */
-// const delimiter = String.fromCharCode(31)
-
-class DebugConsoleOutput implements IStd {
-	private readonly buffer = new Array<string>()
-	write(message: string) {
-		// BUG: If a log sends a newline this will break, but the delimiters are currently inconsistent to be effective
-		// https://github.com/fullstack-build/tslog/issues/115
-		if (!message.endsWith('\n')) {
-			this.buffer.push(message)
-			return
-		}
-
-		this.buffer.push(message)
-		const output = this.buffer.join('').replace(/\n$/, '')
-		console.log(output)
-		// Flush the buffer
-		this.buffer.length = 0
-	}
-}
+const pipelineAsPromise = promisify(pipeline)
 
 /**
- * Writes TSLog Pretty Print messages to the vscode debug console. It requires the logger during construction to import
- * its pretty print preferences
+ * Writes TSLog Pretty Print messages to the supplied stream
  *
- * @param {ILogObject} logger - Provide a {@link Logger} with custom pretty print formatting
+ * @class PrettyPrintTransport
+ * @param outStream Provide a writable stream that the pretty print log messages will be emitted to
+ * @param colorize Whether ANSI formatting characters should be included in the output
  */
-class DebugConsoleTransport
+class PrettyPrintTransport
 	implements TTransportLogger<(logObject: ILogObject) => void>
 {
-	private readonly debugConsoleOutput = new DebugConsoleOutput()
-	// we need a new logger to control the pretty print format
-	constructor(
-		private readonly logger = new Logger({
+	readonly prettyLogInput = new PassThrough()
+	readonly logger: Logger
+	constructor(outStream: Writable, colorize = false) {
+		// we need a new "internal" logger to control the pretty print formatting since printPrettyLog isn't a static method
+		this.logger = new Logger({
+			colorizePrettyLogs: colorize,
 			displayFilePath: 'hidden',
 			dateTimeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 			dateTimePattern: 'hour:minute:second.millisecond'
 		})
-	) {}
 
+		pipelineAsPromise(
+			this.prettyLogInput,
+			createStream(), //Breaks the stream into new lines
+			outStream
+		).catch(err => {
+			throw new Error(err)
+		})
+	}
 	log(logObject: ILogObject): void {
-		this.logger.printPrettyLog(this.debugConsoleOutput, logObject)
+		this.logger.printPrettyLog(this.prettyLogInput, logObject)
 	}
 
 	silly = this.log
@@ -53,6 +48,43 @@ class DebugConsoleTransport
 	fatal = this.log
 }
 
+class VSCodeOutputChannelStream extends Writable {
+	private outputChannel: OutputChannel
+	constructor(title: string, public appendLine: boolean = false) {
+		super()
+		this.outputChannel = window.createOutputChannel(title)
+	}
+	_write(chunk: Buffer, encoding: string, callback: () => any) {
+		this.appendLine
+			? this.outputChannel.appendLine(chunk.toString())
+			: this.outputChannel.append(chunk.toString())
+		callback()
+	}
+}
+class VSCodeOutputChannelTransport extends PrettyPrintTransport {
+	constructor(title: string) {
+		super(new VSCodeOutputChannelStream(title, true))
+	}
+}
+
+class ConsoleLogTransport extends PrettyPrintTransport {
+	constructor() {
+		super(
+			new Writable({
+				write: (chunk: Buffer, encoding: string, callback: () => any) => {
+					console.log(chunk.toString())
+					callback()
+				}
+			})
+		)
+	}
+}
+
 const log = new Logger()
-log.attachTransport(new DebugConsoleTransport())
+// Log to nodejs console when debugging
+if (process.env.VSCODE_DEBUG_MODE === 'true') {
+	log.attachTransport(new ConsoleLogTransport())
+}
+log.attachTransport(new VSCodeOutputChannelTransport('Pester'))
+
 export default log
