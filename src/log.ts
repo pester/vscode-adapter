@@ -92,5 +92,5 @@ Log to vscode output channel
 
 log.attachTransport(new VSCodeOutputChannelTransport('Pester'))
  */
-const log = new Logger()
+const log = new Logger({ type: 'hidden' })
 export default log
