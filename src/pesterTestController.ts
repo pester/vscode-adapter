@@ -241,6 +241,10 @@ export class PesterTestController implements Disposable {
 				log.warn(`${testResult.id} was run in Pester but excluded from results`)
 				return
 			}
+			if (testResult.result === TestResultState.Running) {
+				run.started(testRequestItem)
+				return
+			}
 
 			if (testResult.result === TestResultState.Passed) {
 				run.passed(testRequestItem, testResult.duration)
