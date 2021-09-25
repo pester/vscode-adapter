@@ -174,6 +174,16 @@ export class PowerShell {
 				'-Command',
 				'-'
 			])
+			// Warn if we have more than one listener set on a process
+			this.psProcess.stdout.setMaxListeners(2)
+			this.psProcess.stderr.setMaxListeners(1)
+			// TODO: More robust stderr handling
+			this.psProcess.stderr.once('data', (data: Buffer) => {
+				throw new Error(
+					`Error Received on stderr from pwsh: ` + data.toString()
+				)
+			})
+
 			if (!this.psProcess.pid) {
 				throw new Error(`Failed to start PowerShell process.`)
 			}
@@ -203,11 +213,6 @@ export class PowerShell {
 			watchForScriptFinishedMessage(jsonResultStream),
 			createSplitPSOutputStream(psOutput)
 		])
-
-		// TODO: More robust stderr handling
-		this.psProcess.stderr.once('data', (data: Buffer) => {
-			throw new Error(`Error Received on stderr from pwsh: ` + data.toString())
-		})
 
 		const runnerScriptPath = resolve(
 			__dirname,
