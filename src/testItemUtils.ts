@@ -11,6 +11,16 @@ export function getUniqueTestItems(collection: TestItemCollection) {
 	return TestItems
 }
 
+/** Returns an array of TestItems at the root of the TestItemConnection. This does not fetch children */
+export function getTestItems(collection: TestItemCollection) {
+	const TestItems = new Array<TestItem>()
+	const addTestItem = (TestItem: TestItem) => {
+		TestItems.push(TestItem)
+	}
+	collection.forEach(addTestItem)
+	return TestItems
+}
+
 /** Performs a breadth-first search for a test item in a given collection. It assumes your test IDs are unique and will only return the first one it finds **/
 export function findTestItem(id: string, collection: TestItemCollection) {
 	const queue = new Array<TestItemCollection>(collection)

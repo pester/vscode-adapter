@@ -98,6 +98,21 @@ Context 'RootLevelContextWithTags' -Tag 'ContextTag', 'ContextTag2' {
 		$true
 	}
 }
+
+Context 'Long Running Test' {
+  It 'Runs for 0.5 second' {
+    Start-Sleep 0.5
+    $true | Should -Be $true
+  }
+  It 'Runs for random' {
+    Start-Sleep -Milliseconds (Get-Random -Min 500 -Max 2000)
+    $true | Should -Be $true
+  }
+  It 'Runs for 1 second' {
+    Start-Sleep 1
+    $true | Should -Be $true
+  }
+}
 # Describe 'Duplicate DescribeWithContext' {
 #     Context 'DupeContext' {
 #         It 'DupeContext' { $true }

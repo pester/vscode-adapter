@@ -374,6 +374,22 @@ $MyPlugin = @{
 		}
 	}
 
+	EachTestSetup       = {
+		param($Context)
+		#Indicate the test is now running
+		$testItem = New-TestObject $context.test
+		$testItem.result = 2
+		[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+		if (!$DryRun) {
+			if (!$pipeName -or $pipeName -eq 'stdout') {
+				[void][Console]::Out.WriteLineAsync($jsonObject)
+			} else {
+				$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+			}
+		} else {
+			$jsonObject >> $PipeName
+		}
+	}
 	EachTestTeardownEnd = {
 		param($Context)
 		if (-not $Context) { continue }

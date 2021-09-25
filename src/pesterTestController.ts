@@ -34,7 +34,7 @@ import {
 	IPowerShellExtensionClient,
 	PowerShellExtensionClient
 } from './powershellExtensionClient'
-import { findTestItem } from './testItemUtils'
+import { findTestItem, forAll, getTestItems } from './testItemUtils'
 import debounce = require('debounce-promise')
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
@@ -201,11 +201,21 @@ export class PesterTestController implements Disposable {
 			throw new Error('No profile provided. This is (currently) a bug.')
 		}
 		const isDebug = request.profile.kind === TestRunProfileKind.Debug
-		const testItems = this.getRunRequestTestItems(request)
-		const exclude = new Set<TestItem>(request.exclude)
+		// If nothing was included, assume it means "run all tests"
+		// TODO, do this at the ternary step
+		const include = request.include ?? getTestItems(this.testController.items)
+
+		// TODO: Make this cleaner and replace getRunRequestTestItems
+		// If there are no excludes we don't need to do any fancy exclusion test filtering
+		const testItems =
+			request.exclude === undefined || request.exclude.length === 0
+				? include
+				: Array.from(this.getRunRequestTestItems(request))
 
 		// Indicate that the tests are ready to run
-		testItems.forEach(run.enqueued)
+		for (const testItem of testItems) {
+			forAll(testItem, run.enqueued)
+		}
 
 		/** Takes the returned objects from Pester and resolves their status in the test controller **/
 		const runResultHandler = (item: unknown) => {
@@ -226,8 +236,13 @@ export class PesterTestController implements Disposable {
 				)
 				return
 			}
+			const exclude = new Set<TestItem>(request.exclude)
 			if (exclude.has(testRequestItem)) {
 				log.warn(`${testResult.id} was run in Pester but excluded from results`)
+				return
+			}
+			if (testResult.result === TestResultState.Running) {
+				run.started(testRequestItem)
 				return
 			}
 
@@ -277,7 +292,7 @@ export class PesterTestController implements Disposable {
 			}
 		}
 
-		testItems.forEach(run.started)
+		// testItems.forEach(run.started)
 		// TODO: Adjust testItems parameter to a Set
 		await this.startPesterInterface(
 			Array.from(testItems),
