@@ -16,6 +16,7 @@ import {
 	TestRunProfileKind,
 	TestRunRequest,
 	tests,
+	TestTag,
 	Uri,
 	window,
 	workspace
@@ -147,7 +148,15 @@ export class PesterTestController implements Disposable {
 				testItem.uri
 			)
 			newTestItem.range = new Range(testDef.startLine, 0, testDef.endLine, 0)
-			newTestItem.description = testDef.tags ? testDef.tags : undefined
+
+			if (testDef.tags !== undefined) {
+				newTestItem.tags = testDef.tags.map(tag => {
+					log.debug(`Adding tag ${tag} to ${newTestItem.label}`)
+					return new TestTag(tag)
+				})
+				newTestItem.description = testDef.tags.join(', ')
+			}
+
 			if (testDef.error !== undefined) {
 				newTestItem.error = testDef.error
 			}

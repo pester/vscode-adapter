@@ -277,7 +277,7 @@ function New-TestObject ($Test) {
 		targetFile     = $Test.ErrorRecord.TargetObject.File
 		targetLine     = [int]$Test.ErrorRecord.TargetObject.Line - 1
 		parent         = $Parent
-		tags           = $Test.Tag.Where{ $PSItem } -join ', '
+		tags           = $Test.Tag.Where{ $PSItem }
 		#TODO: Severity. Failed = Error Skipped = Warning
 	}
 }

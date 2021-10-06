@@ -102,7 +102,7 @@ export interface TestDefinition extends TestItemOptions {
 	file: string
 	description?: string
 	error?: string
-	tags?: string
+	tags?: string[]
 }
 
 export class TestDefinition {}
