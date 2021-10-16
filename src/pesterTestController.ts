@@ -19,7 +19,8 @@ import {
 	TestTag,
 	Uri,
 	window,
-	workspace
+	workspace,
+	languages
 } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import log, { ConsoleLogTransport, VSCodeOutputChannelTransport } from './log'
@@ -45,6 +46,7 @@ export class PesterTestController implements Disposable {
 	private powerShellExtensionClient: PowerShellExtensionClient | undefined
 	private readonly runProfile: TestRunProfile
 	private readonly debugProfile: TestRunProfile
+	private initialized = false
 	constructor(
 		private readonly powershellExtension: Extension<IPowerShellExtensionClient>,
 		private readonly context: ExtensionContext,
@@ -75,6 +77,33 @@ export class PesterTestController implements Disposable {
 			this.testHandler.bind(this),
 			true
 		)
+
+		// Watch for pester files to be opened
+		workspace.onDidOpenTextDocument(doc => {
+			if (
+				// Only file support for now
+				// TODO: Virtual File Support and "hot editing" via scriptblock entry into Pester
+				doc.uri.scheme !== 'file' ||
+				!languages.match(this.getPesterRelativePatterns(), doc)
+			) {
+				return
+			}
+			const testFile = TestFile.getOrCreate(testController, doc.uri)
+			// TODO: Performance Optimization: Dont discover if the file was previously discovered and not changed
+			this.resolveHandler(testFile)
+		})
+
+		// Resolves a situation where the extension is loaded but a Pester file is already open
+		const activeDocument = window.activeTextEditor?.document
+
+		if (
+			activeDocument &&
+			activeDocument.uri.scheme === 'file' &&
+			languages.match(this.getPesterRelativePatterns(), activeDocument)
+		) {
+			const testFile = TestFile.getOrCreate(testController, activeDocument.uri)
+			this.resolveHandler(testFile)
+		}
 	}
 
 	/** Queues up testItems from resolveHandler requests because pester works faster scanning multiple files together **/
@@ -89,17 +118,21 @@ export class PesterTestController implements Disposable {
 		testItem: TestItem | undefined,
 		force?: boolean
 	): Promise<void> {
-		// If testitem is undefined, this is a signal to initialize the controller
-		if (testItem === undefined) {
+		if (!this.initialized) {
 			log.info(
 				'Initializing Pester Test Controller and watching for Pester Files'
 			)
 			await this.watchWorkspaces()
-			return
-		} else {
-			// Reset any errors previously reported.
-			testItem.error = undefined
+			this.initialized = true
 		}
+
+		// If testitem is undefined, this is a signal to initialize the controller but not actually do anything, so we exit here.
+		if (testItem === undefined) {
+			return
+		}
+
+		// Reset any errors previously reported.
+		testItem.error = undefined
 
 		const testItemData = TestData.get(testItem)
 		if (!testItemData) {
@@ -471,6 +504,28 @@ export class PesterTestController implements Disposable {
 		}
 	}
 
+	/** Returns a list of relative patterns based on user configuration for matching Pester files in the workspace */
+	getPesterRelativePatterns() {
+		const pesterFilePatterns = new Array<RelativePattern>()
+
+		if (!workspace.workspaceFolders) {
+			// TODO: Register event to look for when a workspace folder is added
+			log.warn('No workspace folders detected.')
+			return pesterFilePatterns
+		}
+		const pathToWatch: string[] = workspace
+			.getConfiguration('pester')
+			.get<string[]>('testFilePath', ['**/*.[tT]ests.[pP][sS]1'])
+
+		for (const workspaceFolder of workspace.workspaceFolders) {
+			for (const pathToWatchItem of pathToWatch) {
+				const pattern = new RelativePattern(workspaceFolder, pathToWatchItem)
+				pesterFilePatterns.push(pattern)
+			}
+		}
+		return pesterFilePatterns
+	}
+
 	/**
 	 * Starts up filewatchers for each workspace to scan for pester files and add them to the test controller root.
 	 *
@@ -480,63 +535,35 @@ export class PesterTestController implements Disposable {
 	async watchWorkspaces() {
 		const testController = this.testController
 		const disposable = this.context.subscriptions
-		if (!workspace.workspaceFolders) {
-			// TODO: Register event to look for when a workspace folder is added
-			log.warn('No workspace folders detected.')
-			return
-		}
-		const pathToWatch: string[] = workspace
-			.getConfiguration('pester')
-			.get<string[]>('testFilePath', ['**/*.[tT]ests.[pP][sS]1'])
-
-		for (const workspaceFolder of workspace.workspaceFolders) {
-			for (const pathToWatchItem of pathToWatch) {
-				const pattern = new RelativePattern(workspaceFolder, pathToWatchItem)
-				const testWatcher = workspace.createFileSystemWatcher(pattern)
-				const tests = this.testController.items
-				testWatcher.onDidCreate(uri => {
-					log.info(`File created: ${uri.toString()}`)
-					tests.add(TestFile.getOrCreate(testController, uri))
+		for (const pattern of this.getPesterRelativePatterns()) {
+			const testWatcher = workspace.createFileSystemWatcher(pattern)
+			const tests = this.testController.items
+			testWatcher.onDidCreate(uri => {
+				log.info(`File created: ${uri.toString()}`)
+				tests.add(TestFile.getOrCreate(testController, uri))
+			})
+			testWatcher.onDidDelete(uri => {
+				log.info(`File deleted: ${uri.toString()}`)
+				tests.delete(TestFile.getOrCreate(testController, uri).id)
+			})
+			testWatcher.onDidChange(uri => {
+				log.info(`File saved: ${uri.toString()}`)
+				const savedFile = TestFile.getOrCreate(testController, uri)
+				this.resolveHandler(savedFile, true).then(() => {
+					if (
+						workspace.getConfiguration('pester').get<boolean>('autoRunOnSave')
+					) {
+						this.testHandler(
+							new TestRunRequest([savedFile], undefined, this.runProfile)
+						)
+					}
 				})
-				testWatcher.onDidDelete(uri => {
-					log.info(`File deleted: ${uri.toString()}`)
-					tests.delete(TestFile.getOrCreate(testController, uri).id)
-				})
-				testWatcher.onDidChange(uri => {
-					log.info(`File saved: ${uri.toString()}`)
-					const savedFile = TestFile.getOrCreate(testController, uri)
-					this.resolveHandler(savedFile, true).then(() => {
-						if (
-							workspace.getConfiguration('pester').get<boolean>('autoRunOnSave')
-						) {
-							this.testHandler(
-								new TestRunRequest([savedFile], undefined, this.runProfile)
-							)
-						}
-					})
-				})
+			})
 
-				// TODO: Fix this for non-file based pester tests and
-				// workspace.onDidOpenTextDocument(async e => {
-				// 	const inScopeFiles = await workspace.findFiles(pattern)
-				// 	// Only work on in-scope files
-				// 	if (inScopeFiles.indexOf(e.uri) === -1) {
-				// 		return
-				// 	}
-				// 	if (this.testController.resolveHandler === undefined) {
-				// 		throw 'onDidOpenTextDocument was called but the testcontroller resolve handler wasnt defined. This is a bug'
-				// 	}
-				// 	const testFile = TestFile.getOrCreate(testController, e.uri)
-				// 	if testFile.
-				// 	this.testController.resolveHandler(
-				// 	)
-				// })
-
-				const files = await workspace.findFiles(pattern)
-				for (const file of files) {
-					log.info('Detected Pester File: ', file.fsPath)
-					TestFile.getOrCreate(testController, file)
-				}
+			const files = await workspace.findFiles(pattern)
+			for (const file of files) {
+				log.info('Detected Pester File: ', file.fsPath)
+				TestFile.getOrCreate(testController, file)
 			}
 		}
 	}
