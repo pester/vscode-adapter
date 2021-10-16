@@ -32,6 +32,10 @@
 					"type": "boolean",
 					"default": true,
 					"markdownDescription": "Automatically runs Pester test files upon changes being detected on save. Uncheck this box to disable this behavior."
+				},
+				"pester.suppressCodeLensNotice": {
+					"type": "boolean",
+					"markdownDescription": "It is recommended to disable the PowerShell Pester CodeLens when using this extension. Check this box to suppress this dialog. Choosing 'No' in the dialog box will also enable this at a user level"
 				}
 			}
 		}
