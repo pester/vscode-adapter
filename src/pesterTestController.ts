@@ -1,5 +1,7 @@
 import { join } from 'path'
 import {
+	debug as vscodeDebug,
+	DebugSession,
 	Disposable,
 	Extension,
 	ExtensionContext,
@@ -38,6 +40,7 @@ import {
 } from './powershellExtensionClient'
 import { findTestItem, forAll, getTestItems } from './testItemUtils'
 import debounce = require('debounce-promise')
+import { Socket } from 'net'
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
  */
@@ -481,17 +484,20 @@ export class PesterTestController implements Disposable {
 
 		if (usePSIC) {
 			log.debug('Running Script in PSIC:', scriptPath, scriptArgs)
+			const psListenerPromise = this.returnServer.waitForConnection()
+
+			/** Handles situation where the debug adapter is stopped (usually due to user cancel) before the script completes. */
+			const endSocketAtDebugTerminate = (session: DebugSession) => {
+				psListenerPromise.then(socket => socket.end())
+			}
+
 			await this.powerShellExtensionClient!.RunCommand(
 				scriptPath,
 				scriptArgs,
-				debug
+				debug,
+				endSocketAtDebugTerminate
 			)
-
-			await this.ps.run(
-				'',
-				psOutput,
-				await this.returnServer.waitForConnection()
-			)
+			await this.ps.listen(psOutput, await psListenerPromise)
 		} else {
 			const script = `& '${scriptPath}' ${scriptArgs.join(' ')}`
 			log.debug('Running Script in PS Worker:', script)
