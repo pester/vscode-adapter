@@ -3,6 +3,7 @@
 import {
 	debug,
 	DebugConfiguration,
+	DebugSession,
 	Extension,
 	ExtensionContext,
 	extensions,
@@ -109,7 +110,7 @@ export class PowerShellExtensionClient {
 		command: string,
 		args?: string[],
 		isDebug?: boolean,
-		onComplete?: (terminalData: string) => void
+		onComplete?: (terminalData: DebugSession) => void
 	) {
 		// This indirectly loads the PSES extension and console
 		await this.GetVersionDetails()
@@ -124,9 +125,7 @@ export class PowerShellExtensionClient {
 			// We use the PSIC, not the vscode native debug console
 			internalConsoleOptions: 'neverOpen',
 			// TODO: Update this deprecation to match with the paths in the arg?
-			cwd: workspace.rootPath!,
-			// FIXME: Temporary Test
-			noDebug: !isDebug
+			cwd: workspace.rootPath!
 			// createTemporaryIntegratedConsole: settings.debugging.createTemporaryIntegratedConsole,
 			// cwd:
 			//     currentDocument.isUntitled
@@ -134,22 +133,28 @@ export class PowerShellExtensionClient {
 			//         : path.dirname(currentDocument.fileName),
 		}
 
-		const terminalData = ''
 		// FIXME: Figure out another way to capture terminal data, this is a proposed API that will never go stable
 		// const terminalDataEvent = window.onDidWriteTerminalData(e => {
 		//     if (e.terminal !== psic) {return}
 		//     terminalData += e.data
 		// })
-		if (!(await debug.startDebugging(debugConfig.cwd, debugConfig)))
-			throw new Error('Debug Session did not start as expected')
 
-		// TODO: Figure out how to "await" this and return it as a string
-		const stopDebugEvent = debug.onDidTerminateDebugSession(e => {
-			// FIXME: Figure out another way to capture terminal data, this is a proposed API that will never go stable
-			// terminalDataEvent.dispose()
+		const debugStarted = await debug.startDebugging(
+			debugConfig.cwd,
+			debugConfig
+		)
+		// HACK: Ideally startDebugging would return the ID of the session
+		const thisDebugSession = debug.activeDebugSession
+		if (!debugStarted || !thisDebugSession) {
+			throw new Error('Debug Session did not start as expected')
+		}
+		const stopDebugEvent = debug.onDidTerminateDebugSession(debugSession => {
+			if (debugSession.id !== thisDebugSession.id) {
+				return
+			}
 			stopDebugEvent.dispose()
 			if (onComplete) {
-				onComplete(terminalData)
+				onComplete(debugSession)
 			}
 		})
 	}

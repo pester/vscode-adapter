@@ -190,6 +190,11 @@ export class PowerShell {
 		}
 	}
 
+	/** Similar to {@link run} but doesn't execute anything, rather listens on a particular stream for JSON objects to arrive */
+	async listen(psOutput: IPSOutput, inputStream?: Readable) {
+		await this.run('', psOutput, inputStream)
+	}
+
 	/** Run a PowerShell script asynchronously, result objects will arrive via the provided PSOutput streams
 	 * the returned Promise will complete when the script has finished running
 	 * @param inputStream
