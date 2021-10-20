@@ -1,5 +1,6 @@
 // Eventually something like this would go in an npm package
 
+import { randomInt } from 'crypto'
 import {
 	debug,
 	DebugConfiguration,
@@ -116,6 +117,11 @@ export class PowerShellExtensionClient {
 		await this.GetVersionDetails()
 		PowerShellExtensionClient.GetPowerShellIntegratedConsole()
 
+		// RandomUUID is not available in vscode 1.62, this is a simple substitute
+		// I couldn't find this defined in Javascript/NodeJs anywhere. https://stackoverflow.com/questions/33609404/node-js-how-to-generate-random-numbers-in-specific-range-using-crypto-randomby
+		const maxRandomNumber = 281474976710655
+
+		const debugId = randomInt(maxRandomNumber)
 		const debugConfig: DebugConfiguration = {
 			request: 'launch',
 			type: 'PowerShell',
@@ -125,7 +131,8 @@ export class PowerShellExtensionClient {
 			// We use the PSIC, not the vscode native debug console
 			internalConsoleOptions: 'neverOpen',
 			// TODO: Update this deprecation to match with the paths in the arg?
-			cwd: workspace.rootPath!
+			cwd: workspace.rootPath!,
+			__Id: debugId
 			// createTemporaryIntegratedConsole: settings.debugging.createTemporaryIntegratedConsole,
 			// cwd:
 			//     currentDocument.isUntitled
@@ -149,9 +156,10 @@ export class PowerShellExtensionClient {
 			throw new Error('Debug Session did not start as expected')
 		}
 		const stopDebugEvent = debug.onDidTerminateDebugSession(debugSession => {
-			if (debugSession.id !== thisDebugSession.id) {
+			if (debugSession.configuration.__Id !== debugId) {
 				return
 			}
+			// This is effectively a "once" operation
 			stopDebugEvent.dispose()
 			if (onComplete) {
 				onComplete(debugSession)
