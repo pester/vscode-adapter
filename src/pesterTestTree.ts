@@ -1,6 +1,6 @@
 /** Represents a test result returned from pester, serialized into JSON */
 
-import { TestController, TestItem, Uri } from 'vscode'
+import { TestController, TestItem, TextDocument, Uri } from 'vscode'
 
 /** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
  * types and organization types such as suites
@@ -38,7 +38,8 @@ export class TestFile {
 	testsDiscovered = false
 	private constructor(
 		private readonly controller: TestController,
-		private readonly uri: Uri
+		private readonly uri: Uri,
+		private readonly doc?: TextDocument
 	) {}
 	get file() {
 		return this.uri.fsPath
@@ -57,7 +58,11 @@ export class TestFile {
 	}
 
 	/** Creates a managed TestItem entry in the controller if it doesn't exist, or returns the existing object if it does already exist */
-	static getOrCreate(controller: TestController, uri: Uri): TestItem {
+	static getOrCreate(
+		controller: TestController,
+		uri: Uri,
+		doc?: TextDocument
+	): TestItem {
 		// Normalize paths to uppercase on windows due to formatting differences between Javascript and PowerShell
 		const uriFsPath =
 			process.platform === 'win32' ? uri.fsPath.toUpperCase() : uri.fsPath
@@ -70,7 +75,7 @@ export class TestFile {
 			uri.path.split('/').pop()!,
 			uri
 		)
-		TestData.set(fileTestItem, new TestFile(controller, uri))
+		TestData.set(fileTestItem, new TestFile(controller, uri, doc))
 		fileTestItem.canResolveChildren = true
 		controller.items.add(fileTestItem)
 		return fileTestItem
