@@ -22,7 +22,8 @@ import {
 	Uri,
 	window,
 	workspace,
-	languages
+	languages,
+	TextDocument
 } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import log, { ConsoleLogTransport, VSCodeOutputChannelTransport } from './log'
@@ -80,32 +81,34 @@ export class PesterTestController implements Disposable {
 			true
 		)
 
-		// Watch for pester files to be opened
-		workspace.onDidOpenTextDocument(doc => {
+		//*** Call when a TextDocument is found and needs to be evaluated if it is a Pester test file */
+		const pesterTextDocumentHandler = (doc: TextDocument) => {
+			const scheme = doc.uri.scheme
 			if (
-				// Only file support for now
-				// TODO: Virtual File Support and "hot editing" via scriptblock entry into Pester
-				doc.uri.scheme !== 'file' ||
-				!languages.match(this.getPesterRelativePatterns(), doc)
+				!(
+					(scheme === 'file' &&
+						languages.match(this.getPesterRelativePatterns(), doc)) ||
+					(scheme === 'untitled' && doc.languageId === 'powershell')
+				)
 			) {
+				log.debug(
+					'Ignoring open of ' +
+						doc.uri +
+						' because it is neither a physical file that matches the Pester match patterns defined nor a untitled Powershell file'
+				)
 				return
 			}
-			const testFile = TestFile.getOrCreate(testController, doc.uri)
+			const testFile = TestFile.getOrCreate(testController, doc.uri, doc)
 			// TODO: Performance Optimization: Dont discover if the file was previously discovered and not changed
 			this.resolveHandler(testFile)
-		})
-
-		// Resolves a situation where the extension is loaded but a Pester file is already open
-		const activeDocument = window.activeTextEditor?.document
-
-		if (
-			activeDocument &&
-			activeDocument.uri.scheme === 'file' &&
-			languages.match(this.getPesterRelativePatterns(), activeDocument)
-		) {
-			const testFile = TestFile.getOrCreate(testController, activeDocument.uri)
-			this.resolveHandler(testFile)
 		}
+
+		// Watch for pester files to be opened
+		workspace.onDidOpenTextDocument(pesterTextDocumentHandler)
+
+		// Check all existing open files if they are Pester Files
+		console.log(workspace.textDocuments)
+		workspace.textDocuments.forEach(pesterTextDocumentHandler)
 	}
 
 	/** Queues up testItems from resolveHandler requests because pester works faster scanning multiple files together **/
