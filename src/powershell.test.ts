@@ -123,7 +123,7 @@ describe('exec', () => {
 	})
 
 	it('pwsh baseline', () => {
-		const result = execSync('pwsh -c "echo hello"')
+		const result = execSync('pwsh -nop -c "echo hello"')
 		expect(result.toString()).toMatch('hello')
 	})
 })
