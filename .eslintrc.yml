@@ -1,4 +1,7 @@
 parser: '@typescript-eslint/parser'
+parserOptions:
+  project:
+    - ".eslint.tsconfig.json"
 plugins:
   - '@typescript-eslint'
 extends:
@@ -6,12 +9,12 @@ extends:
   - plugin:@typescript-eslint/recommended
   - plugin:prettier/recommended
 rules:
-  prettier/prettier: error
-  arrow-body-style: 'off'
-  prefer-arrow-callback: 'off'
-  no-underscore-dangle: 'off'
+  arrow-body-style: off
+  prefer-arrow-callback: warn
+  no-underscore-dangle: off
   # '@typescipt-eslint/interface-name-prefix': ['error', 'always']
-  '@typescript-eslint/no-unused-vars': 'off'
+  # '@typescript-eslint/no-floating-promises': warn
+  '@typescript-eslint/no-unused-vars': warn
   '@typescript-eslint/no-explicit-any': 'off'
   '@typescript-eslint/explicit-module-boundary-types': 'off'
   '@typescript-eslint/no-non-null-assertion': 'off'

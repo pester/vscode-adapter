@@ -36,17 +36,11 @@ export enum TestResultState {
 export class TestFile {
 	// Indicates if a testfile has had Pester Discovery run at least once
 	testsDiscovered = false
+	// Only want this created via the static constructor
 	private constructor(
 		private readonly controller: TestController,
-		private readonly uri: Uri,
-		private readonly doc?: TextDocument
+		private readonly uri: Uri
 	) {}
-	get file() {
-		return this.uri.fsPath
-	}
-	get startLine() {
-		return undefined
-	}
 	get testItem() {
 		const testItem = this.controller.items.get(this.uri.toString())
 		if (!testItem) {
@@ -58,11 +52,7 @@ export class TestFile {
 	}
 
 	/** Creates a managed TestItem entry in the controller if it doesn't exist, or returns the existing object if it does already exist */
-	static getOrCreate(
-		controller: TestController,
-		uri: Uri,
-		doc?: TextDocument
-	): TestItem {
+	static getOrCreate(controller: TestController, uri: Uri): TestItem {
 		// Normalize paths to uppercase on windows due to formatting differences between Javascript and PowerShell
 		const uriFsPath =
 			process.platform === 'win32' ? uri.fsPath.toUpperCase() : uri.fsPath
@@ -75,9 +65,10 @@ export class TestFile {
 			uri.path.split('/').pop()!,
 			uri
 		)
-		TestData.set(fileTestItem, new TestFile(controller, uri, doc))
 		fileTestItem.canResolveChildren = true
+		TestData.set(fileTestItem, new TestFile(controller, uri))
 		controller.items.add(fileTestItem)
+
 		return fileTestItem
 	}
 }

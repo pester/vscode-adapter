@@ -1,7 +1,12 @@
 import { execSync } from 'child_process'
 import { finished, pipeline, Readable } from 'stream'
 import { promisify } from 'util'
-import { createJsonParseTransform, PowerShell, PSOutput } from './powershell'
+import {
+	createJsonParseTransform,
+	PowerShell,
+	PSOutput,
+	PSOutputUnified
+} from './powershell'
 
 const pipelineWithPromise = promisify(pipeline)
 const isFinished = promisify(finished)
@@ -68,6 +73,15 @@ describe('run', () => {
 		})
 		ps.run(`Write-Verbose -verbose 'JEST'`, streams)
 	})
+
+	it('cancel', done => {
+		const streams = new PSOutputUnified()
+		streams.success.on('close', () => {
+			done()
+		})
+		ps.run(`'test';Start-Sleep -Seconds 2`, streams)
+		ps.cancel()
+	}, 2000)
 
 	it('mixed', async () => {
 		expect.assertions(3)

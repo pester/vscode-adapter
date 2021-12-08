@@ -306,6 +306,21 @@ export class PowerShell {
 		this.psProcess = undefined
 	}
 
+	/** Attempts to cancel the existing script. This is similar to pressing ctrl+C during a Pwsh invocation
+	 * Unfortunately there is no way to detect if the script has actually been cancelled.
+	 * @returns true if the cancel was submitted, false if no pwsh process was active
+	 */
+	cancel() {
+		if (this.psProcess === undefined) {
+			return false
+		}
+		if (process.platform === 'win32') {
+			return this.psProcess.stdin.write('\x03')
+		} else {
+			return this.psProcess.kill('SIGINT')
+		}
+	}
+
 	dispose() {
 		if (this.psProcess !== undefined) {
 			this.psProcess.kill()

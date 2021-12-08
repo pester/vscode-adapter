@@ -98,7 +98,7 @@ export class PesterTestController implements Disposable {
 				)
 				return
 			}
-			const testFile = TestFile.getOrCreate(testController, doc.uri, doc)
+			const testFile = TestFile.getOrCreate(testController, doc.uri)
 			// TODO: Performance Optimization: Dont discover if the file was previously discovered and not changed
 			this.resolveHandler(testFile)
 		}
@@ -544,6 +544,9 @@ export class PesterTestController implements Disposable {
 	 * @param {Disposable[]} [disposable=[]] - An array to store disposables from the watchers, usually {@link ExtensionContext.subscriptions} to auto-dispose the watchers on unload or cancel
 	 */
 	async watchWorkspaces() {
+		if (!workspace.workspaceFolders) {
+			return
+		}
 		const testController = this.testController
 		const disposable = this.context.subscriptions
 		for (const pattern of this.getPesterRelativePatterns()) {

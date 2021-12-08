@@ -4,6 +4,7 @@ using namespace System.Collections.Generic
 using namespace System.Diagnostics
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Runspaces
+using namespace System.Threading
 param(
 	#The scriptblock to run
 	[ScriptBlock]$ScriptBlock,
@@ -103,6 +104,29 @@ function Out-JsonToStdOut {
 	}
 }
 
+# $event = Register-ObjectEvent -InputObject $psInstance -EventName 'InvocationStateChanged' -MessageData @{
+# 	Id               = $Id
+# 	OnScriptFinished = $onScriptFinished
+# } -Action {
+# 	$eventData = $event.MessageData
+# 	$state = $eventArgs.InvocationStateInfo.State
+# 	$id = $eventData.Id
+# 	$onScriptFinished = $eventData.OnScriptFinished
+
+# 	if ($state -notin 'Completed', 'Failed', 'Stopped', 'Disconnected') { return }
+
+# 	Start-Sleep -Milliseconds 100
+
+# 	#Special event object to indicate the script is complete and the reader pipe can be closed.
+# 	$finishedMessage = [PSCustomObject]@{
+# 		__PSINVOCATIONID = $Id
+# 		finished         = $true
+# 		state            = $state
+# 		reason           = $psInstance.InvocationStateInfo.Reason
+# 	} | ConvertTo-Json -Compress -Depth 1
+# 	[void][Console]::Out.WriteLineAsync($finishedMessage)
+# }
+
 # InvokeAsync doesn't exist in 5.1
 $psStatus = $psInstance.BeginInvoke($psInput, $psOutput)
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
@@ -120,9 +144,11 @@ try {
 	# Store the runspace where it can be reused for performance
 	$GLOBAL:__NODEPSINSTANCE = $psInstance
 
-	$finishedMessage = [PSCustomObject]@{
-		__PSINVOCATIONID = $Id
-		finished         = $true
-	} | ConvertTo-Json -Compress -Depth 1
-	[void][Console]::Out.WriteLine($finishedMessage)
-}
+#Special event object to indicate the script is complete and the reader pipe can be closed.
+$finishedMessage = [PSCustomObject]@{
+	__PSINVOCATIONID = $Id
+	finished         = $true
+	state            = $state
+	reason           = $psInstance.InvocationStateInfo.Reason
+} | ConvertTo-Json -Compress -Depth 1
+[void][Console]::Out.WriteLineAsync($finishedMessage)
