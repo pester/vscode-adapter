@@ -106,24 +106,39 @@ describe('exec', () => {
 
 	it('Get-Item', async () => {
 		const result = await ps.exec<any>(`Get-Item .`)
-		expect(result.PSIsContainer).toBe(true)
-	})
-
-	it('Get-Item Preload', async () => {
-		const result = await ps.exec<any>(`Get-Item .`)
-		expect(result.PSIsContainer).toBe(true)
+		expect(result[0].PSIsContainer).toBe(true)
 	})
 
 	/** Verify that if two commands are run at the same time, they queue and complete independently without interfering with each other */
 	it('Parallel', async () => {
 		const result = ps.exec<any>(`'Item1';sleep 0.05`)
 		const result2 = ps.exec<any>(`'Item2'`)
-		expect(await result2).toBe('Item2')
-		expect(await result).toBe('Item1')
+		expect((await result2)[0]).toBe('Item2')
+		expect((await result)[0]).toBe('Item1')
+	})
+
+	/** If cancelExisting is used, ensure the first is closed quickly */
+	it('CancelExisting', async () => {
+		const result = ps.exec<any>(`'Item';sleep 5;'ThisItemShouldNotEmit'`, true)
+		await new Promise(r => setTimeout(r, 500))
+		const result2 = ps.exec<any>(`'Item'`, true)
+		const awaitedResult = await result
+		const awaitedResult2 = await result2
+		// Any existing results should still be emitted after cancellation
+		expect(awaitedResult).toEqual(['Item'])
+		expect(awaitedResult2).toEqual(['Item'])
 	})
 
 	it('pwsh baseline', () => {
 		const result = execSync('pwsh -nop -c "echo hello"')
 		expect(result.toString()).toMatch('hello')
+	})
+
+	it('cancel', async () => {
+		const result = ps.exec<any>(`'Item1','Item2';sleep 2;'Item3'`)
+		await new Promise(r => setTimeout(r, 1000))
+		ps.cancel()
+		const awaitedResult = await result
+		expect(awaitedResult).toEqual(['Item1', 'Item2'])
 	})
 })
