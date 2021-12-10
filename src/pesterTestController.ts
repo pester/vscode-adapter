@@ -506,7 +506,7 @@ export class PesterTestController implements Disposable {
 					testRun.appendOutput(data.trimEnd() + '\r\n')
 				})
 			}
-			await this.ps.run(script, psOutput)
+			await this.ps.run(script, psOutput, undefined, true)
 		}
 	}
 

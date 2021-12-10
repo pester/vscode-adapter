@@ -203,10 +203,10 @@ export class PowerShell {
 	) {
 		// We only run one command at a time for now
 		// TODO: Use a runspace pool and tag each invocation with a unique ID
-		if (cancelExisting) {
-			this.cancel()
-		} else if (this.currentInvocation) {
-			await this.currentInvocation
+		if (this.currentInvocation) {
+			if (cancelExisting) {
+				this.cancel()
+			} else await this.currentInvocation
 		}
 
 		await this.initialize()
@@ -220,10 +220,15 @@ export class PowerShell {
 		// TODO: RemoveAllListeners should be more specific
 		this.psProcess.stderr.removeAllListeners()
 
-		const errorWasEmitted = new Promise((resolve, reject) => {
+		const errorWasEmitted = new Promise((_, reject) => {
 			const errorStream = createStream(this.psProcess!.stderr)
 			function handleError(jsonSerializedError: string) {
-				reject(new Error(JSON.parse(jsonSerializedError)))
+				reject({
+					error: new Error(
+						'A terminating error occured while running the script'
+					),
+					errorObject: JSON.parse(jsonSerializedError)
+				})
 			}
 
 			if (this.psProcess !== undefined) {
@@ -244,7 +249,13 @@ export class PowerShell {
 			'Scripts',
 			'powershellRunner.ps1'
 		)
-		this.currentInvocation = Promise.race([pipelineCompleted, errorWasEmitted])
+		this.currentInvocation = Promise.race([
+			pipelineCompleted,
+			errorWasEmitted
+		]).then(() => {
+			// Reset the current invocation status
+			this.currentInvocation = undefined
+		})
 
 		if (!inputStream) {
 			const fullScript = `${runnerScriptPath} {${script}}\n`
@@ -267,7 +278,6 @@ export class PowerShell {
 			}
 			result.push(output)
 		}
-		// Save psoutput.success output to variable
 		return result
 	}
 

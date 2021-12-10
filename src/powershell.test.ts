@@ -122,7 +122,7 @@ describe('exec', () => {
 		try {
 			await ps.exec(`throw 'oops!'`)
 		} catch (err) {
-			expect(err).toBeInstanceOf(Error)
+			expect(err.error).toBeInstanceOf(Error)
 		}
 	})
 
