@@ -48,8 +48,6 @@ $psInstance.Commands[0].Commands[0].MergeMyResults([PipeLineResultTypes]::All, [
 $psInput = [PSDataCollection[Object]]::new()
 $psOutput = [PSDataCollection[Object]]::new()
 
-
-
 function Test-IsPrimitive ($InputObject) {
 	($InputObject.gettype().IsPrimitive -or $InputObject -is [string] -or $InputObject -is [datetime])
 }
@@ -111,15 +109,20 @@ $psStatus = $psInstance.BeginInvoke($psInput, $psOutput)
 
 # $psOutput while enumerating will block the pipeline while waiting for a new item, and will release when script is finished.
 $psOutput | Out-JsonToStdOut -Depth $Depth
-$psInstance.EndInvoke($psStatus)
-$psInstance.Commands.Clear()
+try {
+	$psInstance.EndInvoke($psStatus)
+} catch {
+	[String]$ErrorAsJson = ConvertTo-Json -Compress -WarningAction SilentlyContinue -InputObject $PSItem.exception.innerexception.errorrecord
+	[void][Console]::Error.WriteLine($ErrorAsJson)
+} finally {
+	$psInstance.Commands.Clear()
 
-# Store the runspace where it can be reused for performance
-$GLOBAL:__NODEPSINSTANCE = $psInstance
+	# Store the runspace where it can be reused for performance
+	$GLOBAL:__NODEPSINSTANCE = $psInstance
 
-#Special event object to indicate the script is complete and the reader pipe can be closed.
-$finishedMessage = [PSCustomObject]@{
-	__PSINVOCATIONID = $Id
-	finished         = $true
-} | ConvertTo-Json -Compress -Depth 1
-[void][Console]::Out.WriteLineAsync($finishedMessage)
+	$finishedMessage = [PSCustomObject]@{
+		__PSINVOCATIONID = $Id
+		finished         = $true
+	} | ConvertTo-Json -Compress -Depth 1
+	[void][Console]::Out.WriteLine($finishedMessage)
+}
