@@ -199,8 +199,13 @@ export class PowerShell {
 		script: string,
 		psOutput: IPSOutput,
 		inputStream?: Readable,
-		cancelExisting?: boolean
+		cancelExisting?: boolean,
+		useNewProcess?: boolean
 	) {
+		if (useNewProcess) {
+			this.reset()
+		}
+
 		// We only run one command at a time for now
 		// TODO: Use a runspace pool and tag each invocation with a unique ID
 		if (this.currentInvocation) {

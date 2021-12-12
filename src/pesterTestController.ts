@@ -40,7 +40,6 @@ import {
 } from './powershellExtensionClient'
 import { findTestItem, forAll, getTestItems } from './testItemUtils'
 import debounce = require('debounce-promise')
-import { Socket } from 'net'
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
  */
@@ -506,7 +505,10 @@ export class PesterTestController implements Disposable {
 					testRun.appendOutput(data.trimEnd() + '\r\n')
 				})
 			}
-			await this.ps.run(script, psOutput, undefined, true)
+			const useNewProcess = workspace
+				.getConfiguration('pester')
+				.get<boolean>('runTestsInNewProcess')
+			await this.ps.run(script, psOutput, undefined, true, useNewProcess)
 		}
 	}
 

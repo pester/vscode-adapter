@@ -36,6 +36,10 @@
 				"pester.suppressCodeLensNotice": {
 					"type": "boolean",
 					"markdownDescription": "It is recommended to disable the PowerShell Pester CodeLens when using this extension. Check this box to suppress this dialog. Choosing 'No' in the dialog box will also enable this at a user level"
+				},
+				"pester.runTestsInNewProcess": {
+					"type": "boolean",
+					"markdownDescription": "This will cause all Pester Test invocations to occur in a new process, rather than reuse a runspace. This is useful if you are testing Powershell Classes or Assemblies that cannot be unloaded or reloaded."
 				}
 			}
 		}
