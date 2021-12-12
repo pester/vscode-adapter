@@ -39,7 +39,7 @@
 				},
 				"pester.runTestsInNewProcess": {
 					"type": "boolean",
-					"markdownDescription": "This will cause all Pester Test invocations to occur in a new process, rather than reuse a runspace. This is useful if you are testing Powershell Classes or Assemblies that cannot be unloaded or reloaded."
+					"markdownDescription": "This will cause all Pester Test invocations to occur each time in a new process, rather than reuse a runspace. This is useful if you are testing Powershell Classes or Assemblies that cannot be unloaded or reloaded, but comes at a significant performance cost."
 				}
 			}
 		}
