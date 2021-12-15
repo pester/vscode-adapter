@@ -110,6 +110,7 @@ export class TestDefinition {}
 /** The type used to represent a test run from the Pester runner, with additional status data */
 export interface TestResult extends TestItemOptions {
 	result: TestResultState
+	error: string
 	duration: number
 	durationDetail: string
 	message: string

@@ -373,8 +373,7 @@ $MyPlugin = @{
 			}
 		}
 	}
-
-	EachTestSetup       = {
+	EachTestSetup           = {
 		param($Context)
 		#Indicate the test is now running
 		$testItem = New-TestObject $context.test
@@ -390,7 +389,7 @@ $MyPlugin = @{
 			$jsonObject >> $PipeName
 		}
 	}
-	EachTestTeardownEnd = {
+	EachTestTeardownEnd     = {
 		param($Context)
 		if (-not $Context) { continue }
 		$testItem = New-TestObject $context.test
@@ -405,8 +404,26 @@ $MyPlugin = @{
 			$jsonObject >> $PipeName
 		}
 	}
-
-	End                 = {
+	OneTimeBlockTearDownEnd = {
+		param($Context)
+		if (-not $Context) { continue }
+		[Pester.Block]$Block = $Context.Block
+		# Report errors in the block itself. This should capture BeforeAll/AfterAll issues
+		if ($Block.ErrorRecord) {
+			$testItem = New-TestObject $Block
+			[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+			if (!$DryRun) {
+				if (!$pipeName -or $pipeName -eq 'stdout') {
+					[void][Console]::Out.WriteLineAsync($jsonObject)
+				} else {
+					$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+				}
+			} else {
+				$jsonObject >> $PipeName
+			}
+		}
+	}
+	End                     = {
 		if (!$DryRun -and -not (!$pipeName -or $pipeName -eq 'stdout')) {
 			$SCRIPT:__TestAdapterNamedPipeWriter.flush()
 			$SCRIPT:__TestAdapterNamedPipeWriter.dispose()
@@ -471,7 +488,7 @@ function Invoke-Main {
 	}
 
 	Add-PesterPluginShim $MyPlugin
-	Invoke-Pester -Configuration $config | Out-Null
+	$PesterResult = Invoke-Pester -Configuration $config
 
 	#Reset the Pester module to remove the plugin shim
 	Import-Module Pester -Force

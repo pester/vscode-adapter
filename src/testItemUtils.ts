@@ -43,9 +43,26 @@ export function findTestItem(id: string, collection: TestItemCollection) {
 }
 
 /** Runs the specified function on this item and all its children, if present */
-export async function forAll(parent: TestItem, fn: (child: TestItem) => void) {
-	fn(parent)
+export async function forAll(
+	parent: TestItem,
+	fn: (child: TestItem) => void,
+	skipParent?: boolean
+) {
+	if (!skipParent) {
+		fn(parent)
+	}
 	parent.children.forEach(child => {
-		forAll(child, fn)
+		forAll(child, fn, false)
 	})
+}
+
+/** Gets the parents of the TestItem */
+export function getParents(TestItem: TestItem) {
+	const parents = []
+	let parent = TestItem.parent
+	while (parent) {
+		parents.push(parent)
+		parent = parent.parent
+	}
+	return parents
 }
