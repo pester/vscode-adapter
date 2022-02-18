@@ -42,6 +42,26 @@
 					"markdownDescription": "This will cause all Pester Test invocations to occur each time in a new process, rather than reuse a runspace. This is useful if you are testing Powershell Classes or Assemblies that cannot be unloaded or reloaded, but comes at a significant performance cost."
 				}
 			}
+		},
+		"commands": [
+			{
+				"command": "pester.toggleAutoRunOnSave",
+				"title": "Pester: Toggle Auto Run on Save"
+			}
+		],
+		"menus": {
+			"testing/item/context": [
+				{
+					"command": "pester.toggleAutoRunOnSave",
+					"group": "pester"
+				}
+			],
+			"testing/item/gutter": [
+				{
+					"command": "pester.toggleAutoRunOnSave",
+					"group": "pester"
+				}
+			]
 		}
 	},
 	"keywords": [

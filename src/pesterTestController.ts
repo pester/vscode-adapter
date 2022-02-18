@@ -150,6 +150,10 @@ export class PesterTestController implements Disposable {
 
 		// TODO: Wire this back up to the test adapter
 		const testItemLookup = new Map<string, TestItem>()
+
+		/**
+		 * Raw test discovery result objects returned from Pester are processed by this function
+		 */
 		const testItemDiscoveryHandler = (t: unknown) => {
 			// TODO: This should be done before onDidReceiveObject maybe as a handler callback?
 			const testDef = t as TestDefinition
