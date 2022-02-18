@@ -1,4 +1,11 @@
-import { ExtensionContext, window, workspace } from 'vscode'
+import { ExtensionContext, window, workspace, commands } from 'vscode'
+import {
+	autoRunStatusBarItem,
+	autoRunStatusBarVisibleEvent,
+	toggleAutoRunOnSaveCommand,
+	updateAutoRunStatusBarOnConfigChange
+} from './features/toggleAutoRunOnSaveCommand'
+import { VSCodeOutputChannelTransport } from './log'
 import { PesterTestController } from './pesterTestController'
 import {
 	getPowerShellExtension,
@@ -59,6 +66,10 @@ export async function activate(context: ExtensionContext) {
 	}
 
 	context.subscriptions.push(
-		new PesterTestController(powershellExtension, context)
+		new PesterTestController(powershellExtension, context),
+		toggleAutoRunOnSaveCommand,
+		autoRunStatusBarItem,
+		autoRunStatusBarVisibleEvent,
+		updateAutoRunStatusBarOnConfigChange
 	)
 }
