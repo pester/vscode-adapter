@@ -46,7 +46,8 @@
 		"commands": [
 			{
 				"command": "pester.toggleAutoRunOnSave",
-				"title": "Pester: Toggle Auto Run on Save"
+				"title": "Pester: Toggle Auto Run on Save",
+				"category": "PowerShell"
 			}
 		],
 		"menus": {

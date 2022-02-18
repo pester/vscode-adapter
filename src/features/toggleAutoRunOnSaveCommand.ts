@@ -1,4 +1,3 @@
-import { settings } from 'cluster'
 import {
 	commands,
 	StatusBarAlignment,
@@ -7,7 +6,6 @@ import {
 	window,
 	workspace
 } from 'vscode'
-import { VSCodeOutputChannelTransport } from '../log'
 
 function getPesterConfig() {
 	return workspace.getConfiguration('pester')
