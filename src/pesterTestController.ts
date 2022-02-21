@@ -38,7 +38,7 @@ import {
 	IPowerShellExtensionClient,
 	PowerShellExtensionClient
 } from './powershellExtensionClient'
-import { findTestItem, forAll, getTestItems } from './testItemUtils'
+import { findTestItem, forAll, getParents, getTestItems } from './testItemUtils'
 import debounce = require('debounce-promise')
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
@@ -244,14 +244,23 @@ export class PesterTestController implements Disposable {
 
 	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
 	private async testHandler(request: TestRunRequest) {
-		const run = this.testController.createTestRun(request)
 		if (request.profile === undefined) {
 			throw new Error('No profile provided. This is (currently) a bug.')
 		}
 		const isDebug = request.profile.kind === TestRunProfileKind.Debug
 		// If nothing was included, assume it means "run all tests"
-		// TODO, do this at the ternary step
 		const include = request.include ?? getTestItems(this.testController.items)
+
+		// add the parent test suites of the included tests so that their status can be updated. This is needed for BeforeAll/AfterAll test updates
+		const includeWithParents = include.flatMap(getParents).concat(include)
+
+		const RequestWithParents = new TestRunRequest(
+			includeWithParents,
+			request.exclude,
+			request.profile
+		)
+
+		const run = this.testController.createTestRun(RequestWithParents)
 
 		// TODO: Make this cleaner and replace getRunRequestTestItems
 		// If there are no excludes we don't need to do any fancy exclusion test filtering
@@ -268,8 +277,8 @@ export class PesterTestController implements Disposable {
 		/** Takes the returned objects from Pester and resolves their status in the test controller **/
 		const runResultHandler = (item: unknown) => {
 			const testResult = item as TestResult
-			// Skip Test Suites for now, focus on test results
-			if (testResult.type === 'Block') {
+			// Skip non-errored Test Suites for now, focus on test results
+			if (testResult.type === 'Block' && testResult === undefined) {
 				return
 			}
 
@@ -282,6 +291,15 @@ export class PesterTestController implements Disposable {
 				log.error(
 					`${testResult.id} was returned from Pester but was not tracked in the test controller. This is probably a bug in test discovery.`
 				)
+				return
+			}
+			if (testResult.type === 'Block' && testResult.error !== undefined) {
+				run.errored(
+					testRequestItem,
+					new TestMessage(testResult.error),
+					testResult.duration
+				)
+				forAll(testRequestItem, run.skipped, true)
 				return
 			}
 			const exclude = new Set<TestItem>(request.exclude)
