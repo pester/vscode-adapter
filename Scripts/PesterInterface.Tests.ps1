@@ -15,13 +15,13 @@ Describe 'PesterInterface' {
     }
     It 'Basic.Tests Discovery' {
       $paths = "$testDataPath/Tests/Basic.Tests.ps1"
-      & $PesterInterface -Path $paths -Discovery -PipeName $PipeOutPath -DryRun *>$null
+      & $PesterInterface -Path $paths -Discovery -PipeName $PipeOutPath -DryRun 6>$null
       Get-Content $PipeOutPath | ConvertFrom-Json | ForEach-Object label | Should -HaveCount 61
     }
     It 'Syntax Error' {
       $paths = "$testDataPath/Tests/ContextSyntaxError.Tests.ps1",
       "$testDataPath/Tests/DescribeSyntaxError.Tests.ps1"
-      & $PesterInterface -Path $paths -Discovery -PipeName $PipeOutPath -DryRun *>$null
+      & $PesterInterface -Path $paths -Discovery -PipeName $PipeOutPath -DryRun 6>$null
       $testResult = Get-Content $PipeOutPath | ConvertFrom-Json
       $testResult.id | Should -HaveCount 2
       $testResult | Where-Object id -Match 'Describesyntaxerror' | ForEach-Object error | Should -Match 'Missing closing'
@@ -29,7 +29,7 @@ Describe 'PesterInterface' {
     }
 		It 'BeforeAll Error' {
       $paths = "$testDataPath/Tests/BeforeAllError.Tests.ps1"
-      & $PesterInterface -Path $paths -PipeName $PipeOutPath -DryRun *>$null
+      & $PesterInterface -Path $paths -PipeName $PipeOutPath -DryRun 6>$null
       $testResult = Get-Content $PipeOutPath | ConvertFrom-Json
       $testResult.id | Should -Match 'TESTDESCRIBE$'
 			$testResult.error | Should -Match 'Fails in Describe Block'
