@@ -40,6 +40,7 @@ import {
 } from './powershellExtensionClient'
 import { findTestItem, forAll, getParents, getTestItems } from './testItemUtils'
 import debounce = require('debounce-promise')
+import { initialize as statusBarInitialize } from './features/toggleAutoRunOnSaveCommand'
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
  */
@@ -125,6 +126,7 @@ export class PesterTestController implements Disposable {
 				'Initializing Pester Test Controller and watching for Pester Files'
 			)
 			await this.watchWorkspaces()
+			statusBarInitialize()
 			this.initialized = true
 		}
 

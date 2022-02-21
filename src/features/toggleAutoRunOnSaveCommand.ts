@@ -55,6 +55,10 @@ export const autoRunStatusBarItem = window.createStatusBarItem(
 )
 autoRunStatusBarItem.command = 'pester.toggleAutoRunOnSave'
 autoRunStatusBarItem.name = 'Pester'
+autoRunStatusBarItem.text = '$(debug-restart)Pester'
+autoRunStatusBarItem.backgroundColor = new ThemeColor(
+	'statusBarItem.warningBackground'
+)
 autoRunStatusBarItem.tooltip = 'Click me to toggle Pester Test Auto-Run on Save'
 
 function showStatusBarIfPowershellDocument(textEditor: TextEditor | undefined) {
@@ -69,7 +73,10 @@ function showStatusBarIfPowershellDocument(textEditor: TextEditor | undefined) {
 
 // Initialize
 showStatusBarIfPowershellDocument(window.activeTextEditor)
-updatePesterStatusBar(getPesterAutoRunSaveStatus())
+
+export function initialize() {
+	updatePesterStatusBar(getPesterAutoRunSaveStatus())
+}
 
 export const autoRunStatusBarVisibleEvent = window.onDidChangeActiveTextEditor(
 	showStatusBarIfPowershellDocument
