@@ -41,6 +41,7 @@ import {
 import { findTestItem, forAll, getParents, getTestItems } from './testItemUtils'
 import debounce = require('debounce-promise')
 import { initialize as statusBarInitialize } from './features/toggleAutoRunOnSaveCommand'
+import { run } from 'jest-cli'
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
  */
@@ -370,7 +371,6 @@ export class PesterTestController implements Disposable {
 			undefined,
 			run
 		)
-		run.end()
 	}
 
 	/** Runs pester either using the nodejs powershell adapterin the PSIC. Results will be sent via a named pipe and handled as events
@@ -512,12 +512,14 @@ export class PesterTestController implements Disposable {
 			/** Handles situation where the debug adapter is stopped (usually due to user cancel) before the script completes. */
 			const endSocketAtDebugTerminate = (session: DebugSession) => {
 				psListenerPromise.then(socket => socket.end())
+				if (testRun) {
+					testRun.end()
+				}
 			}
 
 			await this.powerShellExtensionClient!.RunCommand(
 				scriptPath,
 				scriptArgs,
-				debug,
 				endSocketAtDebugTerminate
 			)
 			await this.ps.listen(psOutput, await psListenerPromise)

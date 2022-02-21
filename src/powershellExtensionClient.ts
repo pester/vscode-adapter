@@ -110,7 +110,6 @@ export class PowerShellExtensionClient {
 	public async RunCommand(
 		command: string,
 		args?: string[],
-		isDebug?: boolean,
 		onComplete?: (terminalData: DebugSession) => void
 	) {
 		// This indirectly loads the PSES extension and console
