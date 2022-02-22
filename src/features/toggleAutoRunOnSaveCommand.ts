@@ -15,19 +15,23 @@ function getPesterAutoRunSaveStatus() {
 	return getPesterConfig().get<boolean>('autoRunOnSave') ?? true
 }
 
-function getPesterAutoRunStatusMessage(saveStatus: boolean) {
-	return saveStatus
-		? 'Pester Auto Run on Save is now enabled for this workspace'
-		: 'Pester Auto Run on Save is now disabled for this workspace'
+function getPesterAutoRunStatusMessage(autoRunEnabled: boolean) {
+	const debugOnSaveEnabled = getPesterConfig().get<boolean>('autoDebugOnSave')
+	const autoRunStatus = autoRunEnabled ? 'enabled' : 'disabled'
+	const message = `Pester Auto Run on Save is now ${autoRunStatus} for this workspace`
+	return debugOnSaveEnabled && autoRunEnabled
+		? message + ' (Auto Debug is active)'
+		: message
 }
 
 function updatePesterStatusBar(saveStatus: boolean) {
 	autoRunStatusBarItem.backgroundColor = saveStatus
 		? undefined
 		: new ThemeColor('statusBarItem.warningBackground')
-	autoRunStatusBarItem.text = saveStatus
-		? '$(beaker)Pester'
-		: '$(debug-pause)Pester'
+	const runText = getPesterConfig().get<boolean>('autoDebugOnSave')
+		? '$(bug) Pester'
+		: '$(beaker) Pester'
+	autoRunStatusBarItem.text = saveStatus ? runText : '$(debug-pause) Pester'
 }
 
 const toggleAutoRunOnSaveHandler = () => {
