@@ -49,7 +49,7 @@ export async function activate(context: ExtensionContext) {
 							.update('codeLens', false, true)
 						break
 					}
-					case 'This Workspace Only': {
+					case 'Workspace Only': {
 						workspace
 							.getConfiguration('powershell.pester')
 							.update('codeLens', false, false)
