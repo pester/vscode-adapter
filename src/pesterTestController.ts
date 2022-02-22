@@ -587,8 +587,13 @@ export class PesterTestController implements Disposable {
 					if (
 						workspace.getConfiguration('pester').get<boolean>('autoRunOnSave')
 					) {
+						const runProfile = workspace
+							.getConfiguration('pester')
+							.get<boolean>('autoDebugOnSave')
+							? this.debugProfile
+							: this.runProfile
 						this.testHandler(
-							new TestRunRequest([savedFile], undefined, this.runProfile)
+							new TestRunRequest([savedFile], undefined, runProfile)
 						)
 					}
 				})

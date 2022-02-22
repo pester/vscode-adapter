@@ -33,13 +33,18 @@
 					"default": true,
 					"markdownDescription": "Automatically runs Pester test files upon changes being detected on save. Uncheck this box to disable this behavior."
 				},
+				"pester.autoDebugOnSave": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "When enabled, will automatically start a debug run on a Pester file via the Powershell Integrated Console whenever it changes. This has no effect if `autoRunOnSave` is disabled."
+				},
 				"pester.suppressCodeLensNotice": {
 					"type": "boolean",
 					"markdownDescription": "It is recommended to disable the PowerShell Pester CodeLens when using this extension. Check this box to suppress this dialog. Choosing 'No' in the dialog box will also enable this at a user level"
 				},
 				"pester.runTestsInNewProcess": {
 					"type": "boolean",
-					"markdownDescription": "This will cause all Pester Test invocations to occur each time in a new process, rather than reuse a runspace. This is useful if you are testing Powershell Classes or Assemblies that cannot be unloaded or reloaded, but comes at a significant performance cost."
+					"markdownDescription": "This will cause all Pester Test invocations to occur each time in a new process, rather than reuse a runspace. This is useful if you are testing Powershell Classes or Assemblies that cannot be unloaded or reloaded, but comes at a significant performance cost. This currently has no effect on debugging tests."
 				}
 			}
 		},
