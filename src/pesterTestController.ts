@@ -243,7 +243,7 @@ export class PesterTestController implements Disposable {
 		)
 		this.resolveQueue.length = 0
 		return result
-	}, 100)
+	}, 300)
 
 	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
 	private async testHandler(request: TestRunRequest) {
