@@ -1,10 +1,8 @@
-import { createStream } from 'byline'
-import { PassThrough, pipeline, Writable } from 'stream'
+import ReadlineTransform from 'readline-transform'
+import { PassThrough, Readable, Transform, Writable } from 'stream'
+import { pipeline as pipelineAsPromise } from 'stream/promises'
 import { ILogObject, Logger, TTransportLogger } from 'tslog'
-import { promisify } from 'util'
 import { OutputChannel, window } from 'vscode'
-
-const pipelineAsPromise = promisify(pipeline)
 
 /**
  * Writes TSLog Pretty Print messages to the supplied stream
@@ -27,9 +25,11 @@ class PrettyPrintTransport
 			dateTimePattern: 'hour:minute:second.millisecond'
 		})
 
-		pipelineAsPromise(
+		// Workaround for https://github.com/nodejs/node/issues/40191
+		// FIXME: When VScode is based on NodeJS 16.14+
+		pipelineAsPromise<Readable, Transform, Writable>(
 			this.prettyLogInput,
-			createStream(), //Breaks the stream into new lines
+			new ReadlineTransform(),
 			outStream
 		).catch(err => {
 			throw new Error(err)

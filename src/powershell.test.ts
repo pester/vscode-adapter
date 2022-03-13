@@ -1,10 +1,9 @@
 import { execSync } from 'child_process'
-import { finished, pipeline, Readable } from 'stream'
-import { promisify } from 'util'
+import ReadlineTransform from 'readline-transform'
+import { Readable } from 'stream'
+import { pipeline } from 'stream/promises'
 import { createJsonParseTransform, PowerShell, PSOutput } from './powershell'
 
-const pipelineWithPromise = promisify(pipeline)
-const isFinished = promisify(finished)
 // jest.setTimeout(30000)
 
 describe('jsonParseTransform', () => {
@@ -15,28 +14,32 @@ describe('jsonParseTransform', () => {
 	it('object', async () => {
 		const source = Readable.from(['{"Test": 5}'])
 		const jsonPipe = createJsonParseTransform()
-		await pipelineWithPromise(source, jsonPipe)
+		await pipeline(source, jsonPipe)
 		const result = jsonPipe.read()
 		expect(result).toStrictEqual<TestObject>({ Test: 5 })
 	})
 
 	it('empty', async () => {
-		const source = Readable.from([''])
+		const source = Readable.from(['']).pipe(
+			new ReadlineTransform({ skipEmpty: false })
+		)
 		const jsonPipe = createJsonParseTransform()
 
 		try {
-			await pipelineWithPromise(source, jsonPipe)
+			await pipeline(source, jsonPipe)
 		} catch (err) {
 			expect(err.message).toMatch('Unexpected end')
 		}
 	})
 
 	it('syntaxError', async () => {
-		const source = Readable.from(['"Test":5}'])
+		const source = Readable.from(['"Test":5}']).pipe(
+			new ReadlineTransform({ skipEmpty: false })
+		)
 		const jsonPipe = createJsonParseTransform()
 
 		try {
-			await pipelineWithPromise(source, jsonPipe)
+			await pipeline(source, jsonPipe)
 		} catch (err) {
 			expect(err.message).toMatch('Unexpected token')
 		}
@@ -50,6 +53,11 @@ describe('run', () => {
 	})
 	afterEach(() => {
 		ps.dispose()
+	})
+	it('finished', async () => {
+		const streams = new PSOutput()
+		await ps.run(`'JEST'`, streams)
+		// This test times out if it doesn't execute successfully
 	})
 	it('success', done => {
 		const streams = new PSOutput()
@@ -91,7 +99,9 @@ describe('run', () => {
 		streams.error.on('data', data => {
 			expect(data).toBe('oops!')
 		})
+
 		await ps.run(`1..32 | Write-Host;Write-Error 'oops!';'JEST';1..2`, streams)
+		console.log('done')
 	})
 })
 
@@ -129,7 +139,10 @@ describe('exec', () => {
 	/** If cancelExisting is used, ensure the first is closed quickly */
 	it('CancelExisting', async () => {
 		const result = ps.exec(`'Item';sleep 5;'ThisItemShouldNotEmit'`, true)
-		await new Promise(r => setTimeout(r, 500))
+		//FIXME: This is a race condition on slower machines that makes this test fail intermittently
+		// If Item hasn't been emitted yet from the pipeline
+		// This should instead watch for Item and then cancel existing once received
+		await new Promise(r => setTimeout(r, 600))
 		const result2 = ps.exec(`'Item'`, true)
 		const awaitedResult = await result
 		const awaitedResult2 = await result2

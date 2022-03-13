@@ -1,42 +1,9 @@
-import { createStream } from 'byline'
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process'
 import { lookpath } from 'lookpath'
 import { resolve } from 'path'
-import { finished, pipeline, Readable, Transform, Writable } from 'stream'
-import { promisify } from 'util'
-
-// TODO: Use native promise API in NodeJS 16.x when it becomes avalable in vscode
-const pipelineWithPromise = promisify(pipeline)
-const isFinished = promisify(finished)
-
-/** Takes JSON string from the input stream and generates objects */
-export function createJsonParseTransform() {
-	return new Transform({
-		objectMode: true,
-		write(chunk: string, encoding: string, done) {
-			const obj = JSON.parse(chunk)
-			this.push(obj)
-			done()
-		}
-	})
-}
-
-/** Awaits the special finshed message object and ends the provided stream, which will gracefully end the pipeline after all
- * objects are processed */
-export function watchForScriptFinishedMessage(streamToEnd: Writable) {
-	return new Transform({
-		objectMode: true,
-		write(chunk: any, encoding: string, done) {
-			// If special message
-			if (chunk.__PSINVOCATIONID && chunk.finished === true) {
-				streamToEnd.end()
-			} else {
-				this.push(chunk)
-			}
-			done()
-		}
-	})
-}
+import { Readable, Transform, Writable } from 'stream'
+import { pipeline, finished } from 'stream/promises'
+import ReadlineTransform from 'readline-transform'
 
 /** Streams for PowerShell Output: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_output_streams?view=powershell-7.1
  *
@@ -91,6 +58,41 @@ export class PSOutputUnified implements IPSOutput {
 	read<T>() {
 		return this.success.read() as T
 	}
+}
+
+/** Takes JSON string from the input stream and generates objects. Is exported for testing purposes */
+export function createJsonParseTransform() {
+	return new Transform({
+		objectMode: true,
+		transform(chunk: string, encoding: string, done) {
+			const obj = JSON.parse(chunk)
+			this.push(obj)
+			done()
+		}
+	})
+}
+
+/** Awaits the special finshed message object and ends the provided stream, which will gracefully end the upstream pipeline after all
+ * objects are processed.
+ * We have to gracefully end the upstream pipeline so as not to generate errors. If we do this.end() it wont
+ * work because the upstream pipe is still open. If we do this.destroy() it wont work without handling an error
+ * And the pipeline promise will not resolve.
+ * More: https://nodejs.org/es/docs/guides/backpressuring-in-streams/#lifecycle-of-pipe
+ * */
+function createWatchForScriptFinishedMessageTransform(streamToEnd: Writable) {
+	return new Transform({
+		objectMode: true,
+		transform(chunk: any, encoding: string, done) {
+			// If special message from PowerShell Invocation Script
+			// TODO: Handle this as a class?
+			if (chunk.__PSINVOCATIONID && chunk.finished === true) {
+				streamToEnd.end()
+			} else {
+				this.push(chunk)
+			}
+			done()
+		}
+	})
 }
 
 /** takes a unified stream of PS Objects and splits them into their appropriate streams */
@@ -148,7 +150,7 @@ export function createSplitPSOutputStream(streams: IPSOutput) {
  * such as pwsh-preview or a pwsh executable not located in the PATH
  */
 export class PowerShell {
-	private psProcess: ChildProcessWithoutNullStreams | undefined
+	psProcess: ChildProcessWithoutNullStreams | undefined
 	private currentInvocation: Promise<any> | undefined
 	private resolvedExePath: string | undefined
 	constructor(public exePath?: string) {}
@@ -175,7 +177,7 @@ export class PowerShell {
 				'-'
 			])
 			// Warn if we have more than one listener set on a process
-			this.psProcess.stdout.setMaxListeners(2)
+			this.psProcess.stdout.setMaxListeners(1)
 			this.psProcess.stderr.setMaxListeners(1)
 
 			if (!this.psProcess.pid) {
@@ -193,6 +195,9 @@ export class PowerShell {
 	 * the returned Promise will complete when the script has finished running
 	 * @param inputStream
 	 * Specify a Readable (such as a named pipe stream) that supplies single-line JSON objects from a PowerShell execution.
+	 * If not specified, it will read stdout from a new powershell process.
+	 * @param script
+	 * The PowerShell script to run
 	 * If script is null then it will simply listen and process objects incoming on the stream until it closes
 	 */
 	async run(
@@ -218,15 +223,17 @@ export class PowerShell {
 		if (this.psProcess === undefined) {
 			throw new Error('PowerShell initialization failed')
 		}
+		// If an input stream wasn't specified, use stdout by default. This will be the most common path.
+		inputStream ??= this.psProcess.stdout
 
-		const jsonResultStream = createStream(inputStream ?? this.psProcess.stdout)
+		// FIXME: There should only be one end listener from the readlineTransform pipe, currently there are two, why?
+		inputStream.setMaxListeners(2)
 
 		// Wire up a listener for terminating errors that will reject a promise we will race with the normal operation
 		// TODO: RemoveAllListeners should be more specific
 		this.psProcess.stderr.removeAllListeners()
-
 		const errorWasEmitted = new Promise((_, reject) => {
-			const errorStream = createStream(this.psProcess!.stderr)
+			// Read error output one line at a time
 			function handleError(jsonSerializedError: string) {
 				reject({
 					error: new Error(
@@ -237,16 +244,31 @@ export class PowerShell {
 			}
 
 			if (this.psProcess !== undefined) {
+				const errorStream = this.psProcess.stderr.pipe(
+					new ReadlineTransform({ skipEmpty: false })
+				)
 				errorStream.once('data', handleError)
 			}
 		})
 
-		const pipelineCompleted = pipelineWithPromise([
-			jsonResultStream,
+		// We dont want inputStream to be part of our promise pipeline because we want it to stay open to be resused
+		// And the promise won't resolve if it stays open and is part of the pipeline
+		const readlineTransform = inputStream.pipe(
+			new ReadlineTransform({ skipEmpty: false })
+		)
+
+		// Workaround for https://github.com/nodejs/node/issues/40191
+		const pipelineCompleted = pipeline<
+			ReadlineTransform,
+			Transform,
+			Transform,
+			Writable
+		>(
+			readlineTransform,
 			createJsonParseTransform(),
-			watchForScriptFinishedMessage(jsonResultStream),
+			createWatchForScriptFinishedMessageTransform(readlineTransform),
 			createSplitPSOutputStream(psOutput)
-		])
+		)
 
 		const runnerScriptPath = resolve(
 			__dirname,
@@ -254,6 +276,13 @@ export class PowerShell {
 			'Scripts',
 			'powershellRunner.ps1'
 		)
+		// Start the script, the output will be processed by the above events
+		if (script) {
+			const fullScript = `${runnerScriptPath} {${script}}\n`
+			this.psProcess.stdin.write(fullScript)
+		}
+
+		// Either the script completes or a terminating error occured
 		this.currentInvocation = Promise.race([
 			pipelineCompleted,
 			errorWasEmitted
@@ -262,11 +291,7 @@ export class PowerShell {
 			this.currentInvocation = undefined
 		})
 
-		if (!inputStream) {
-			const fullScript = `${runnerScriptPath} {${script}}\n`
-			this.psProcess.stdin.write(fullScript)
-		}
-
+		// Indicate the result is complete
 		return this.currentInvocation
 	}
 
@@ -274,7 +299,7 @@ export class PowerShell {
 	async exec(script: string, cancelExisting?: boolean) {
 		const psOutput = new PSOutputUnified()
 		await this.run(script, psOutput, undefined, cancelExisting)
-		await isFinished(psOutput.success)
+		await finished(psOutput.success)
 		const result: Record<string, unknown>[] = []
 		for (;;) {
 			const output = psOutput.success.read() as Record<string, unknown>

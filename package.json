@@ -8,7 +8,7 @@
 	"preview": true,
 	"repository": "https://github.com/pester/vscode-adapter",
 	"engines": {
-		"vscode": "^1.60.0"
+		"vscode": "^1.66.0"
 	},
 	"contributes": {
 		"configuration": {
@@ -100,11 +100,11 @@
 		"vscode:prepublish": "npm run -S esbuild-base -- --minify"
 	},
 	"devDependencies": {
-		"@types/byline": "^4.2.33",
 		"@types/debounce-promise": "^3.1.4",
 		"@types/glob": "^7.2.0",
 		"@types/jest": "^27.4.0",
 		"@types/node": "^16.11.26",
+		"@types/readline-transform": "^1.0.1",
 		"@typescript-eslint/eslint-plugin": "^5.14.0",
 		"@typescript-eslint/parser": "^5.14.0",
 		"@vscode/test-electron": "^2.1.3",
@@ -124,8 +124,6 @@
 		"vscode-dts": "^0.3.3"
 	},
 	"dependencies": {
-		"@types/readline-transform": "^1.0.1",
-		"byline": "^5.0.0",
 		"debounce-promise": "^3.1.2",
 		"lookpath": "^1.2.2",
 		"path": "^0.12.7",
