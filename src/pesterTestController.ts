@@ -477,10 +477,19 @@ export class PesterTestController implements Disposable {
             .getConfiguration('pester')
             .get<string>('pesterModulePath')
 
-        if (pesterModulePath) {
+        if (pesterModulePath && workspace.workspaceFolders) {
+            // TODO: Hard-coded to first workspace folder for now,
+            //       but should look through all workspace folders
+            //       for a working path to Pester module
+            const workspaceFolder = workspace.workspaceFolders[0]
+            const workspaceFolderPath = workspaceFolder.uri.fsPath
+            const pesterModulePathInWorkspace = join(workspaceFolderPath, pesterModulePath)
+
             scriptArgs.push('-PesterModulePath')
-            scriptArgs.push(`"${pesterModulePath}"`)
+            // Quotes are required if the test path has spaces
+            scriptArgs.push(`'${pesterModulePathInWorkspace}'`)
         }
+
 
 		// If PSIC is running, we will connect the PowershellExtensionClient to be able to fetch info about it
 		const psicLoaded = window.terminals.find(
