@@ -33,8 +33,11 @@ Answer _yes_  on all questions.
 Build using:
 
 ```bash
-npm run build
+npm run build vX.X.X
 ```
+
+Replace X.X.X with the version number of the extension. Can be any version number for testing to install and
+use the extension in VS Code.
 
 ## Running Tests
 
