@@ -45,6 +45,10 @@
 				"pester.runTestsInNewProcess": {
 					"type": "boolean",
 					"markdownDescription": "This will cause all Pester Test invocations to occur each time in a new process, rather than reuse a runspace. This is useful if you are testing Powershell Classes or Assemblies that cannot be unloaded or reloaded, but comes at a significant performance cost. This currently has no effect on debugging tests."
+				},
+				"pester.pesterModulePath": {
+					"type": "string",
+					"markdownDescription": "This allows to specify a custom path to the Pester module. A relative path is allowed. If this is not set then Pester module is expected to be found in one of the paths specified by $env:PSModulePath. **NOTE:** This is not currently supported for debugging tests."
 				}
 			}
 		},

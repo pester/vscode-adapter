@@ -473,6 +473,15 @@ export class PesterTestController implements Disposable {
 			await this.powerShellExtensionClient.GetVersionDetails()
 		}
 
+        const pesterModulePath = workspace
+            .getConfiguration('pester')
+            .get<string>('pesterModulePath')
+
+        if (pesterModulePath) {
+            scriptArgs.push('-PesterModulePath')
+            scriptArgs.push(`"${pesterModulePath}"`)
+        }
+
 		// If PSIC is running, we will connect the PowershellExtensionClient to be able to fetch info about it
 		const psicLoaded = window.terminals.find(
 			t => t.name === 'PowerShell Integrated Console'

@@ -17,7 +17,9 @@ param(
 	#The verbosity to pass to the system
 	[String]$Verbosity,
 	#If specified, the shim will write to a temporary file at Pipename path and this script will output what would have been written to the stream. Useful for testing.
-	[Switch]$DryRun
+	[Switch]$DryRun,
+	#An optional custom path to the Pester module.
+	[String]$PesterModulePath
 )
 
 $VerbosePreference = 'SilentlyContinue'
@@ -456,6 +458,19 @@ Warning: This only works once, not designed for repeated plugin injection
 
 #Main Function
 function Invoke-Main {
+    <#
+        If no custom module path is provided the Pester module in $env:PSModulePath will be used.
+        It will be imported automatically when New-PesterConfiguration is used below, if it is
+        not already in the session.
+    #>
+    if ($PesterModulePath -and -not (Get-Module -Name 'Pester')) {
+        if (-not (Test-Path -Path $PesterModulePath)) {
+            throw "Pester module not found at $PesterModulePath"
+        }
+
+        Import-Module -Name $PesterModulePath
+    }
+
 	# These should be unique which is why we use a hashset
 	$paths = [HashSet[string]]::new()
 	$lines = [HashSet[string]]::new()
