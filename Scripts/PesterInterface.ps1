@@ -1,4 +1,3 @@
-#Requires -version 5.1 -Modules @{ ModuleName="Pester";ModuleVersion="5.2.0" }
 using namespace System.Collections
 using namespace System.Collections.Generic
 using namespace Pester
@@ -441,7 +440,7 @@ A dirty hack that parasitically infects another plugin function and generates th
 .NOTES
 Warning: This only works once, not designed for repeated plugin injection
 #>
-	$Pester = Import-Module Pester -PassThru
+	$Pester = Get-Module Pester
 	& $Pester {
 		param($SCRIPT:PluginConfiguration)
 		if ($SCRIPT:ShimmedPlugin) { return }
@@ -458,17 +457,26 @@ Warning: This only works once, not designed for repeated plugin injection
 
 #Main Function
 function Invoke-Main {
-    <#
-        If no custom module path is provided the Pester module in $env:PSModulePath will be used.
-        It will be imported automatically when New-PesterConfiguration is used below, if it is
-        not already in the session.
-    #>
-    if ($PesterModulePath -and -not (Get-Module -Name 'Pester')) {
-        if (-not (Test-Path -Path $PesterModulePath)) {
-            throw "Pester module not found at $PesterModulePath"
-        }
+    $pesterModule = Get-Module -Name 'Pester'
+    if (-not $pesterModule)
+    {
+        # If no custom module path is provided the Pester module in $env:PSModulePath will be used.
+        if ($PesterModulePath) {
+            if (-not (Test-Path -Path $PesterModulePath)) {
+                throw "Pester module was not found at path '$PesterModulePath'."
+            }
+    
+            $pesterModuleToImport = $PesterModulePath
+        } else {
+            $pesterModuleToImport = 'Pester'
+        }   
 
-        Import-Module -Name $PesterModulePath
+        $pesterModule = Import-Module -Name $pesterModuleToImport -PassThru
+    }
+
+    if ($pesterModule.Version -lt '5.2.0')
+    {
+        throw 'Pester Test Adapter requires Pester version 5.2.0 or higher.'
     }
 
 	# These should be unique which is why we use a hashset
@@ -505,8 +513,8 @@ function Invoke-Main {
 	Add-PesterPluginShim $MyPlugin
 	$PesterResult = Invoke-Pester -Configuration $config
 
-	#Reset the Pester module to remove the plugin shim
-	Import-Module Pester -Force
+	#Reset the Pester module to remove the plugin shim. Use the path from the module in the session to force reload the correct one.
+	Import-Module -Name (Split-Path -Parent -Path (Get-Module -Name Pester).ModuleBase) -Force
 }
 
 #Run Main function
