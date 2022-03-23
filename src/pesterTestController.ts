@@ -1,4 +1,4 @@
-import { join } from 'path'
+import { join, isAbsolute } from 'path'
 import {
 	debug as vscodeDebug,
 	DebugSession,
@@ -473,23 +473,32 @@ export class PesterTestController implements Disposable {
 			await this.powerShellExtensionClient.GetVersionDetails()
 		}
 
-        const pesterModulePath = workspace
-            .getConfiguration('pester')
-            .get<string>('pesterModulePath')
+		let pesterModulePath = workspace
+			.getConfiguration('pester')
+			.get<string>('pesterModulePath')
 
-        if (pesterModulePath && workspace.workspaceFolders) {
-            // TODO: Hard-coded to first workspace folder for now,
-            //       but should look through all workspace folders
-            //       for a working path to Pester module
-            const workspaceFolder = workspace.workspaceFolders[0]
-            const workspaceFolderPath = workspaceFolder.uri.fsPath
-            const pesterModulePathInWorkspace = join(workspaceFolderPath, pesterModulePath)
+		if (pesterModulePath) {
+			log.debug('A custom Pester module path was specified:', pesterModulePath)
 
-            scriptArgs.push('-PesterModulePath')
-            // Quotes are required if the test path has spaces
-            scriptArgs.push(`'${pesterModulePathInWorkspace}'`)
-        }
+			if (!isAbsolute(pesterModulePath)) {
+				if (workspace.workspaceFolders) {
+					// TODO: Hard-coded to first workspace folder for now,
+					//       but should look through all workspace folders
+					//       for a working path to Pester module
+					const workspaceFolder = workspace.workspaceFolders[0]
+					const workspaceFolderPath = workspaceFolder.uri.fsPath
+					pesterModulePath = join(workspaceFolderPath, pesterModulePath)
+				} else {
+					log.debug(
+						'There are no open folders (projects) in the workspace, cannot resolve absolute path to Pester module.'
+					)
+				}
+			}
 
+			scriptArgs.push('-PesterModulePath')
+			// Quotes are required if the test path has spaces
+			scriptArgs.push(`'${pesterModulePath}'`)
+		}
 
 		// If PSIC is running, we will connect the PowershellExtensionClient to be able to fetch info about it
 		const psicLoaded = window.terminals.find(
