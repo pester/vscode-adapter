@@ -1,4 +1,5 @@
 import { join, isAbsolute } from 'path'
+import { existsSync } from 'fs'
 import {
 	debug as vscodeDebug,
 	DebugSession,
@@ -481,13 +482,30 @@ export class PesterTestController implements Disposable {
 			log.debug('A custom Pester module path was specified:', pesterModulePath)
 
 			if (!isAbsolute(pesterModulePath)) {
+				// The path is a relative path that need to be resolved to absolute path
 				if (workspace.workspaceFolders) {
-					// TODO: Hard-coded to first workspace folder for now,
-					//       but should look through all workspace folders
-					//       for a working path to Pester module
-					const workspaceFolder = workspace.workspaceFolders[0]
-					const workspaceFolderPath = workspaceFolder.uri.fsPath
-					pesterModulePath = join(workspaceFolderPath, pesterModulePath)
+					let workspaceFolderPath
+
+					// Will use the first path that exist in any of the folders in a workspace
+					for (const workspaceFolder of workspace.workspaceFolders) {
+						const workspacePesterModulePath = join(
+							workspaceFolder.uri.fsPath,
+							pesterModulePath
+						)
+
+						if (existsSync(workspacePesterModulePath)) {
+							workspaceFolderPath = workspacePesterModulePath
+							break
+						}
+					}
+
+					if (workspaceFolderPath) {
+						pesterModulePath = workspaceFolderPath
+					} else {
+						throw new Error(
+							`The custom Pester module path '${pesterModulePath}' cannot be resolved to absolute path because the path cannot be found in the workspace`
+						)
+					}
 				} else {
 					log.debug(
 						'There are no open folders (projects) in the workspace, cannot resolve absolute path to Pester module.'
