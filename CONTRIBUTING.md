@@ -7,6 +7,9 @@ submit a pull request, all without ever having to clone the repository locally.
 
 TODO: "Peek with VSCode Remote Repositories" button
 
+# Running Tests
+This project uses the Jest test framework with the esbuild-jest plugin to quickly compile the typescript for testing.
+
 # Development
 
 The extension is broken into the following abstraction layers:
@@ -17,32 +20,3 @@ The extension is broken into the following abstraction layers:
    the Pester hierarchy (File/Describe/Context/It) though additional hierarchies (Group by Tag/Function/etc) are planned
 1. **PesterTestRunner** - Contains methods for running pester tests, used by Pester Test Controller
 1. **PowerShellRunner** - Contains methods for running powershell scripts, used by PesterTestRunner
-
-## Resolve dependencies
-
-Resolve dependencies with:
-
-```bash
-npm run install
-```
-
-Answer _yes_  on all questions.
-
-## Build project
-
-Build using:
-
-```bash
-npm run build vX.X.X
-```
-
-Replace X.X.X with the version number of the extension. Can be any version number for testing to install and
-use the extension in VS Code.
-
-## Running Tests
-
-This project uses the Jest test framework with the esbuild-jest plugin to quickly compile the typescript for testing.
-
-```bash
-npm run tests
-```
