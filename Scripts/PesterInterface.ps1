@@ -457,27 +457,8 @@ Warning: This only works once, not designed for repeated plugin injection
 
 #Main Function
 function Invoke-Main {
-    $pesterModule = Get-Module -Name 'Pester'
-    if (-not $pesterModule)
-    {
-        # If no custom module path is provided the Pester module in $env:PSModulePath will be used.
-        if ($PesterModulePath) {
-            if (-not (Test-Path -Path $PesterModulePath)) {
-                throw "Pester module was not found at path '$PesterModulePath'."
-            }
-    
-            $pesterModuleToImport = $PesterModulePath
-        } else {
-            $pesterModuleToImport = 'Pester'
-        }   
-
-        $pesterModule = Import-Module -Name $pesterModuleToImport -PassThru
-    }
-
-    if ($pesterModule.Version -lt '5.2.0')
-    {
-        throw 'Pester Test Adapter requires Pester version 5.2.0 or higher.'
-    }
+	$modulePath = if ($PesterModulePath) { Resolve-Path $PesterModulePath } else { 'Pester' }
+	$pesterModule = Import-Module -MinimumVersion '5.2.0' -Name $modulePath -ErrorAction Stop -PassThru
 
 	# These should be unique which is why we use a hashset
 	$paths = [HashSet[string]]::new()
@@ -514,7 +495,7 @@ function Invoke-Main {
 	$PesterResult = Invoke-Pester -Configuration $config
 
 	#Reset the Pester module to remove the plugin shim. Use the path from the module in the session to force reload the correct one.
-	Import-Module -Name (Split-Path -Parent -Path (Get-Module -Name Pester).ModuleBase) -Force
+	Import-Module $pesterModule -Force -ErrorAction Stop
 }
 
 #Run Main function
