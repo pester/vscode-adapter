@@ -48,7 +48,7 @@
 				},
 				"pester.pesterModulePath": {
 					"type": "string",
-					"markdownDescription": "This allows to specify a custom path to the Pester module. A relative path under the current project is allowed. If this is not set then Pester module is expected to be found in one of the paths specified by `$env:PSModulePath`. **NOTE:** This is not currently supported for debugging tests."
+					"markdownDescription": "This allows to specify a custom path to the Pester module. A relative path under the current project is allowed. If this is not set then Pester module is expected to be found in one of the paths specified by `$env:PSModulePath`."
 				}
 			}
 		},
