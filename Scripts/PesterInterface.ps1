@@ -1,4 +1,3 @@
-#Requires -version 5.1 -Modules @{ ModuleName="Pester";ModuleVersion="5.2.0" }
 using namespace System.Collections
 using namespace System.Collections.Generic
 using namespace Pester
@@ -17,7 +16,9 @@ param(
 	#The verbosity to pass to the system
 	[String]$Verbosity,
 	#If specified, the shim will write to a temporary file at Pipename path and this script will output what would have been written to the stream. Useful for testing.
-	[Switch]$DryRun
+	[Switch]$DryRun,
+	#An optional custom path to the Pester module.
+	[String]$PesterModulePath
 )
 
 $VerbosePreference = 'SilentlyContinue'
@@ -439,7 +440,7 @@ A dirty hack that parasitically infects another plugin function and generates th
 .NOTES
 Warning: This only works once, not designed for repeated plugin injection
 #>
-	$Pester = Import-Module Pester -PassThru
+	$Pester = Get-Module Pester
 	& $Pester {
 		param($SCRIPT:PluginConfiguration)
 		if ($SCRIPT:ShimmedPlugin) { return }
@@ -456,6 +457,9 @@ Warning: This only works once, not designed for repeated plugin injection
 
 #Main Function
 function Invoke-Main {
+	$modulePath = if ($PesterModulePath) { Resolve-Path $PesterModulePath } else { 'Pester' }
+	$pesterModule = Import-Module -MinimumVersion '5.2.0' -Name $modulePath -ErrorAction Stop -PassThru
+
 	# These should be unique which is why we use a hashset
 	$paths = [HashSet[string]]::new()
 	$lines = [HashSet[string]]::new()
@@ -490,8 +494,8 @@ function Invoke-Main {
 	Add-PesterPluginShim $MyPlugin
 	$PesterResult = Invoke-Pester -Configuration $config
 
-	#Reset the Pester module to remove the plugin shim
-	Import-Module Pester -Force
+	#Reset the Pester module to remove the plugin shim. Use the path from the module in the session to force reload the correct one.
+	Import-Module $pesterModule -Force -ErrorAction Stop
 }
 
 #Run Main function

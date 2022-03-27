@@ -1,4 +1,5 @@
-import { join } from 'path'
+import { join, isAbsolute } from 'path'
+import { existsSync } from 'fs'
 import {
 	debug as vscodeDebug,
 	DebugSession,
@@ -471,6 +472,50 @@ export class PesterTestController implements Disposable {
 
 			// HACK: Calling this function indirectly starts/waits for PSIC to be available
 			await this.powerShellExtensionClient.GetVersionDetails()
+		}
+
+		let pesterModulePath = workspace
+			.getConfiguration('pester')
+			.get<string>('pesterModulePath')
+
+		if (pesterModulePath) {
+			log.debug('A custom Pester module path was specified:', pesterModulePath)
+
+			if (!isAbsolute(pesterModulePath)) {
+				// The path is a relative path that need to be resolved to absolute path
+				if (workspace.workspaceFolders) {
+					let workspaceFolderPath
+
+					// Will use the first path that exist in any of the folders in a workspace
+					for (const workspaceFolder of workspace.workspaceFolders) {
+						const workspacePesterModulePath = join(
+							workspaceFolder.uri.fsPath,
+							pesterModulePath
+						)
+
+						if (existsSync(workspacePesterModulePath)) {
+							workspaceFolderPath = workspacePesterModulePath
+							break
+						}
+					}
+
+					if (workspaceFolderPath) {
+						pesterModulePath = workspaceFolderPath
+					} else {
+						throw new Error(
+							`The custom Pester module path '${pesterModulePath}' cannot be resolved to absolute path because the path cannot be found in the workspace`
+						)
+					}
+				} else {
+					log.debug(
+						'There are no open folders (projects) in the workspace, cannot resolve absolute path to Pester module.'
+					)
+				}
+			}
+
+			scriptArgs.push('-PesterModulePath')
+			// Quotes are required if the test path has spaces
+			scriptArgs.push(`'${pesterModulePath}'`)
 		}
 
 		// If PSIC is running, we will connect the PowershellExtensionClient to be able to fetch info about it
