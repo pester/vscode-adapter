@@ -553,6 +553,8 @@ export class PesterTestController implements Disposable {
 				.getConfiguration('pester')
 				.get<boolean>('runTestsInNewProcess')
 			await this.ps.run(script, psOutput, undefined, true, useNewProcess)
+		}
+	}
 	// Fetches the current working directory that Pester should use.
 	getPesterWorkingDirectory() {
 		const customCwd = workspace
@@ -598,16 +600,6 @@ export class PesterTestController implements Disposable {
 		const resolvedPath = join(workspace.workspaceFolders[0].uri.fsPath, path)
 		log.debug(`Resolved Pester CustomModulePath ${path} to ${resolvedPath}`)
 		return resolvedPath
-	}
-
-	// Fetches the current working directory that Pester should use.
-	getPesterWorkingDirectory() {
-		const customCwd = workspace
-			.getConfiguration('pester')
-			.get<string>('workingDirectory')
-		if (customCwd) {
-			return customCwd
-		}
 	}
 
 	/** Returns a list of relative patterns based on user configuration for matching Pester files in the workspace */
