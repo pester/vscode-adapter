@@ -42,7 +42,6 @@ import {
 import { findTestItem, forAll, getParents, getTestItems } from './testItemUtils'
 import debounce = require('debounce-promise')
 import { initialize as statusBarInitialize } from './features/toggleAutoRunOnSaveCommand'
-import { run } from 'jest-cli'
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
  */
@@ -459,10 +458,14 @@ export class PesterTestController implements Disposable {
 			scriptArgs.push(verbosity)
 		}
 
-		if (usePSIC) {
-			scriptArgs.push('-PipeName')
-			scriptArgs.push(this.returnServer.name)
+		const pesterCustomModulePath = this.getPesterCustomModulePath()
+		if (pesterCustomModulePath !== undefined) {
+			scriptArgs.push('-CustomModulePath')
+			scriptArgs.push(pesterCustomModulePath)
+		}
 
+		// Initialize the PSIC if we are using it
+		if (usePSIC) {
 			if (this.powerShellExtensionClient === undefined) {
 				this.powerShellExtensionClient = await PowerShellExtensionClient.create(
 					this.context,
@@ -472,50 +475,6 @@ export class PesterTestController implements Disposable {
 
 			// HACK: Calling this function indirectly starts/waits for PSIC to be available
 			await this.powerShellExtensionClient.GetVersionDetails()
-		}
-
-		let pesterModulePath = workspace
-			.getConfiguration('pester')
-			.get<string>('pesterModulePath')
-
-		if (pesterModulePath) {
-			log.debug('A custom Pester module path was specified:', pesterModulePath)
-
-			if (!isAbsolute(pesterModulePath)) {
-				// The path is a relative path that need to be resolved to absolute path
-				if (workspace.workspaceFolders) {
-					let workspaceFolderPath
-
-					// Will use the first path that exist in any of the folders in a workspace
-					for (const workspaceFolder of workspace.workspaceFolders) {
-						const workspacePesterModulePath = join(
-							workspaceFolder.uri.fsPath,
-							pesterModulePath
-						)
-
-						if (existsSync(workspacePesterModulePath)) {
-							workspaceFolderPath = workspacePesterModulePath
-							break
-						}
-					}
-
-					if (workspaceFolderPath) {
-						pesterModulePath = workspaceFolderPath
-					} else {
-						throw new Error(
-							`The custom Pester module path '${pesterModulePath}' cannot be resolved to absolute path because the path cannot be found in the workspace`
-						)
-					}
-				} else {
-					log.debug(
-						'There are no open folders (projects) in the workspace, cannot resolve absolute path to Pester module.'
-					)
-				}
-			}
-
-			scriptArgs.push('-PesterModulePath')
-			// Quotes are required if the test path has spaces
-			scriptArgs.push(`'${pesterModulePath}'`)
 		}
 
 		// If PSIC is running, we will connect the PowershellExtensionClient to be able to fetch info about it
@@ -562,6 +521,8 @@ export class PesterTestController implements Disposable {
 				}
 			}
 
+			scriptArgs.push('-PipeName')
+			scriptArgs.push(this.returnServer.name)
 			await this.powerShellExtensionClient!.RunCommand(
 				scriptPath,
 				scriptArgs,
@@ -580,6 +541,43 @@ export class PesterTestController implements Disposable {
 				.getConfiguration('pester')
 				.get<boolean>('runTestsInNewProcess')
 			await this.ps.run(script, psOutput, undefined, true, useNewProcess)
+		}
+	}
+
+	/** Fetches the current pester module path if a custom path was defined, otherwise returns undefined */
+	getPesterCustomModulePath() {
+		const path = workspace
+			.getConfiguration('pester')
+			.get<string>('pesterModulePath')
+
+		if (path === undefined) {
+			return path
+		}
+
+		log.info(`Using Custom Pester Module Path specified in settings: ${path}`)
+
+		if (isAbsolute(path)) {
+			return path
+		}
+		// If we make it this far, it's a relative path and we need to resolve that.
+		if (workspace.workspaceFolders === undefined) {
+			throw new Error(
+				`A relative Pester custom module path "${path}" was defined, but no workspace folders were found in the current session. You probably set this as a user setting and meant to set it as a workspace setting`
+			)
+		}
+		// TODO: Multi-workspace detection and support
+		const resolvedPath = join(workspace.workspaceFolders[0].uri.fsPath, path)
+		log.debug(`Resolved Pester CustomModulePath ${path} to ${resolvedPath}`)
+		return resolvedPath
+	}
+
+	// Fetches the current working directory that Pester should use.
+	getPesterWorkingDirectory() {
+		const customCwd = workspace
+			.getConfiguration('pester')
+			.get<string>('workingDirectory')
+		if (customCwd) {
+			return customCwd
 		}
 	}
 
