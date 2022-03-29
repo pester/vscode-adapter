@@ -148,12 +148,14 @@ export function createSplitPSOutputStream(streams: IPSOutput) {
 /** Represents an instance of a PowerShell process. By default this will use pwsh if installed, and will fall back to PowerShell on Windows,
  * unless the exepath parameter is specified. Use the exePath parameter to specify specific powershell executables
  * such as pwsh-preview or a pwsh executable not located in the PATH
+ * @param exePath The path to the powershell executable to use. If not specified, the default will be used.
+ * @param cwd The current working directory of the process. All paths will be relative to this. Defaults to the folder where pwsh.exe resides.
  */
 export class PowerShell {
 	psProcess: ChildProcessWithoutNullStreams | undefined
-	private currentInvocation: Promise<any> | undefined
+	private currentInvocation: Promise<void> | undefined
 	private resolvedExePath: string | undefined
-	constructor(public exePath?: string) {}
+	constructor(public exePath?: string, public cwd?: string) {}
 
 	/** lazy-start a pwsh instance. If pwsh is not found but powershell is present, it will silently use that instead. */
 	private async initialize() {
@@ -169,13 +171,11 @@ export class PowerShell {
 					'pwsh not found in your path and you are not on Windows so PowerShell 5.1 is not an option. Did you install PowerShell first?'
 				)
 			}
-			this.psProcess = spawn(this.resolvedExePath, [
-				'-NoProfile',
-				'-NonInteractive',
-				'-NoExit',
-				'-Command',
-				'-'
-			])
+			this.psProcess = spawn(
+				this.resolvedExePath,
+				['-NoProfile', '-NonInteractive', '-NoExit', '-Command', '-'],
+				{ cwd: this.cwd }
+			)
 			// Warn if we have more than one listener set on a process
 			this.psProcess.stdout.setMaxListeners(1)
 			this.psProcess.stderr.setMaxListeners(1)
