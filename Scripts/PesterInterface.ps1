@@ -457,7 +457,7 @@ Warning: This only works once, not designed for repeated plugin injection
 
 #Main Function
 function Invoke-Main {
-	$modulePath = if ($PesterModulePath) { Resolve-Path $PesterModulePath } else { 'Pester' }
+	$modulePath = if ($PesterModulePath) { Resolve-Path $PesterModulePath -ErrorAction Stop } else { 'Pester' }
 	$pesterModule = Import-Module -MinimumVersion '5.2.0' -Name $modulePath -ErrorAction Stop -PassThru
 
 	# These should be unique which is why we use a hashset

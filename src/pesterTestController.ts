@@ -581,8 +581,9 @@ export class PesterTestController implements Disposable {
 			.getConfiguration('pester')
 			.get<string>('pesterModulePath')
 
-		if (path === undefined) {
-			return path
+		// Matches both an empty string and undefined
+		if (!path) {
+			return undefined
 		}
 
 		log.info(`Using Custom Pester Module Path specified in settings: ${path}`)
