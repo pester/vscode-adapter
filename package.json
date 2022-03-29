@@ -49,6 +49,10 @@
 				"pester.pesterModulePath": {
 					"type": "string",
 					"markdownDescription": "This allows to specify a custom path to the Pester module. A relative path under the current project is allowed. If this is not set then Pester module is expected to be found in one of the paths specified by `$env:PSModulePath`."
+				},
+				"pester.workingDirectory": {
+					"type": "string",
+					"markdownDescription": "Specifies the working directory of the dedicated Pester Instance. While $PSScriptRoot is recommended when using relative paths in Pester Tests, the runner will also default to the path of the current first workspace folder. Specify this if you want a different working directory."
 				}
 			}
 		},

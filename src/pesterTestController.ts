@@ -1,5 +1,4 @@
-import { join, isAbsolute } from 'path'
-import { existsSync } from 'fs'
+import { join, isAbsolute, dirname } from 'path'
 import {
 	debug as vscodeDebug,
 	DebugSession,
@@ -494,15 +493,28 @@ export class PesterTestController implements Disposable {
 			? (await this.powerShellExtensionClient!.GetVersionDetails()).exePath
 			: undefined
 
+		const cwd = this.getPesterWorkingDirectory()
+
 		// Restart PS to use the requested version if it is different from the current one
-		if (this.ps === undefined || this.ps.exePath !== exePath) {
-			log.info(`Starting PowerShell testing instance: ${exePath}`)
+		if (
+			this.ps === undefined ||
+			this.ps.exePath !== exePath ||
+			this.ps.cwd !== cwd
+		) {
 			if (this.ps !== undefined) {
 				log.warn(
 					`Detected PowerShell Session change from ${this.ps.exePath} to ${exePath}. Restarting Pester Runner.`
 				)
 			}
-			this.ps = new PowerShell(exePath)
+			const exePathDir = exePath
+				? dirname(exePath)
+				: '*DEFAULT POWERSHELL PATH*'
+			log.debug(
+				`Starting PowerShell Pester testing instance ${exePath} with working directory ${
+					cwd ? cwd : exePathDir
+				}`
+			)
+			this.ps = new PowerShell(exePath, cwd)
 		}
 
 		// Objects from the run will return to the success stream, which we then send to the return handler
@@ -541,7 +553,24 @@ export class PesterTestController implements Disposable {
 				.getConfiguration('pester')
 				.get<boolean>('runTestsInNewProcess')
 			await this.ps.run(script, psOutput, undefined, true, useNewProcess)
+	// Fetches the current working directory that Pester should use.
+	getPesterWorkingDirectory() {
+		const customCwd = workspace
+			.getConfiguration('pester')
+			.get<string>('workingDirectory')
+		if (customCwd) {
+			return customCwd
 		}
+
+		// TODO: Multi-root workspace support, for now this just looks for the first defined workspace
+		if (workspace.workspaceFolders && workspace.workspaceFolders.length > 1) {
+			log.warn(
+				'Multi-root workspace detected. Relative paths in Pester files will only work for the first workspace.'
+			)
+		}
+		return workspace.workspaceFolders
+			? workspace.workspaceFolders[0].uri.fsPath
+			: undefined
 	}
 
 	/** Fetches the current pester module path if a custom path was defined, otherwise returns undefined */
