@@ -540,17 +540,7 @@ export class PesterTestController implements Disposable {
 			const useNewProcess = workspace
 				.getConfiguration('pester')
 				.get<boolean>('runTestsInNewProcess')
-<<<<<<< Updated upstream
 			await this.ps.run(script, psOutput, undefined, true, useNewProcess)
-=======
-			try {
-				await this.ps.run(script, psOutput, undefined, true, useNewProcess)
-			} catch (error) {
-				if (!(error instanceof Error)) {
-					throw new Error('A non-error object was thrown: ' + error)
-				}
-				log.fatal(error)
-			}
 		}
 	}
 
@@ -588,7 +578,6 @@ export class PesterTestController implements Disposable {
 			.get<string>('workingDirectory')
 		if (customCwd) {
 			return customCwd
->>>>>>> Stashed changes
 		}
 	}
 
