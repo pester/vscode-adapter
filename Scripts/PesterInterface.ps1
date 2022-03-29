@@ -18,7 +18,7 @@ param(
 	#If specified, the shim will write to a temporary file at Pipename path and this script will output what would have been written to the stream. Useful for testing.
 	[Switch]$DryRun,
 	#An optional custom path to the Pester module.
-	[String]$PesterModulePath
+	[String]$CustomModulePath
 )
 
 $VerbosePreference = 'SilentlyContinue'
@@ -457,7 +457,7 @@ Warning: This only works once, not designed for repeated plugin injection
 
 #Main Function
 function Invoke-Main {
-	$modulePath = if ($PesterModulePath) { Resolve-Path $PesterModulePath -ErrorAction Stop } else { 'Pester' }
+	$modulePath = if ($CustomModulePath) { Resolve-Path $CustomModulePath -ErrorAction Stop } else { 'Pester' }
 	$pesterModule = Import-Module -MinimumVersion '5.2.0' -Name $modulePath -ErrorAction Stop -PassThru
 
 	# These should be unique which is why we use a hashset
