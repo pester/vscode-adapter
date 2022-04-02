@@ -9,15 +9,6 @@
 
 🚧 THIS EXTENSION IS IN PREVIEW STATE, THERE ARE GOING TO BE BUGS 🚧
 
-# Pester 6 Announcement
-I've received a lot of feedback that this extension is buggy, unstable, and "a steaming garbage fire of a project" which was a direct quote from Joey Aiello. This really pained me as a developer because due to NDA I have been restricted from revealing what is happening behind the scenes, until now:
-
-I am happy to announce the immediate release of the new vscode-adapter that supports Pester 6. This release fixes all known outstanding issues, having been rewritten in F#/Fable, and brings incredible stability to the extension, unfortunately however we needed to drop Pester 5 support to accomodate the new superior architecture.
-
-Freemium Users can enjoy all the experience of the new extension, and to support further development, ad tests appear in the test explorer with names very similar to your existing tests but with extra vendor branding attached, leading you to great additional products that will enhance your testing experience (probably).
-
-Thanks for your continued support and we look forward to yet more developments in **Pester 7 Millienium Edition For Business All Access**
----
 This extension provides the ability to run [Pester](https://pester.dev/) tests utilizing the native
 [Testing functionality](https://code.visualstudio.com/updates/v1_59#_testing-apis) first introduced in Visual Studio Code 1.59
 
