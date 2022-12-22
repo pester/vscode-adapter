@@ -61,6 +61,11 @@
 				"command": "pester.toggleAutoRunOnSave",
 				"title": "Pester: Toggle Auto Run on Save",
 				"category": "PowerShell"
+			},
+			{
+				"command": "pester.stopPowerShell",
+				"title": "Pester: Stop PowerShell background process",
+				"category": "PowerShell"
 			}
 		],
 		"menus": {

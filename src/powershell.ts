@@ -322,18 +322,19 @@ export class PowerShell {
 	}
 
 	/** Kill any existing invocations and reset the state */
-	reset() {
+	reset(): boolean {
+		let result = false
 		if (this.psProcess !== undefined) {
 			// We use SIGKILL to keep the behavior consistent between Windows and Linux (die immediately)
 			this.psProcess.kill('SIGKILL')
+			result = true
 		}
 		// Initialize will reinstate the process upon next call
 		this.psProcess = undefined
+		return result
 	}
 
 	dispose() {
-		if (this.psProcess !== undefined) {
-			this.psProcess.kill()
-		}
+		this.reset()
 	}
 }

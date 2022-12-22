@@ -505,6 +505,7 @@ export class PesterTestController implements Disposable {
 				log.warn(
 					`Detected PowerShell Session change from ${this.ps.exePath} to ${exePath}. Restarting Pester Runner.`
 				)
+				this.ps.reset()
 			}
 			const exePathDir = exePath
 				? dirname(exePath)
@@ -713,6 +714,13 @@ export class PesterTestController implements Disposable {
 		}
 		testItems.forEach(addChildren)
 		return testItems
+	}
+
+	stopPowerShell(): boolean {
+		if (this.ps !== undefined) {
+			return this.ps.reset()
+		}
+		return false
 	}
 
 	dispose() {
