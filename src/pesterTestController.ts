@@ -520,6 +520,9 @@ export class PesterTestController implements Disposable {
 		// Objects from the run will return to the success stream, which we then send to the return handler
 		const psOutput = new PSOutput()
 		psOutput.success.on('data', returnHandler)
+		psOutput.success.on('close', () => {
+			testRun?.end()
+		})
 
 		if (usePSIC) {
 			log.debug('Running Script in PSIC:', scriptPath, scriptArgs)
