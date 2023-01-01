@@ -65,9 +65,24 @@ export async function activate(context: ExtensionContext) {
 			})
 	}
 
+	const controller = new PesterTestController(powershellExtension, context)
+	const stopPowerShellCommand = commands.registerCommand(
+		'pester.stopPowershell',
+		() => {
+			if (controller.stopPowerShell()) {
+				window.showInformationMessage('PowerShell background process stopped.')
+			} else {
+				window.showWarningMessage(
+					'No PowerShell background process was running !'
+				)
+			}
+		}
+	)
+
 	context.subscriptions.push(
-		new PesterTestController(powershellExtension, context),
+		controller,
 		toggleAutoRunOnSaveCommand,
+		stopPowerShellCommand,
 		autoRunStatusBarItem,
 		autoRunStatusBarVisibleEvent,
 		updateAutoRunStatusBarOnConfigChange

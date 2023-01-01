@@ -145,6 +145,11 @@ export function createSplitPSOutputStream(streams: IPSOutput) {
 	})
 }
 
+export const defaultPowershellExePath =
+	process.platform === 'win32'
+		? 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
+		: 'pwsh'
+
 /** Represents an instance of a PowerShell process. By default this will use pwsh if installed, and will fall back to PowerShell on Windows,
  * unless the exepath parameter is specified. Use the exePath parameter to specify specific powershell executables
  * such as pwsh-preview or a pwsh executable not located in the PATH
@@ -165,7 +170,8 @@ export class PowerShell {
 			if (path !== undefined) {
 				this.resolvedExePath = path
 			} else if (process.platform === 'win32') {
-				this.resolvedExePath = 'powershell'
+				this.resolvedExePath =
+					'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
 			} else {
 				throw new Error(
 					'pwsh not found in your path and you are not on Windows so PowerShell 5.1 is not an option. Did you install PowerShell first?'
@@ -299,7 +305,10 @@ export class PowerShell {
 	async exec(script: string, cancelExisting?: boolean) {
 		const psOutput = new PSOutputUnified()
 		await this.run(script, psOutput, undefined, cancelExisting)
-		await finished(psOutput.success)
+
+		if (!psOutput.success.destroyed) {
+			await finished(psOutput.success)
+		}
 		const result: Record<string, unknown>[] = []
 		for (;;) {
 			const output = psOutput.success.read() as Record<string, unknown>
@@ -322,18 +331,19 @@ export class PowerShell {
 	}
 
 	/** Kill any existing invocations and reset the state */
-	reset() {
+	reset(): boolean {
+		let result = false
 		if (this.psProcess !== undefined) {
 			// We use SIGKILL to keep the behavior consistent between Windows and Linux (die immediately)
 			this.psProcess.kill('SIGKILL')
+			result = true
 		}
 		// Initialize will reinstate the process upon next call
 		this.psProcess = undefined
+		return result
 	}
 
 	dispose() {
-		if (this.psProcess !== undefined) {
-			this.psProcess.kill()
-		}
+		this.reset()
 	}
 }

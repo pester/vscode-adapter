@@ -2,7 +2,12 @@ import { execSync } from 'child_process'
 import ReadlineTransform from 'readline-transform'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
-import { createJsonParseTransform, PowerShell, PSOutput } from './powershell'
+import {
+	createJsonParseTransform,
+	PowerShell,
+	PSOutput,
+	defaultPowershellExePath
+} from './powershell'
 
 // jest.setTimeout(30000)
 
@@ -79,8 +84,8 @@ describe('run', () => {
 
 	it('mixed', async () => {
 		expect.assertions(3)
-		const successResult = []
-		const infoResult = []
+		const successResult: any[] = []
+		const infoResult: any[] = []
 		const streams = new PSOutput()
 		streams.success
 			.on('data', data => {
@@ -152,7 +157,7 @@ describe('exec', () => {
 	})
 
 	it('pwsh baseline', () => {
-		const result = execSync('pwsh -nop -c "echo hello"')
+		const result = execSync(`${defaultPowershellExePath} -nop -c "echo hello"`)
 		expect(result.toString()).toMatch('hello')
 	})
 

@@ -505,6 +505,7 @@ export class PesterTestController implements Disposable {
 				log.warn(
 					`Detected PowerShell Session change from ${this.ps.exePath} to ${exePath}. Restarting Pester Runner.`
 				)
+				this.ps.reset()
 			}
 			const exePathDir = exePath
 				? dirname(exePath)
@@ -520,6 +521,9 @@ export class PesterTestController implements Disposable {
 		// Objects from the run will return to the success stream, which we then send to the return handler
 		const psOutput = new PSOutput()
 		psOutput.success.on('data', returnHandler)
+		psOutput.success.on('close', () => {
+			testRun?.end()
+		})
 
 		if (usePSIC) {
 			log.debug('Running Script in PSIC:', scriptPath, scriptArgs)
@@ -710,6 +714,13 @@ export class PesterTestController implements Disposable {
 		}
 		testItems.forEach(addChildren)
 		return testItems
+	}
+
+	stopPowerShell(): boolean {
+		if (this.ps !== undefined) {
+			return this.ps.reset()
+		}
+		return false
 	}
 
 	dispose() {

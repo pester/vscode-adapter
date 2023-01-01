@@ -61,6 +61,11 @@
 				"command": "pester.toggleAutoRunOnSave",
 				"title": "Pester: Toggle Auto Run on Save",
 				"category": "PowerShell"
+			},
+			{
+				"command": "pester.stopPowerShell",
+				"title": "Pester: Stop PowerShell background process",
+				"category": "PowerShell"
 			}
 		],
 		"menus": {
@@ -128,7 +133,7 @@
 		"ts-node": "^10.7.0",
 		"typescript": "^4.6.2",
 		"utility-types": "^3.10.0",
-		"vsce": "^2.7.0",
+		"vsce": "^2.15.0",
 		"vscode-dts": "^0.3.3"
 	},
 	"dependencies": {
