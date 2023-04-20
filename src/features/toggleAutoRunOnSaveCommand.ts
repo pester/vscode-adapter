@@ -1,7 +1,7 @@
 import {
 	commands,
 	StatusBarAlignment,
-	TextEditor,
+	type TextEditor,
 	ThemeColor,
 	window,
 	workspace
@@ -16,7 +16,7 @@ function getPesterAutoRunSaveStatus() {
 }
 
 function getPesterAutoRunStatusMessage(autoRunEnabled: boolean) {
-	const debugOnSaveEnabled = getPesterConfig().get<boolean>('autoDebugOnSave')
+	const debugOnSaveEnabled = getPesterConfig().get<boolean>('autoDebugOnSave') ?? false
 	const autoRunStatus = autoRunEnabled ? 'enabled' : 'disabled'
 	const message = `Pester Auto Run on Save is now ${autoRunStatus} for this workspace`
 	return debugOnSaveEnabled && autoRunEnabled
@@ -28,7 +28,7 @@ function updatePesterStatusBar(saveStatus: boolean) {
 	autoRunStatusBarItem.backgroundColor = saveStatus
 		? undefined
 		: new ThemeColor('statusBarItem.warningBackground')
-	const runText = getPesterConfig().get<boolean>('autoDebugOnSave')
+	const runText = getPesterConfig().get<boolean>('autoDebugOnSave') ?? false
 		? '$(bug) Pester'
 		: '$(beaker) Pester'
 	autoRunStatusBarItem.text = saveStatus ? runText : '$(debug-pause) Pester'
@@ -37,12 +37,12 @@ function updatePesterStatusBar(saveStatus: boolean) {
 const toggleAutoRunOnSaveHandler = () => {
 	// Race condition between update and get even with the thenable, save off the status instead
 	const newAutoRunStatus = !getPesterAutoRunSaveStatus()
-	getPesterConfig()
+	void getPesterConfig()
 		// Update with undefined means return to default value which is true
 		.update('autoRunOnSave', newAutoRunStatus ? undefined : false)
 		.then(() => {
 			updatePesterStatusBar(newAutoRunStatus)
-			window.showInformationMessage(
+			void window.showInformationMessage(
 				getPesterAutoRunStatusMessage(newAutoRunStatus)
 			)
 		})

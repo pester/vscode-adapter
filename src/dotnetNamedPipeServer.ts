@@ -1,7 +1,7 @@
-import { createServer, Server, Socket } from 'net'
+import { createServer, type Server, type Socket } from 'net'
 import { platform, tmpdir } from 'os'
 import { join } from 'path'
-import { Disposable, EventEmitter } from 'vscode'
+import { type Disposable } from 'vscode'
 
 /** Provides a simple server listener to a .NET named pipe. This is useful as a IPC method to child processes like a PowerShell Script */
 export class DotnetNamedPipeServer implements Disposable {

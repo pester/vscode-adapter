@@ -7,6 +7,8 @@ rules:
   "@typescript-eslint/indent": off
   "@typescript-eslint/space-before-function-paren": off
   "@typescript-eslint/explicit-function-return-type": off
+  "no-return-await": off
+  "@typescript-eslint/return-await": off
 env:
   jest: true
   node: true

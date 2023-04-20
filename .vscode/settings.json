@@ -5,8 +5,8 @@
     "Scripts/PesterInterface.[tT]ests.[pP][sS]1"
 	],
 	"typescript.format.semicolons": "remove", // Some actions ignore ESLint
-	"editor.defaultFormatter": "rvest.vs-code-prettier-eslint",
 	"[typescript]": {
-		"editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
-	}
+		"editor.defaultFormatter": "dbaeumer.vscode-eslint"
+	},
+	"jest.jestCommandLine": "pnpm test --"
 }
