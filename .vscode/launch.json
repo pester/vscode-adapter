@@ -5,62 +5,78 @@
 {
 	"version": "0.2.0",
 	"configurations": [
-    {
-      "name": "Run Extension",
-      "type": "extensionHost",
-      "request": "launch",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}",
-        "--install-extension=ms-vscode.powershell-preview",
-        "${workspaceFolder}/sample"
-      ],
-      "env": {
-        "VSCODE_DEBUG_MODE": "true"
-      },
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ],
-      "sourceMaps": true,
-      "smartStep": true,
-      "skipFiles": [
-        "**/log.ts",
-        "**/node_modules/**",
-        "C:/users/jgrote/AppData/Local/Programs/Microsoft VS Code Insiders/**/*.js",
-        "**/app/dist/vs/**",
-        "**\\app\\dist\\vs\\**",
-        "<node_internals>/**"
-      ],
-
-      "preLaunchTask": "npm: watch"
-    },
-    {
-      "name": "Run Extension UI Tests",
-      "type": "extensionHost",
-      "request": "launch",
+		{
+			"name": "Run Extension",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--install-extension=ms-vscode.powershell-preview",
+				"${workspaceFolder}/sample"
+			],
+			"env": {
+				"VSCODE_DEBUG_MODE": "true"
+			},
+			"outFiles": [
+				"${workspaceFolder}/dist/**/*.js"
+			],
+			"sourceMaps": true,
+			"smartStep": true,
+			"skipFiles": [
+				"**/log.ts",
+				"**/node_modules/**",
+				"C:/users/jgrote/AppData/Local/Programs/Microsoft VS Code Insiders/**/*.js",
+				"**/app/dist/vs/**",
+				"**\\app\\dist\\vs\\**",
+				"<node_internals>/**"
+			],
+			"preLaunchTask": "npm: watch"
+		},
+		{
+			"name": "Run Extension UI Tests",
+			"type": "extensionHost",
+			"request": "launch",
 			"cwd": "${workspaceFolder}",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
 				"--extensionTestsPath=${workspaceFolder}/dist/test",
-        "--install-extension=ms-vscode.powershell-preview",
-        "${workspaceFolder}/sample"
-      ],
-      "env": {
-        "VSCODE_DEBUG_MODE": "true"
-      },
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ],
-      "sourceMaps": true,
-      "smartStep": true,
-      "skipFiles": [
-        "**/log.ts",
-        "**/node_modules/**",
-        "C:/users/jgrote/AppData/Local/Programs/Microsoft VS Code Insiders/**/*.js",
-        "**/app/dist/vs/**",
-        "**\\app\\dist\\vs\\**",
-        "<node_internals>/**"
-      ],
-      "preLaunchTask": "npm: watch"
-    }
-  ]
+				"--install-extension=ms-vscode.powershell-preview",
+				"${workspaceFolder}/sample"
+			],
+			"env": {
+				"VSCODE_DEBUG_MODE": "true"
+			},
+			"outFiles": [
+				"${workspaceFolder}/dist/**/*.js"
+			],
+			"sourceMaps": true,
+			"smartStep": true,
+			"skipFiles": [
+				"**/log.ts",
+				"**/node_modules/**",
+				"C:/users/jgrote/AppData/Local/Programs/Microsoft VS Code Insiders/**/*.js",
+				"**/app/dist/vs/**",
+				"**\\app\\dist\\vs\\**",
+				"<node_internals>/**"
+			],
+			"preLaunchTask": "npm: watch"
+		},
+		{
+			"type": "node",
+			"name": "vscode-jest-tests.v2",
+			"request": "launch",
+			"args": [
+				"--runInBand",
+				"--watchAll=false",
+				"--testNamePattern",
+				"${jest.testNamePattern}",
+				"--runTestsByPath",
+				"${jest.testFile}"
+			],
+			"cwd": "c:\\Users\\justi\\Projects\\vscode-adapter",
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"program": "c:\\Users\\justi\\Projects\\vscode-adapter\\node_modules\\jest\\bin\\jest.js"
+		}
+	]
 }

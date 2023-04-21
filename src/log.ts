@@ -1,82 +1,67 @@
-import ReadlineTransform from 'readline-transform'
-import { PassThrough, Readable, Transform, Writable } from 'stream'
-import { pipeline as pipelineAsPromise } from 'stream/promises'
-import { ILogObject, Logger, TTransportLogger } from 'tslog'
-import { OutputChannel, window } from 'vscode'
 
-/**
- * Writes TSLog Pretty Print messages to the supplied stream
- *
- * @class PrettyPrintTransport
- * @param outStream Provide a writable stream that the pretty print log messages will be emitted to
- * @param colorize Whether ANSI formatting characters should be included in the output
- */
-class PrettyPrintTransport
-	implements TTransportLogger<(logObject: ILogObject) => void>
-{
-	readonly prettyLogInput = new PassThrough()
-	readonly logger: Logger
-	constructor(outStream: Writable, colorize = false) {
-		// we need a new "internal" logger to control the pretty print formatting since printPrettyLog isn't a static method
-		this.logger = new Logger({
-			colorizePrettyLogs: colorize,
-			displayFilePath: 'hidden',
-			dateTimeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-			dateTimePattern: 'hour:minute:second.millisecond'
-		})
+import { Logger, type ILogObj } from 'tslog'
+import { type ILogObjMeta } from 'tslog/dist/types/BaseLogger'
+import { LogLevel, type LogOutputChannel, window } from 'vscode'
 
-		// Workaround for https://github.com/nodejs/node/issues/40191
-		// FIXME: When VScode is based on NodeJS 16.14+
-		pipelineAsPromise<Readable, Transform, Writable>(
-			this.prettyLogInput,
-			new ReadlineTransform(),
-			outStream
-		).catch(err => {
-			throw new Error(err)
-		})
-	}
-	log(logObject: ILogObject): void {
-		this.logger.printPrettyLog(this.prettyLogInput, logObject)
-	}
-
-	silly = this.log
-	debug = this.log
-	trace = this.log
-	info = this.log
-	warn = this.log
-	error = this.log
-	fatal = this.log
+interface DefaultLog extends ILogObj {
+	args: unknown[]
 }
 
-class VSCodeOutputChannelStream extends Writable {
-	private outputChannel: OutputChannel
-	constructor(title: string, public appendLine: boolean = false) {
-		super()
-		this.outputChannel = window.createOutputChannel(title)
-	}
-	_write(chunk: Buffer, encoding: string, callback: () => any) {
-		this.appendLine
-			? this.outputChannel.appendLine(chunk.toString())
-			: this.outputChannel.append(chunk.toString())
-		callback()
-	}
-}
-export class VSCodeOutputChannelTransport extends PrettyPrintTransport {
-	constructor(title: string) {
-		super(new VSCodeOutputChannelStream(title, true))
-	}
-}
+/** Represents the default TS Log levels. This is not explicitly provided by tslog */
+type DefaultTSLogLevel =
+	"SILLY"
+	| "TRACE"
+	| "DEBUG"
+	| "INFO"
+	| "WARN"
+	| "ERROR"
+	| "FATAL"
 
-export class ConsoleLogTransport extends PrettyPrintTransport {
-	constructor() {
-		super(
-			new Writable({
-				write: (chunk: Buffer, encoding: string, callback: () => any) => {
-					console.log(chunk.toString())
-					callback()
-				}
-			})
-		)
+export class VSCodeLogOutputChannelTransport {
+	// TODO: Make this lazy initialize so the window only starts once a log has been requested
+	/** Used to ensure multiple registered transports that request the same name use the same output window. NOTE: You can still get duplicate windows if you register channels outside this transport */
+	private static readonly channels = new Map<string, LogOutputChannel>()
+	private readonly name: string
+	constructor(name: string) {
+		this.name = name
+	}
+
+	get channel() {
+		const newChannel = VSCodeLogOutputChannelTransport.channels.has(this.name)
+			? VSCodeLogOutputChannelTransport.channels.get(this.name)
+			: (
+				VSCodeLogOutputChannelTransport.channels
+					.set(this.name, window.createOutputChannel(this.name, { log: true }))
+					.get(this.name)
+			)
+		if (newChannel === undefined) {
+			throw new Error("Failed to create output channel. This is a bug and should never happen.")
+		}
+		return newChannel
+	}
+
+	/** Wire this up to Logger.AttachTransport
+	 *
+	 * @example
+	 * ```
+	 * logger.attachTransport((new VSCodeLogOutputChannelTransport('myExtensionName')).transport)
+	 * ```
+	 */
+	public transport = <T extends DefaultLog & ILogObjMeta>(log: T) => {
+		const message = typeof log.args[0] === "string"
+			? log.args[0]
+			: JSON.stringify(log.args[0])
+		const args = log.args.slice(1)
+		switch (log._meta.logLevelName as DefaultTSLogLevel) {
+			case 'SILLY': this.channel.trace(message, ...args); break
+			case 'TRACE': this.channel.trace(message, ...args); break
+			case 'DEBUG': this.channel.debug(message, ...args); break
+			case 'INFO': this.channel.info(message, ...args); break
+			case 'WARN': this.channel.warn(message, ...args); break
+			case 'ERROR': this.channel.error(message, ...args); break
+			case 'FATAL': this.channel.error(message, ...args); break
+			default: throw new Error(`Unknown log level: ${log._meta.logLevelName}`)
+		}
 	}
 }
 
@@ -92,5 +77,13 @@ Log to vscode output channel
 
 log.attachTransport(new VSCodeOutputChannelTransport('Pester'))
  */
-const log = new Logger({ type: 'hidden' })
+const log = new Logger<DefaultLog>({
+	name: 'default',
+	type: 'pretty',
+	argumentsArrayName: "args",
+	overwrite: {
+		transportFormatted: (logMetaMarkup, logArgs, logErrors, settings) => { } 		// We want pretty formatting but no default output
+	}
+})
+
 export default log

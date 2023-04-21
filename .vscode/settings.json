@@ -6,7 +6,7 @@
 	],
 	"typescript.format.semicolons": "remove", // Some actions ignore ESLint
 	"[typescript]": {
-		"editor.defaultFormatter": "dbaeumer.vscode-eslint"
+		"editor.defaultFormatter": "vscode.typescript-language-features"
 	},
-	"jest.jestCommandLine": "pnpm test --"
+	"jest.jestCommandLine": "pnpm run test"
 }

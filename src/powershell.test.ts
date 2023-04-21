@@ -33,7 +33,8 @@ describe('jsonParseTransform', () => {
 		try {
 			await pipeline(source, jsonPipe)
 		} catch (err) {
-			expect(err.message).toMatch('Unexpected end')
+			const result = err as Error
+			expect(result.message).toMatch('Unexpected end')
 		}
 	})
 
@@ -46,7 +47,8 @@ describe('jsonParseTransform', () => {
 		try {
 			await pipeline(source, jsonPipe)
 		} catch (err) {
-			expect(err.message).toMatch('Unexpected token')
+			const result = err as Error
+			expect(result.message).toMatch('Unexpected token')
 		}
 	})
 })
@@ -70,7 +72,7 @@ describe('run', () => {
 			expect(data).toBe('JEST')
 			done()
 		})
-		ps.run(`'JEST'`, streams)
+		void ps.run(`'JEST'`, streams)
 	})
 
 	it('verbose', done => {
@@ -79,7 +81,7 @@ describe('run', () => {
 			expect(data).toBe('JEST')
 			done()
 		})
-		ps.run(`Write-Verbose -verbose 'JEST'`, streams)
+		void ps.run(`Write-Verbose -verbose 'JEST'`, streams)
 	})
 
 	it('mixed', async () => {
@@ -137,17 +139,17 @@ describe('exec', () => {
 		try {
 			await ps.exec(`throw 'oops!'`)
 		} catch (err) {
-			expect(err.error).toBeInstanceOf(Error)
+			expect(err).toBeInstanceOf(Error)
 		}
 	})
 
 	/** If cancelExisting is used, ensure the first is closed quickly */
 	it('CancelExisting', async () => {
 		const result = ps.exec(`'Item';sleep 5;'ThisItemShouldNotEmit'`, true)
-		//FIXME: This is a race condition on slower machines that makes this test fail intermittently
+		// FIXME: This is a race condition on slower machines that makes this test fail intermittently
 		// If Item hasn't been emitted yet from the pipeline
 		// This should instead watch for Item and then cancel existing once received
-		await new Promise(r => setTimeout(r, 600))
+		await new Promise(resolve => setTimeout(resolve, 600))
 		const result2 = ps.exec(`'Item'`, true)
 		const awaitedResult = await result
 		const awaitedResult2 = await result2
@@ -163,7 +165,7 @@ describe('exec', () => {
 
 	it('cancel', async () => {
 		const result = ps.exec(`'Item1','Item2';sleep 2;'Item3'`)
-		await new Promise(r => setTimeout(r, 1000))
+		await new Promise(resolve => setTimeout(resolve, 1000))
 		ps.cancel()
 		const awaitedResult = await result
 		expect(awaitedResult).toEqual(['Item1', 'Item2'])

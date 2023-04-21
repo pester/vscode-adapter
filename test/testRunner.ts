@@ -1,57 +1,49 @@
 import * as path from 'path'
-import { runCLI } from 'jest'
-import { run as runJest } from 'jest'
 import { runTests } from '@vscode/test-electron'
+import { existsSync } from 'fs'
 
-/** The entrypoint to testing that VSCode will call after it starts up a new debug session instance */
-export async function run() {
-	const projectDir = path.resolve(__dirname, '..')
-	// runCLI will pick up the config as normal from packages.json and jest.config.ts
-	const result = (await runCLI({} as any, [projectDir])).results
-
-	if (!result.success) {
-		throw new Error(`Failed ${result.numFailedTests} tests`)
-	} else {
-		console.log('🎉 All tests passed!')
-	}
-
-	forwardStdoutStderrStreams()
-	const result2 = runJest()
-	console.log('Done!')
-	return result2
-}
+const JestEnvVarName = 'JESTARGS'
 
 /** Called when running tests directly using node, for example in CI builds */
+// eslint-disable-next-line
 async function main() {
+	console.log("===TESTRUNNER MAIN START===")
+	console.log(process.execPath)
+	console.log(process.argv)
 	try {
 		// The folder containing the Extension Manifest package.json
 		// Passed to `--extensionDevelopmentPath`
-		const extensionDevelopmentPath = path.resolve(__dirname, '..')
+		const extensionDevelopmentPath = findProjectRoot(__dirname)
 
 		// The path to the extension test script
 		// Passed to --extensionTestsPath
-		const extensionTestsPath = __filename
+		const extensionTestsPath = path.join(extensionDevelopmentPath, 'dist/test/TestRunnerInner')
+
+		// Convert any args passed to this script to an environment variable
+		const jestArgs = process.argv.slice(2)
+
+		const extensionTestsEnv: Record<string, string> = { extensionDevelopmentPath }
+
+		if (jestArgs.length > 0) {
+			extensionTestsEnv[JestEnvVarName] = Buffer.from(JSON.stringify(jestArgs)).toString('base64')
+		}
 
 		// Download VS Code, unzip it and run the integration test
-		const exitCode = await runTests({
+		const testResult = await runTests({
 			extensionDevelopmentPath,
-			extensionTestsPath
+			extensionTestsPath,
+			version: 'insiders',
+			extensionTestsEnv,
+			launchArgs: [
+				'--profile-temp',
+				extensionDevelopmentPath
+			]
 		})
-		if (exitCode !== 0) {
-			console.error(
-				`VSCode Test Run failed with non-zero exit code: ${exitCode}`
-			)
-			process.exit(exitCode)
-		}
-	} catch (err) {
-		console.error('Failed to run tests')
-		process.exit(1)
-	}
-}
 
-// run main() if called directly from node. Useful if running tests from CLI
-if (require.main === module) {
-	main()
+		console.log('Tests run result: ', testResult)
+	} catch (err) {
+		console.log('Failed to run tests', err)
+	}
 }
 
 /**
@@ -62,10 +54,25 @@ if (require.main === module) {
  */
 function forwardStdoutStderrStreams() {
 	const logger = (line: string) => {
-		console.log(line) // tslint:disable-line:no-console
+		console.log(line)
 		return true
 	}
-
 	process.stdout.write = logger
 	process.stderr.write = logger
 }
+
+/** Find package.json in parent directory or higher */
+function findProjectRoot(startDir: string): string {
+	let currentDir = startDir
+	while (currentDir !== '/') {
+		const packageJsonPath = path.join(currentDir, 'package.json')
+		if (existsSync(packageJsonPath)) {
+			return path.dirname(packageJsonPath)
+		}
+		currentDir = path.dirname(currentDir)
+	}
+	throw new Error('Could not find package.json')
+}
+
+
+void main()

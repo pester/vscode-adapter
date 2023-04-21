@@ -8,5 +8,5 @@
 		"inlineSources": true,
 		"strict": true,
 	},
-	"exclude": ["node_modules", ".vscode-test", "**/*.test.ts"]
+	"exclude": ["node_modules", ".vscode-test", "*.config.ts"]
 }
