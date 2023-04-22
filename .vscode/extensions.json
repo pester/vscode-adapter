@@ -1,9 +1,10 @@
 {
 	"recommendations": [
-		"ms-vscode.powershell-preview",
+		"ms-vscode.powershell",
 		"github.vscode-pull-request-github",
 		"github.vscode-github-actions",
 		"dbaeumer.vscode-eslint",
-		"connor4312.esbuild-problem-matchers"
+		"connor4312.esbuild-problem-matchers",
+		"hbenl.vscode-mocha-test-adapter"
 	]
 }

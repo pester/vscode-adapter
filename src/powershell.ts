@@ -238,7 +238,7 @@ export class PowerShell {
 		// Wire up a listener for terminating errors that will reject a promise we will race with the normal operation
 		// TODO: RemoveAllListeners should be more specific
 		this.psProcess.stderr.removeAllListeners()
-		const errorWasEmitted = new Promise((_, reject) => {
+		const errorWasEmitted = new Promise((_resolve, reject) => {
 			// Read error output one line at a time
 			function handleError(jsonSerializedError: string) {
 				reject({

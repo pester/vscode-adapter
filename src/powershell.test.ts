@@ -8,8 +8,7 @@ import {
 	PSOutput,
 	defaultPowershellExePath
 } from './powershell'
-
-// jest.setTimeout(30000)
+import { should, assert, expect } from 'chai'
 
 describe('jsonParseTransform', () => {
 	interface TestObject {
@@ -20,8 +19,8 @@ describe('jsonParseTransform', () => {
 		const source = Readable.from(['{"Test": 5}'])
 		const jsonPipe = createJsonParseTransform()
 		await pipeline(source, jsonPipe)
-		const result = jsonPipe.read()
-		expect(result).toStrictEqual<TestObject>({ Test: 5 })
+		const result = jsonPipe.read() as TestObject
+		expect(result.Test).to.equal(5)
 	})
 
 	it('empty', async () => {
@@ -34,7 +33,7 @@ describe('jsonParseTransform', () => {
 			await pipeline(source, jsonPipe)
 		} catch (err) {
 			const result = err as Error
-			expect(result.message).toMatch('Unexpected end')
+			expect(result.message).to.match(/Unexpected end/)
 		}
 	})
 
@@ -48,7 +47,7 @@ describe('jsonParseTransform', () => {
 			await pipeline(source, jsonPipe)
 		} catch (err) {
 			const result = err as Error
-			expect(result.message).toMatch('Unexpected token')
+			expect(result.message).to.match(/Unexpected non-whitespace/)
 		}
 	})
 })
@@ -69,7 +68,7 @@ describe('run', () => {
 	it('success', done => {
 		const streams = new PSOutput()
 		streams.success.on('data', data => {
-			expect(data).toBe('JEST')
+			expect(data).to.be('JEST')
 			done()
 		})
 		void ps.run(`'JEST'`, streams)
@@ -78,14 +77,13 @@ describe('run', () => {
 	it('verbose', done => {
 		const streams = new PSOutput()
 		streams.verbose.on('data', data => {
-			expect(data).toBe('JEST')
+			expect(data).to.be('JEST')
 			done()
 		})
 		void ps.run(`Write-Verbose -verbose 'JEST'`, streams)
 	})
 
 	it('mixed', async () => {
-		expect.assertions(3)
 		const successResult: any[] = []
 		const infoResult: any[] = []
 		const streams = new PSOutput()
@@ -94,21 +92,20 @@ describe('run', () => {
 				successResult.push(data)
 			})
 			.on('close', () => {
-				expect(successResult[0]).toBe('JEST')
+				expect(successResult[0]).to.be('JEST')
 			})
 		streams.information
 			.on('data', data => {
 				infoResult.push(data)
 			})
 			.on('close', () => {
-				expect(infoResult.length).toBe(32)
+				expect(infoResult.length).to.equal(32)
 			})
 		streams.error.on('data', data => {
-			expect(data).toBe('oops!')
+			expect(data).to.be('oops!')
 		})
 
 		await ps.run(`1..32 | Write-Host;Write-Error 'oops!';'JEST';1..2`, streams)
-		console.log('done')
 	})
 })
 
@@ -123,15 +120,15 @@ describe('exec', () => {
 
 	it('Get-Item', async () => {
 		const result = await ps.exec(`Get-Item .`)
-		expect(result[0].PSIsContainer).toBe(true)
+		expect(result[0].PSIsContainer).to.be.true
 	})
 
 	/** Verify that if two commands are run at the same time, they queue and complete independently without interfering with each other */
 	it('Parallel', async () => {
 		const result = ps.exec(`'Item1';sleep 0.05`)
 		const result2 = ps.exec(`'Item2'`)
-		expect((await result2)[0]).toBe('Item2')
-		expect((await result)[0]).toBe('Item1')
+		expect((await result2)[0]).to.be('Item2')
+		expect((await result)[0]).to.be('Item1')
 	})
 
 	/** Verify that a terminating error is emitted within the context of an exec */
@@ -139,7 +136,7 @@ describe('exec', () => {
 		try {
 			await ps.exec(`throw 'oops!'`)
 		} catch (err) {
-			expect(err).toBeInstanceOf(Error)
+			expect(err).to.be.instanceOf(Error)
 		}
 	})
 
@@ -154,13 +151,13 @@ describe('exec', () => {
 		const awaitedResult = await result
 		const awaitedResult2 = await result2
 		// Any existing results should still be emitted after cancellation
-		expect(awaitedResult).toEqual(['Item'])
-		expect(awaitedResult2).toEqual(['Item'])
+		expect(awaitedResult).to.equal(['Item'])
+		expect(awaitedResult2).to.equal(['Item'])
 	})
 
 	it('pwsh baseline', () => {
 		const result = execSync(`${defaultPowershellExePath} -nop -c "echo hello"`)
-		expect(result.toString()).toMatch('hello')
+		expect(result.toString()).to.match(/hello/)
 	})
 
 	it('cancel', async () => {
@@ -168,6 +165,6 @@ describe('exec', () => {
 		await new Promise(resolve => setTimeout(resolve, 1000))
 		ps.cancel()
 		const awaitedResult = await result
-		expect(awaitedResult).toEqual(['Item1', 'Item2'])
+		expect(awaitedResult).to.equal(['Item1', 'Item2'])
 	})
 })
