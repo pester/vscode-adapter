@@ -20,6 +20,13 @@ export interface IPSOutput {
 	progress: Readable
 }
 
+/** Includes an object of the full PowerShell error */
+export class PowerShellError extends Error {
+	constructor(message: string, public error: any) {
+		super(message)
+	}
+}
+
 /** A simple Readable that emits events when new objects are pushed from powershell.
  * read() does nothing and generally should not be called, you should subscribe to the events instead
  */
@@ -241,12 +248,12 @@ export class PowerShell {
 		const errorWasEmitted = new Promise((_resolve, reject) => {
 			// Read error output one line at a time
 			function handleError(jsonSerializedError: string) {
-				reject({
-					error: new Error(
-						'A terminating error occured while running the script'
-					),
-					errorObject: JSON.parse(jsonSerializedError)
-				})
+				reject(
+					new PowerShellError(
+						'A terminating error occured while running the script',
+						JSON.parse(jsonSerializedError)
+					)
+				)
 			}
 
 			if (this.psProcess !== undefined) {

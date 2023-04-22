@@ -158,7 +158,7 @@
 		"build-watch": "pnpm run esbuild-base --watch",
 		"build-test-watch": "pnpm run tsc --incremental --watch",
 		"lint": "prettier --check .",
-		"test": "node ./dist/test/TestRunner.js",
+		"test": "node ./dist/test/RunTests.js",
 		"download-api": "vscode-dts main",
 		"postdownload-api": "vscode-dts main",
 		"vscode:prepublish": "pnpm run esbuild-base --minify"

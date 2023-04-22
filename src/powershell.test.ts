@@ -6,7 +6,8 @@ import {
 	createJsonParseTransform,
 	PowerShell,
 	PSOutput,
-	defaultPowershellExePath
+	defaultPowershellExePath,
+	PowerShellError
 } from './powershell'
 import { should, assert, expect } from 'chai'
 
@@ -68,7 +69,7 @@ describe('run', () => {
 	it('success', done => {
 		const streams = new PSOutput()
 		streams.success.on('data', data => {
-			expect(data).to.be('JEST')
+			expect(data).to.equal('JEST')
 			done()
 		})
 		void ps.run(`'JEST'`, streams)
@@ -77,7 +78,7 @@ describe('run', () => {
 	it('verbose', done => {
 		const streams = new PSOutput()
 		streams.verbose.on('data', data => {
-			expect(data).to.be('JEST')
+			expect(data).to.equal('JEST')
 			done()
 		})
 		void ps.run(`Write-Verbose -verbose 'JEST'`, streams)
@@ -92,7 +93,7 @@ describe('run', () => {
 				successResult.push(data)
 			})
 			.on('close', () => {
-				expect(successResult[0]).to.be('JEST')
+				expect(successResult[0]).to.equal('JEST')
 			})
 		streams.information
 			.on('data', data => {
@@ -102,7 +103,7 @@ describe('run', () => {
 				expect(infoResult.length).to.equal(32)
 			})
 		streams.error.on('data', data => {
-			expect(data).to.be('oops!')
+			expect(data).to.equal('oops!')
 		})
 
 		await ps.run(`1..32 | Write-Host;Write-Error 'oops!';'JEST';1..2`, streams)
@@ -120,6 +121,7 @@ describe('exec', () => {
 
 	it('Get-Item', async () => {
 		const result = await ps.exec(`Get-Item .`)
+
 		expect(result[0].PSIsContainer).to.be.true
 	})
 
@@ -127,8 +129,9 @@ describe('exec', () => {
 	it('Parallel', async () => {
 		const result = ps.exec(`'Item1';sleep 0.05`)
 		const result2 = ps.exec(`'Item2'`)
-		expect((await result2)[0]).to.be('Item2')
-		expect((await result)[0]).to.be('Item1')
+
+		expect((await result2)[0]).to.equal('Item2')
+		expect((await result)[0]).to.equal('Item1')
 	})
 
 	/** Verify that a terminating error is emitted within the context of an exec */
@@ -136,7 +139,7 @@ describe('exec', () => {
 		try {
 			await ps.exec(`throw 'oops!'`)
 		} catch (err) {
-			expect(err).to.be.instanceOf(Error)
+			expect(err).to.be.instanceOf(PowerShellError)
 		}
 	})
 
@@ -150,21 +153,29 @@ describe('exec', () => {
 		const result2 = ps.exec(`'Item'`, true)
 		const awaitedResult = await result
 		const awaitedResult2 = await result2
+
 		// Any existing results should still be emitted after cancellation
-		expect(awaitedResult).to.equal(['Item'])
-		expect(awaitedResult2).to.equal(['Item'])
+		expect(awaitedResult).to.be.an('array').that.includes('Item')
+		expect(awaitedResult2).to.be.an('array').that.includes('Item')
 	})
 
 	it('pwsh baseline', () => {
 		const result = execSync(`${defaultPowershellExePath} -nop -c "echo hello"`)
+
 		expect(result.toString()).to.match(/hello/)
 	})
 
+	// TODO: Add a hook so that a cancel can be run without this test being performance-dependent. Currently this test is flaky depending on how fast the machine is
 	it('cancel', async () => {
 		const result = ps.exec(`'Item1','Item2';sleep 2;'Item3'`)
 		await new Promise(resolve => setTimeout(resolve, 1000))
 		ps.cancel()
 		const awaitedResult = await result
-		expect(awaitedResult).to.equal(['Item1', 'Item2'])
+
+		expect(awaitedResult)
+			.to.be.an('array')
+			.that.includes('Item1')
+			.and.includes('Item2')
+			.but.does.not.include('Item3')
 	})
 })
