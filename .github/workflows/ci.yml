@@ -30,12 +30,12 @@ jobs:
         with:
           path: |
             node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: ➕ Dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          & npm ci
+          & pnpm ci
 
       - name: 🔍 Get Calendar Version
         id: version
@@ -48,7 +48,7 @@ jobs:
 
       - name: 👷‍♂️ Build
         run: |
-          npm run build ${{steps.version.outputs.version}}
+          pnpm run build ${{steps.version.outputs.version}}
 
       - name: ⬆ Artifact
         uses: actions/upload-artifact@v2
