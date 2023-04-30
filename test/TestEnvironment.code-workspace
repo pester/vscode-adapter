@@ -2,7 +2,7 @@
   // A simple test environment that suppresses some first start warnings we don't care about.
   "folders": [
     {
-      "path": "sample"
+      "path": "../sample"
     }
   ],
   "settings": {

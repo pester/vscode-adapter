@@ -1,7 +1,7 @@
 
 import { Logger, type ILogObj } from 'tslog'
 import { type ILogObjMeta } from 'tslog/dist/types/BaseLogger'
-import { LogLevel, type LogOutputChannel, window } from 'vscode'
+import { type LogOutputChannel, window } from 'vscode'
 
 interface DefaultLog extends ILogObj {
 	args: unknown[]
@@ -82,7 +82,7 @@ const log = new Logger<DefaultLog>({
 	type: 'pretty',
 	argumentsArrayName: "args",
 	overwrite: {
-		transportFormatted: (logMetaMarkup, logArgs, logErrors, settings) => { } 		// We want pretty formatting but no default output
+		transportFormatted: () => { return } 		// We want pretty formatting but no default output
 	}
 })
 

@@ -1,6 +1,5 @@
 import { join, isAbsolute, dirname } from 'path'
 import {
-	debug as vscodeDebug,
 	DebugSession,
 	Disposable,
 	Extension,
@@ -236,7 +235,7 @@ export class PesterTestController implements Disposable {
 		log.info(`Starting Test Discovery of ${this.resolveQueue.length} files`)
 		const result = await this.startPesterInterface(
 			this.resolveQueue,
-			testItemDiscoveryHandler,
+			testItemDiscoveryHandler as any,
 			true,
 			false
 		)

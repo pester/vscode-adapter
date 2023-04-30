@@ -12,7 +12,7 @@
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
 				"--install-extension=ms-vscode.powershell",
-				"--profile-temp",
+				"--profile=Debug-PesterExtension",
 				"${workspaceFolder}/test/TestEnvironment.code-workspace"
 			],
 			"env": {
