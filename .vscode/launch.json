@@ -5,62 +5,47 @@
 {
 	"version": "0.2.0",
 	"configurations": [
+		{
+			"name": "Run Extension",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--install-extension=ms-vscode.powershell",
+				"--profile=Debug-PesterExtension",
+				"${workspaceFolder}/test/TestEnvironment.code-workspace"
+			],
+			"env": {
+				"VSCODE_DEBUG_MODE": "true"
+			},
+			"outFiles": [
+				"${workspaceFolder}/dist/**/*.js"
+			],
+			"sourceMaps": true,
+			"smartStep": true,
+			"preLaunchTask": "build-watch"
+		},
     {
-      "name": "Run Extension",
-      "type": "extensionHost",
+      "name": "Test Extension",
+      "type": "node",
       "request": "launch",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}",
-        "--install-extension=ms-vscode.powershell-preview",
-        "${workspaceFolder}/sample"
-      ],
+      "program": "${workspaceFolder}/dist/test/runTests.js",
+			"sourceMaps": true,
+			"outFiles": [
+				"${workspaceFolder}/dist/**/*.js"
+			],
+			"smartStep": true,
+      "attachSimplePort": 59229, // The default is 9229 but we want to avoid conflicts because we will have two vscode instances running.
       "env": {
-        "VSCODE_DEBUG_MODE": "true"
+        "__TEST_DEBUG_INSPECT_PORT": "59229" // Needs to match attachSimplePort
       },
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ],
-      "sourceMaps": true,
-      "smartStep": true,
-      "skipFiles": [
-        "**/log.ts",
-        "**/node_modules/**",
-        "C:/users/jgrote/AppData/Local/Programs/Microsoft VS Code Insiders/**/*.js",
-        "**/app/dist/vs/**",
-        "**\\app\\dist\\vs\\**",
-        "<node_internals>/**"
-      ],
-
-      "preLaunchTask": "npm: watch"
-    },
-    {
-      "name": "Run Extension UI Tests",
-      "type": "extensionHost",
-      "request": "launch",
-			"cwd": "${workspaceFolder}",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}",
-				"--extensionTestsPath=${workspaceFolder}/dist/test",
-        "--install-extension=ms-vscode.powershell-preview",
-        "${workspaceFolder}/sample"
-      ],
-      "env": {
-        "VSCODE_DEBUG_MODE": "true"
+      "presentation": {
+        "hidden": false,
       },
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ],
-      "sourceMaps": true,
-      "smartStep": true,
-      "skipFiles": [
-        "**/log.ts",
-        "**/node_modules/**",
-        "C:/users/jgrote/AppData/Local/Programs/Microsoft VS Code Insiders/**/*.js",
-        "**/app/dist/vs/**",
-        "**\\app\\dist\\vs\\**",
-        "<node_internals>/**"
-      ],
-      "preLaunchTask": "npm: watch"
+      "internalConsoleOptions": "neverOpen",
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": false,
+      "preLaunchTask": "test-watch"
     }
-  ]
+	]
 }

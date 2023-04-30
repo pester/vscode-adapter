@@ -1,0 +1,13 @@
+{
+	"$schema": "https://json.schemastore.org/mocharc",
+  "color": true,
+  "enable-source-maps": true,
+  "extensions": [
+    ".js",
+    ".jsx"
+  ],
+  "require": "source-map-support/register",
+  "timeout": 10000,
+  "spec": "dist/**/*.test.js",
+	"ui": "bdd"
+}

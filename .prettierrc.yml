@@ -4,3 +4,4 @@ arrowParens: avoid
 semi: false
 tabWidth: 2
 useTabs: true
+printWidth: 120

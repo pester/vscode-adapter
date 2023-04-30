@@ -1,6 +1,5 @@
 import { join, isAbsolute, dirname } from 'path'
 import {
-	debug as vscodeDebug,
 	DebugSession,
 	Disposable,
 	Extension,
@@ -25,7 +24,7 @@ import {
 	languages
 } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
-import log, { ConsoleLogTransport, VSCodeOutputChannelTransport } from './log'
+import log, { VSCodeLogOutputChannelTransport } from './log'
 import {
 	TestData,
 	TestDefinition,
@@ -60,10 +59,10 @@ export class PesterTestController implements Disposable {
 		)
 	) {
 		// Log to nodejs console when debugging
-		if (process.env.VSCODE_DEBUG_MODE === 'true') {
-			log.attachTransport(new ConsoleLogTransport())
-		}
-		log.attachTransport(new VSCodeOutputChannelTransport(id))
+		// if (process.env.VSCODE_DEBUG_MODE === 'true') {
+		// 	log.attachTransport(new ConsoleLogTransport())
+		// }
+		log.attachTransport(new VSCodeLogOutputChannelTransport(id).transport)
 
 		// wire up our custom handlers to the managed instance
 		// HACK: https://github.com/microsoft/vscode/issues/107467#issuecomment-869261078
@@ -236,7 +235,7 @@ export class PesterTestController implements Disposable {
 		log.info(`Starting Test Discovery of ${this.resolveQueue.length} files`)
 		const result = await this.startPesterInterface(
 			this.resolveQueue,
-			testItemDiscoveryHandler,
+			testItemDiscoveryHandler as any,
 			true,
 			false
 		)

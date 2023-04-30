@@ -1,18 +1,30 @@
-parser: '@typescript-eslint/parser'
-plugins:
-  - '@typescript-eslint'
 extends:
   - eslint:recommended
   - plugin:@typescript-eslint/recommended
-  - plugin:prettier/recommended
+  # - standard-with-typescript
+  - prettier #Disables all rules that conflict with prettier
+parser: "@typescript-eslint/parser"
+plugins:
+  - "@typescript-eslint"
 rules:
-  prettier/prettier: error
-  arrow-body-style: 'off'
-  prefer-arrow-callback: 'off'
-  no-underscore-dangle: 'off'
-  # '@typescipt-eslint/interface-name-prefix': ['error', 'always']
-  '@typescript-eslint/no-unused-vars': 'off'
-  '@typescript-eslint/no-explicit-any': 'off'
-  '@typescript-eslint/explicit-module-boundary-types': 'off'
-  '@typescript-eslint/no-non-null-assertion': 'off'
-  '@typescript-eslint/indent': 'off'
+  no-tabs: off
+  indent: off
+  "@typescript-eslint/indent": off
+  "@typescript-eslint/space-before-function-paren": off
+  "@typescript-eslint/explicit-function-return-type": off
+  "no-return-await": off
+  "@typescript-eslint/return-await": off
+  "@typescript-eslint/no-unused-vars": warn
+  "@typescript-eslint/restrict-template-expressions": off
+env:
+  jest: true
+  node: true
+  es2021: true
+overrides:
+  - files:
+      - "**/*.test.ts"
+    rules:
+      "@typescript-eslint/no-unused-expressions": off
+parserOptions:
+  project: ./tsconfig.json
+  tsconfigRootDir: .

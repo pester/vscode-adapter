@@ -1,13 +1,13 @@
 {
 	"compilerOptions": {
 		"module": "commonjs",
-		"target": "es2019",
-		"lib": ["ES2019"],
+		"target": "ES2022",
+		"lib": ["ES2022"],
 		"outDir": "dist",
 		"sourceMap": true,
 		"inlineSources": true,
 		"strict": true,
-		"experimentalDecorators": true
+		"esModuleInterop": true
 	},
-	"exclude": ["node_modules", ".vscode-test", "**/*.test.ts"]
+	"exclude": ["node_modules", ".vscode-test", "*.config.ts", "TestsToRefactor"]
 }
