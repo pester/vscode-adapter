@@ -5,3 +5,4 @@ node_modules
 *.vsix
 /vscode.d.ts
 /vscode.proposed.d.ts
+test-results.xml
