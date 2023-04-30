@@ -32,13 +32,10 @@ jobs:
             node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: ➕ Setup pnpm
-        uses: pnpm/action-setup@v2.2.4
-
       - name: ➕ Dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          & pnpm ci
+        uses: pnpm/action-setup@v2.2.4
+        with:
+          run_install: true
 
       - name: 🔍 Get Calendar Version
         id: version
