@@ -440,16 +440,20 @@ A dirty hack that parasitically infects another plugin function and generates th
 .NOTES
 Warning: This only works once, not designed for repeated plugin injection
 #>
-	$Pester = Get-Module Pester
+	$Pester = (Get-Command Invoke-Pester -ErrorActionStop).Module
 	& $Pester {
 		param($SCRIPT:PluginConfiguration)
-		if ($SCRIPT:ShimmedPlugin) { return }
-		[ScriptBlock]$SCRIPT:ShimmedPlugin = (Get-Item 'Function:\Get-RSpecObjectDecoratorPlugin').ScriptBlock
-		function SCRIPT:Get-RSpecObjectDecoratorPlugin {
-			# Our plugin must come first because teardowns are done in reverse and we need the RSpec to add result status
-			New-PluginObject @SCRIPT:PluginConfiguration
-			. $ShimmedPlugin $args
+		if ($null -ne $SCRIPT:additionalPlugins -and $testAdapterPlugin.Name -in $SCRIPT:additionalPlugins.Name) {
+			Write-Verbose 'TestPlugin already added'
+			return
 		}
+
+		if ($null -eq $SCRIPT:additionalPlugins) {
+			$SCRIPT:additionalPlugins = @()
+		}
+
+		$testAdapterPlugin = New-PluginObject @SCRIPT:PluginConfiguration
+		$SCRIPT:additionalPlugins += $testAdapterPlugin
 	} $PluginConfiguration
 }
 
