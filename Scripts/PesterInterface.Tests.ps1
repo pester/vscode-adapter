@@ -37,87 +37,96 @@ Describe 'PesterInterface' {
   }
   Context 'New-TestItemId' {
     BeforeAll {
-      . $PesterInterface -LoadFunctionsOnly
-    }
-    BeforeEach {
-      $SCRIPT:baseMock = [PSCustomObject]@{
-        PSTypeName  = 'Test'
-        Path        = 'Describe', 'Context', 'It'
-        ScriptBlock = @{
-          File = 'C:\Path\To\Pester\File'
-        }
-        Data        = $null
-      }
-    }
-    It 'basic path' {
-      New-TestItemId -AsString $baseMock |
-        Should -Be $($baseMock.ScriptBlock.File, ($baseMock.Path -join '>>') -join '>>')
-    }
-    It 'Array testcase' {
-      $baseMock.Data = @('test')
-      New-TestItemId -AsString $baseMock |
-        Should -Be $($baseMock.ScriptBlock.File, ($baseMock.Path -join '>>'), '_=test' -join '>>')
-    }
-    It 'Hashtable testcase one key' {
-      $baseMock.Data = @{Name = 'Pester' }
-      New-TestItemId -AsString $baseMock |
-        Should -Be $($baseMock.ScriptBlock.File, ($baseMock.Path -join '>>'), 'Name=Pester' -join '>>')
-    }
-    It 'Hashtable testcase multiple key' {
-      $baseMock.Data = @{Name = 'Pester'; Data = 'Something' }
-      New-TestItemId -AsString $baseMock |
-        Should -Be $($baseMock.ScriptBlock.File, ($baseMock.Path -join '>>'), 'Data=Something>>Name=Pester' -join '>>')
-    }
-    It 'Works without file' {
-      $baseMock.Scriptblock.File = $null
-      $baseMock.Data = @{Name = 'Pester'; Data = 'Something' }
-      New-TestItemId -AsString $baseMock |
-        Should -Be $(($baseMock.Path -join '>>'), 'Data=Something>>Name=Pester' -join '>>')
-    }
-    It 'Works with Pester.Block' {
-      $Block = Import-Clixml $Mocks/Block.clixml
-      New-TestItemId $Block -AsString | Should -Be 'Describe Nested Foreach <name>>>Kind=Animal>>Name=giraffe>>Symbol=🦒'
-    }
-  }
+			Import-Module $PSScriptRoot\PesterTestPlugin.psm1 -Force
+		}
+		AfterAll {
+			Remove-Module PesterTestPlugin
+		}
+		BeforeEach {
+			$SCRIPT:baseMock = [PSCustomObject]@{
+				PSTypeName  = 'Test'
+				Path        = 'Describe', 'Context', 'It'
+				ScriptBlock = @{
+					File = 'C:\Path\To\Pester\File'
+				}
+				Data        = $null
+			}
+		}
+		It 'basic path' {
+			New-TestItemId -AsString $baseMock |
+				Should -Be $($baseMock.ScriptBlock.File, ($baseMock.Path -join '>>') -join '>>')
+		}
+		It 'Array testcase' {
+			$baseMock.Data = @('test')
+			New-TestItemId -AsString $baseMock |
+				Should -Be $($baseMock.ScriptBlock.File, ($baseMock.Path -join '>>'), '_=test' -join '>>')
+		}
+		It 'Hashtable testcase one key' {
+			$baseMock.Data = @{Name = 'Pester' }
+			New-TestItemId -AsString $baseMock |
+				Should -Be $($baseMock.ScriptBlock.File, ($baseMock.Path -join '>>'), 'Name=Pester' -join '>>')
+		}
+		It 'Hashtable testcase multiple key' {
+			$baseMock.Data = @{Name = 'Pester'; Data = 'Something' }
+			New-TestItemId -AsString $baseMock |
+				Should -Be $($baseMock.ScriptBlock.File, ($baseMock.Path -join '>>'), 'Data=Something>>Name=Pester' -join '>>')
+		}
+		It 'Works without file' {
+			$baseMock.Scriptblock.File = $null
+			$baseMock.Data = @{Name = 'Pester'; Data = 'Something' }
+			New-TestItemId -AsString $baseMock |
+				Should -Be $(($baseMock.Path -join '>>'), 'Data=Something>>Name=Pester' -join '>>')
+		}
+		It 'Works with Pester.Block' {
+			$Block = Import-Clixml $Mocks/Block.clixml
+			New-TestItemId $Block -AsString | Should -Be 'Describe Nested Foreach <name>>>Kind=Animal>>Name=giraffe>>Symbol=🦒'
+		}
+	}
 
-  Context 'Expand-TestCaseName' {
-    BeforeAll {
-      . $PesterInterface -LoadFunctionsOnly
-    }
-    BeforeEach {
-      $SCRIPT:baseMock = New-MockObject -Type Pester.Test
-      $BaseMock.Name = 'Pester'
-    }
-    It 'Fails with wrong type' {
-      $fake = [PSCustomObject]@{Name = 'Pester'; PSTypeName = 'NotATest' }
-      { Expand-TestCaseName -Test $fake } | Should -Throw '*is not a Pester Test or Pester Block*'
-    }
-    It 'Works with Array testcase' {
-      $baseMock.Name = 'Array TestCase <_>'
-      $baseMock.Data = @('pester')
-      Expand-TestCaseName $baseMock | Should -Be 'Array TestCase pester'
-    }
-    It 'Works with Single Hashtable testcase' {
-      $baseMock.Name = 'Array TestCase <Name>'
-      $baseMock.Data = @{Name = 'pester' }
-      Expand-TestCaseName $baseMock | Should -Be 'Array TestCase pester'
-    }
-    It 'Works with Multiple Hashtable testcase' {
-      $baseMock.Name = 'Array <Data> TestCase <Name>'
-      $baseMock.Data = @{Name = 'pester'; Data = 'aCoolTest' }
-      Expand-TestCaseName $baseMock | Should -Be 'Array aCoolTest TestCase pester'
-    }
+	Context 'Expand-TestCaseName' {
+		BeforeAll {
+			Import-Module $PSScriptRoot\PesterTestPlugin.psm1 -Force
+		}
+		AfterAll {
+			Remove-Module PesterTestPlugin
+		}
+		BeforeEach {
+			$SCRIPT:baseMock = New-MockObject -Type Pester.Test
+			$BaseMock.Name = 'Pester'
+		}
+		It 'Fails with wrong type' {
+			$fake = [PSCustomObject]@{Name = 'Pester'; PSTypeName = 'NotATest' }
+			{ Expand-TestCaseName -Test $fake } | Should -Throw '*is not a Pester Test or Pester Block*'
+		}
+		It 'Works with Array testcase' {
+			$baseMock.Name = 'Array TestCase <_>'
+			$baseMock.Data = @('pester')
+			Expand-TestCaseName $baseMock | Should -Be 'Array TestCase pester'
+		}
+		It 'Works with Single Hashtable testcase' {
+			$baseMock.Name = 'Array TestCase <Name>'
+			$baseMock.Data = @{Name = 'pester' }
+			Expand-TestCaseName $baseMock | Should -Be 'Array TestCase pester'
+		}
+		It 'Works with Multiple Hashtable testcase' {
+			$baseMock.Name = 'Array <Data> TestCase <Name>'
+			$baseMock.Data = @{Name = 'pester'; Data = 'aCoolTest' }
+			Expand-TestCaseName $baseMock | Should -Be 'Array aCoolTest TestCase pester'
+		}
 
-    It 'Works with Pester.Block' {
-      $Block = Import-Clixml $Mocks/Block.clixml
-      Expand-TestCaseName $Block | Should -Be 'Describe Nested Foreach giraffe'
-    }
-  }
+		It 'Works with Pester.Block' {
+			$Block = Import-Clixml $Mocks/Block.clixml
+			Expand-TestCaseName $Block | Should -Be 'Describe Nested Foreach giraffe'
+		}
+	}
 
-  Context 'Get-DurationString' {
-    BeforeAll {
-      . $PesterInterface 'fakepath' -LoadFunctionsOnly
-    }
+	Context 'Get-DurationString' {
+		BeforeAll {
+			Import-Module $PSScriptRoot\PesterTestPlugin.psm1 -Force
+		}
+		AfterAll {
+			Remove-Module PesterTestPlugin
+		}
     It 'Multiple Module Failure' {
       Set-ItResult -Skipped -Because 'Get-Module Mock is not working for some reason'
       Mock -CommandName 'Get-Module' -MockWith { @('PesterModule1', 'PesterModule2') }
