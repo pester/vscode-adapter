@@ -234,6 +234,7 @@ export class PesterTestController implements Disposable {
 		}
 	}
 
+	/** Used to debounce multiple requests for test discovery at the same time to not overload the pester adapter */
 	private startTestDiscovery = debounce(async testItemDiscoveryHandler => {
 		log.info(`Starting Test Discovery of ${this.resolveQueue.length} files`)
 		const result = await this.startPesterInterface(

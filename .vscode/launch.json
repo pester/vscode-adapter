@@ -12,6 +12,7 @@
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
 				"--profile=Debug-PesterExtension",
+				"--trace-warnings",
 				"${workspaceFolder}/test/TestEnvironment.code-workspace"
 			],
 			"env": {
