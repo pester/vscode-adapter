@@ -151,66 +151,6 @@ export class PesterTestController implements Disposable {
 			)
 		}
 
-		// TODO: Wire this back up to the test adapter
-		const testItemLookup = new Map<string, TestItem>()
-
-		/**
-		 * Raw test discovery result objects returned from Pester are processed by this function
-		 */
-		const testItemDiscoveryHandler = (t: unknown) => {
-			// TODO: This should be done before onDidReceiveObject maybe as a handler callback?
-			const testDef = t as TestDefinition
-
-			// If there was a syntax error, set the error and short circuit the rest
-			if (testDef.error !== undefined) {
-				const existingTest = this.testController.items.get(testDef.id)
-				if (existingTest) {
-					existingTest.error = new MarkdownString(
-						`$(error) ${testDef.error}`,
-						true
-					)
-					return
-				}
-			}
-
-			const parent =
-				testItemLookup.get(testDef.parent) ??
-				this.testController.items.get(testDef.parent)
-			if (parent === undefined && testDef.error === undefined) {
-				log.fatal(
-					`Test Item ${testDef.label} does not have a TestFile parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
-				)
-				throw new Error(
-					`Test Item ${testDef.label} does not have a TestFile parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
-				)
-			}
-			const newTestItem = this.testController.createTestItem(
-				testDef.id,
-				testDef.label,
-				testItem.uri
-			)
-			newTestItem.range = new Range(testDef.startLine, 0, testDef.endLine, 0)
-
-			if (testDef.tags !== undefined) {
-				newTestItem.tags = testDef.tags.map(tag => {
-					log.debug(`Adding tag ${tag} to ${newTestItem.label}`)
-					return new TestTag(tag)
-				})
-				newTestItem.description = testDef.tags.join(', ')
-			}
-
-			if (testDef.error !== undefined) {
-				newTestItem.error = testDef.error
-			}
-
-			TestData.set(newTestItem, testDef)
-			testItemLookup.set(newTestItem.id, newTestItem)
-			if (parent !== undefined) {
-				log.debug(`Adding ${newTestItem.label} to ${parent.label}`)
-				parent.children.add(newTestItem)
-			}
-		}
-
 		if (
 			(testItemData instanceof TestFile &&
 				!testItemData.testsDiscovered &&
@@ -224,13 +164,66 @@ export class PesterTestController implements Disposable {
 			log.debug('Adding to Discovery Queue: ', testItem.id)
 			this.resolveQueue.push(testItem)
 			// For discovery we don't care about the terminal output, thats why no assignment to var here
-			await this.startTestDiscovery(testItemDiscoveryHandler)
+			await this.startTestDiscovery(this.testItemDiscoveryHandler.bind(this))
 			testItem.busy = false
 		} else {
 			log.info(
-				`Resolve for ${testItem.label} requested but it is already resolving/resolved`
+				`Resolve for ${testItem.label} requested but it is already resolving/resolved. Skipping...`
 			)
 		}
+	}
+
+	/**
+	 * Raw test discovery result objects returned from Pester are processed by this function
+	 */
+	private testItemDiscoveryHandler(t: unknown) {
+		// TODO: This should be done before onDidReceiveObject maybe as a handler callback?
+		const testDef = t as TestDefinition
+		log.trace("Received discovery item from PesterInterface: ", t)
+		// If there was a syntax error, set the error and short circuit the rest
+		if (testDef.error) {
+			const existingTest = this.testController.items.get(testDef.id)
+			if (existingTest) {
+				existingTest.error = new MarkdownString(
+					`$(error) ${testDef.error}`,
+					true
+				)
+				return
+			}
+		}
+
+		const parent = findTestItem(testDef.parent, this.testController.items)
+		if (parent === undefined) {
+			log.fatal(
+				`Test Item ${testDef.label} does not have a TestFile parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
+			)
+			throw new Error(
+				`Test Item ${testDef.label} does not have a TestFile parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
+			)
+		}
+
+		const newTestItem = this.testController.createTestItem(
+			testDef.id,
+			testDef.label,
+			parent.uri
+		)
+		newTestItem.range = new Range(testDef.startLine, 0, testDef.endLine, 0)
+
+		if (testDef.tags !== undefined) {
+			newTestItem.tags = testDef.tags.map(tag => {
+				log.debug(`Adding tag ${tag} to ${newTestItem.label}`)
+				return new TestTag(tag)
+			})
+			newTestItem.description = testDef.tags.join(', ')
+		}
+
+		if (testDef.error !== undefined) {
+			newTestItem.error = testDef.error
+		}
+
+		TestData.set(newTestItem, testDef)
+		log.debug(`Adding ${newTestItem.label} to ${parent.label}`)
+		parent.children.add(newTestItem)
 	}
 
 	/** Used to debounce multiple requests for test discovery at the same time to not overload the pester adapter */
@@ -285,7 +278,7 @@ export class PesterTestController implements Disposable {
 
 		/** Takes the returned objects from Pester and resolves their status in the test controller **/
 		const runResultHandler = (item: unknown) => {
-			log.trace("Received item from PesterInterface: ", item);
+			log.trace("Received run result from PesterInterface: ", item);
 			const testResult = item as TestResult
 			// Skip non-errored Test Suites for now, focus on test results
 			if (testResult.type === 'Block' && !testResult.error) {
