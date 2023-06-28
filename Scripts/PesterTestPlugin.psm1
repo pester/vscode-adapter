@@ -1,6 +1,9 @@
+using namespace Pester
 using namespace System.Collections
 using namespace System.Collections.Generic
-using namespace Pester
+using namespace System.IO
+using namespace System.IO.Pipes
+using namespace System.Text
 
 #region Model
 # Maps pester result status to vscode result status
@@ -37,9 +40,9 @@ function New-PesterTestAdapterPluginConfiguration {
 			} else {
 				if (-not (!$pipeName -or $pipeName -eq 'stdout')) {
 					Write-Host -ForegroundColor Green "Connecting to pipe $PipeName"
-					$SCRIPT:__TestAdapterNamedPipeClient = [IO.Pipes.NamedPipeClientStream]::new($PipeName)
+					$SCRIPT:__TestAdapterNamedPipeClient = [NamedPipeClientStream]::new($PipeName)
 					$__TestAdapterNamedPipeClient.Connect(5000)
-					$SCRIPT:__TestAdapterNamedPipeWriter = [System.IO.StreamWriter]::new($__TestAdapterNamedPipeClient)
+					$SCRIPT:__TestAdapterNamedPipeWriter = [StreamWriter]::new($__TestAdapterNamedPipeClient)
 				}
 			}
 		}
@@ -267,7 +270,7 @@ function New-TestItemId {
 			#TODO: This should probably be a helper function
 			Write-Debug "Non-Hashed Test ID for $($Test.ExpandedPath): $TestID"
 			return (Get-FileHash -InputStream (
-					[IO.MemoryStream]::new(
+					[MemoryStream]::new(
 						[Text.Encoding]::UTF8.GetBytes($TestID)
 					)
 				) -Algorithm SHA256).hash

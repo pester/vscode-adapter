@@ -153,7 +153,7 @@
 		}
 	],
 	"scripts": {
-		"esbuild-base": "esbuild --format=cjs --platform=node --bundle --outdir=dist --external:vscode --external:@vscode/test-electron extension=src/extension.ts --metafile=dist/esbuild.json",
+		"esbuild-base": "esbuild --format=cjs --platform=node --bundle --outdir=dist --external:vscode --external:@vscode/test-electron extension=src/extension.ts --metafile=dist/esbuild.json --sourcemap",
 		"build": "vsce package --no-git-tag-version --no-dependencies",
 		"tsc": "tsc",
 		"build-watch": "pnpm run esbuild-base --watch",

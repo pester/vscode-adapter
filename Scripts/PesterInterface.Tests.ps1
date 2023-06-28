@@ -18,6 +18,11 @@ Describe 'PesterInterface' {
       & $PesterInterface -Path $paths -Discovery -PipeName $PipeOutPath -DryRun 6>$null
       Get-Content $PipeOutPath | ConvertFrom-Json | ForEach-Object label | Should -HaveCount 61
     }
+		It 'Simple Test Run' {
+			$paths = "$testDataPath/Tests/True.Tests.ps1"
+			& $PesterInterface -Path $paths -PipeName $PipeOutPath -DryRun 6>$null
+			Get-Content $PipeOutPath | ConvertFrom-Json | ForEach-Object label | Should -HaveCount 2 -Because 'One for test start and one for test result'
+		}
     It 'Syntax Error' {
       $paths = "$testDataPath/Tests/ContextSyntaxError.Tests.ps1",
       "$testDataPath/Tests/DescribeSyntaxError.Tests.ps1"

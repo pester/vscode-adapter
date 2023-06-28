@@ -129,8 +129,11 @@ export class PesterTestController implements Disposable {
 			this.initialized = true
 		}
 
+		log.trace(`VSCode requested resolve for: ${testItem?.id}`)
+
 		// If testitem is undefined, this is a signal to initialize the controller but not actually do anything, so we exit here.
 		if (testItem === undefined) {
+			log.debug('Received undefined testItem from VSCode, this is a signal to initialize the controller')
 			return
 		}
 
@@ -248,12 +251,17 @@ export class PesterTestController implements Disposable {
 		if (request.profile === undefined) {
 			throw new Error('No profile provided. This is (currently) a bug.')
 		}
+
+		log.trace(`VSCode requested ${TestRunProfileKind[request.profile.kind]} for: `, request.include?.map(i => i.id))
+
 		const isDebug = request.profile.kind === TestRunProfileKind.Debug
 		// If nothing was included, assume it means "run all tests"
 		const include = request.include ?? getTestItems(this.testController.items)
 
 		// add the parent test suites of the included tests so that their status can be updated. This is needed for BeforeAll/AfterAll test updates
 		const includeWithParents = include.flatMap(getParents).concat(include)
+
+		log.debug(`${request.include?.map(i => i.id)} expanded to include parents: `, includeWithParents.map(i => i.id))
 
 		const RequestWithParents = new TestRunRequest(
 			includeWithParents,
@@ -277,9 +285,10 @@ export class PesterTestController implements Disposable {
 
 		/** Takes the returned objects from Pester and resolves their status in the test controller **/
 		const runResultHandler = (item: unknown) => {
+			log.trace("Received item from PesterInterface: ", item);
 			const testResult = item as TestResult
 			// Skip non-errored Test Suites for now, focus on test results
-			if (testResult.type === 'Block' && testResult === undefined) {
+			if (testResult.type === 'Block' && !testResult.error) {
 				return
 			}
 
@@ -323,7 +332,7 @@ export class PesterTestController implements Disposable {
 								testResult.message,
 								testResult.expected,
 								testResult.actual
-						  )
+						)
 						: new TestMessage(testResult.message)
 				if (
 					testResult.targetFile != undefined &&
@@ -522,6 +531,8 @@ export class PesterTestController implements Disposable {
 		psOutput.success.on('data', returnHandler)
 		psOutput.success.on('close', () => {
 			testRun?.end()
+			log.debug(`Pester close received, removing returnHandler`)
+			psOutput.success.removeListener('data', returnHandler)
 		})
 
 		if (usePSIC) {

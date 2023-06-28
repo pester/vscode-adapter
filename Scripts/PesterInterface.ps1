@@ -57,7 +57,7 @@ filter Import-PrivateModule ([Parameter(ValueFromPipeline)][string]$Path) {
 	return [psmoduleinfo]::new($scriptBlockAst.GetScriptBlock())
 }
 
-function Register-PesterPlugin([hashtable]$PluginConfiguration) {
+function Register-PesterPlugin ([hashtable]$PluginConfiguration) {
 	<#
 	.SYNOPSIS
 	Utilizes a private Pester API to register the plugin.
@@ -79,7 +79,7 @@ function Register-PesterPlugin([hashtable]$PluginConfiguration) {
 	} $PluginConfiguration
 }
 
-function Unregister-PesterPlugin([hashtable]$PluginConfiguration) {
+function Unregister-PesterPlugin ([hashtable]$PluginConfiguration) {
 	<#
 	.SYNOPSIS
 	Utilizes a private Pester API to unregister the plugin.
