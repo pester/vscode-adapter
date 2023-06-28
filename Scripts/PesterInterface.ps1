@@ -92,12 +92,13 @@ function Unregister-PesterPlugin ([hashtable]$PluginConfiguration) {
 			return
 		}
 
-		if (-not $testAdapterPlugin.Name -in $SCRIPT:additionalPlugins.Name) {
-			Write-Debug "PesterInterface: $($testAdapterPlugin.Name) is not registered. Skipping..."
+		$plugin = $SCRIPT:additionalPlugins | Where-Object Name -EQ $PluginConfiguration.Name
+		if (-not $plugin) {
+			Write-Debug "PesterInterface: $($PluginConfiguration.Name) is not registered. Skipping..."
 			return
 		}
 
-		$SCRIPT:additionalPlugins += $testAdapterPlugin
+		$SCRIPT:additionalPlugins = $SCRIPT:additionalPlugins | Where-Object Name -NE $PluginConfiguration.Name
 	} $PluginConfiguration
 }
 

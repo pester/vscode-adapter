@@ -530,7 +530,7 @@ export class PesterTestController implements Disposable {
 		// Objects from the run will return to the success stream, which we then send to the return handler
 		const psOutput = new PSOutput()
 		psOutput.success.on('data', returnHandler)
-		psOutput.success.on('close', () => {
+		psOutput.success.once('close', () => {
 			testRun?.end()
 			log.debug(`Pester close received, removing returnHandler`)
 			psOutput.success.removeListener('data', returnHandler)

@@ -240,10 +240,11 @@ export class PowerShell {
 		inputStream ??= this.psProcess.stdout
 
 		// FIXME: There should only be one end listener from the readlineTransform pipe, currently there are two, why?
-		inputStream.setMaxListeners(1)
+		inputStream.setMaxListeners(2)
 
 		// Wire up a listener for terminating errors that will reject a promise we will race with the normal operation
 		// TODO: RemoveAllListeners should be more specific
+		this.psProcess.stdout.removeAllListeners()
 		this.psProcess.stderr.removeAllListeners()
 		const errorWasEmitted = new Promise((_resolve, reject) => {
 			// Read error output one line at a time
