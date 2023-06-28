@@ -42,62 +42,20 @@ function New-PesterTestAdapterPluginConfiguration {
 				if ($PSItem -is [Pester.Test]) {
 					[Pester.Block[]]$testSuites = Get-TestItemParents -Test $PSItem -KnownParents $SCRIPT:__TestAdapterKnownParents
 					$testSuites.foreach{
-						$testItem = New-TestObject $PSItem
-						[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-						if (!$DryRun) {
-							if (!$pipeName -or $pipeName -eq 'stdout') {
-								[void][Console]::Out.WriteLineAsync($jsonObject)
-							} else {
-								$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
-							}
-						} else {
-							$jsonObject >> $PipeName
-						}
+						Write-TestItem -TestDefinition $PSItem -PipeName $PipeName -DryRun:$DryRun
 					}
 				}
-				$testItem = New-TestObject $PSItem
-				[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-				if (!$DryRun) {
-					if (!$pipeName -or $pipeName -eq 'stdout') {
-						[void][Console]::Out.WriteLineAsync($jsonObject)
-					} else {
-						$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
-					}
-				} else {
-					$jsonObject >> $PipeName
-				}
+				Write-TestItem -TestDefinition $PSItem -PipeName $PipeName -DryRun:$DryRun
 			}
 		}
 		EachTestSetup           = {
 			param($Context)
-			#Indicate the test is now running
-			$testItem = New-TestObject $context.test
-			$testItem.result = 'Running'
-			[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-			if (!$DryRun) {
-				if (!$pipeName -or $pipeName -eq 'stdout') {
-					[void][Console]::Out.WriteLineAsync($jsonObject)
-				} else {
-					$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
-				}
-			} else {
-				$jsonObject >> $PipeName
-			}
+			Write-TestItem -TestDefinition $Context.Test -PipeName $PipeName -DryRun:$DryRun
 		}
 		EachTestTeardownEnd     = {
 			param($Context)
 			if (-not $Context) { continue }
-			$testItem = New-TestObject $context.test
-			[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-			if (!$DryRun) {
-				if (!$pipeName -or $pipeName -eq 'stdout') {
-					[void][Console]::Out.WriteLineAsync($jsonObject)
-				} else {
-					$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
-				}
-			} else {
-				$jsonObject >> $PipeName
-			}
+			Write-TestItem -TestDefinition $Context.Test -PipeName $PipeName -DryRun:$DryRun
 		}
 		OneTimeBlockTearDownEnd = {
 			param($Context)
@@ -105,17 +63,7 @@ function New-PesterTestAdapterPluginConfiguration {
 			[Pester.Block]$Block = $Context.Block
 			# Report errors in the block itself. This should capture BeforeAll/AfterAll issues
 			if ($Block.ErrorRecord) {
-				$testItem = New-TestObject $Block
-				[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
-				if (!$DryRun) {
-					if (!$pipeName -or $pipeName -eq 'stdout') {
-						[void][Console]::Out.WriteLineAsync($jsonObject)
-					} else {
-						$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
-					}
-				} else {
-					$jsonObject >> $PipeName
-				}
+				Write-TestItem -TestDefinition $Block -PipeName $PipeName -DryRun:$DryRun
 			}
 		}
 		End                     = {
@@ -128,6 +76,19 @@ function New-PesterTestAdapterPluginConfiguration {
 	}
 }
 
+filter Write-TestItem([Parameter(ValueFromPipeline)]$TestDefinition, [string]$PipeName, [switch]$DryRun) {
+	$testItem = New-TestObject $TestDefinition
+	[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
+	if (!$DryRun) {
+		if (!$pipeName -or $pipeName -eq 'stdout') {
+			[void][Console]::Out.WriteLineAsync($jsonObject)
+		} else {
+			$__TestAdapterNamedPipeWriter.WriteLine($jsonObject)
+		}
+	} else {
+		$jsonObject >> $PipeName
+	}
+}
 
 function Merge-TestData () {
 	#Produce a unified test Data object from this object and its parents
