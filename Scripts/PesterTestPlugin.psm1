@@ -312,7 +312,7 @@ function New-TestObject ($Test) {
 		startLine      = [int]($Test.StartLine - 1) #Lines are zero-based in vscode
 		endLine        = [int]($Test.ScriptBlock.StartPosition.EndLine - 1) #Lines are zero-based in vscode
 		label          = Expand-TestCaseName $Test
-		result         = Resolve-TestResult $Test
+		result         = if (-not $Discovery) { $Test | Resolve-TestResult }
 		duration       = $Test.UserDuration.TotalMilliseconds #I don't think anyone is doing sub-millisecond code performance testing in PowerShell :)
 		durationDetail = Get-DurationString $Test
 		message        = $Message
@@ -326,20 +326,16 @@ function New-TestObject ($Test) {
 	}
 }
 
-function Resolve-TestResult ($TestObject) {
+filter Resolve-TestResult ([Parameter(ValueFromPipeline)]$TestResult) {
 	#This part borrowed from https://github.dev/pester/Pester/blob/7ca9c814cf32334303f7c506beaa6b1541554973/src/Pester.RSpec.ps1#L107-L122 because with the new plugin system it runs *after* our plugin unfortunately
-	$TestObject.Result = if ($TestObject.Skipped) {
-		'Skipped'
-	} elseif ($TestObject.Passed) {
-		'Passed'
-	} elseif (-not $discoveryOnly -and $TestObject.ShouldRun -and (-not $TestObject.Executed -or -not $TestObject.Passed)) {
-		'Failed'
-	} elseif ($discoveryOnly -and 0 -lt $TestObject.ErrorRecord.Count) {
-		'Failed'
-	} else {
-		'NotRun'
+	switch ($true) {
+		($TestResult.Duration -eq 0 -and $TestResult.ShouldRun -eq $true) { return 'Running' }
+		($TestResult.Skipped) { return 'Skipped' }
+		($TestResult.Passed) { return 'Passed' }
+		(-not $discoveryOnly -and $TestResult.ShouldRun -and (-not $TestResult.Executed -or -not $TestResult.Passed)) { return 'Failed' }
+		($discoveryOnly -and 0 -lt $TestResult.ErrorRecord.Count) { return 'Running' }
+		default { return 'NotRun' }
 	}
-	return $TestObject.Result
 }
 
 function Get-TestItemParents {
