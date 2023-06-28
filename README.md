@@ -17,10 +17,10 @@ This extension provides the ability to run [Pester](https://pester.dev/) tests u
 
 ### Highlights
 
-🔍 **Pester Test Browser** <br>
-🐞 **Debugging Support** <br>
-👩‍💻 **Uses PowerShell Integrated Terminal** <br>
-👨‍👧‍👦 **Expands Test Cases** <br>
+🔍 **Pester Test Browser**  
+🐞 **Debugging Support**  
+👩‍💻 **Native PowerShell Extension Integration**  
+👨‍👧‍👦 **Expands Test Cases**  
 
 ### Extension Prerequisites
 
@@ -46,3 +46,7 @@ Preview VSIX extension packages are generated upon every commit to main and ever
 ### Configuration
 
 This extension will use the PowerShell Extension Pester verbosity settings for the output.
+
+### Troubleshooting
+
+The Pester `Output` pane maintains a log of the activities that occur with the Pester extension. You can use `Set Log Level` in the command palette to increase the log level to debug or trace to get more information about what is going on. Include this information when submitting an issue along with reproduction steps.
