@@ -30,7 +30,6 @@ import {
 	TestDefinition,
 	TestFile,
 	TestResult,
-	TestResultState
 } from './pesterTestTree'
 import { PowerShell, PSOutput } from './powershell'
 import {
@@ -318,12 +317,12 @@ export class PesterTestController implements Disposable {
 				log.warn(`${testResult.id} was run in Pester but excluded from results`)
 				return
 			}
-			if (testResult.result === TestResultState.Running) {
+			if (testResult.result === "Running") {
 				run.started(testRequestItem)
 				return
 			}
 
-			if (testResult.result === TestResultState.Passed) {
+			if (testResult.result === "Passed") {
 				run.passed(testRequestItem, testResult.duration)
 			} else {
 				// TODO: This is clumsy and should be a constructor/method on the TestData type perhaps
@@ -346,12 +345,12 @@ export class PesterTestController implements Disposable {
 				}
 
 				if (
-					testResult.result === TestResultState.Skipped &&
+					testResult.result === "Skipped" &&
 					testResult.message === 'is skipped'
 				) {
 					return run.skipped(testRequestItem)
 				} else if (
-					testResult.result === TestResultState.Skipped &&
+					testResult.result === "Skipped" &&
 					testResult.message &&
 					!workspace
 						.getConfiguration('pester')
@@ -359,7 +358,7 @@ export class PesterTestController implements Disposable {
 				) {
 					// We use "errored" because there is no "skipped" message support in the vscode UI
 					return run.errored(testRequestItem, message, testResult.duration)
-				} else if (testResult.result === TestResultState.Skipped) {
+				} else if (testResult.result === "Skipped") {
 					return run.skipped(testRequestItem)
 				}
 

@@ -15,21 +15,7 @@ export const TestData = new WeakMap<TestItem, TestTree>()
 /**
  * Possible states of tests in a test run.
  */
-export enum TestResultState {
-	// Test will be run, but is not currently running.
-	Queued = 1,
-	// Test is currently running
-	Running = 2,
-	// Test run has passed
-	Passed = 3,
-	// Test run has failed (on an assertion)
-	Failed = 4,
-	// Test run has been skipped
-	Skipped = 5,
-	// Test run failed for some other reason (compilation error, timeout, etc)
-	Errored = 6
-}
-
+export type TestResultState = string
 /** Represents an individual Pester .tests.ps1 file, or an active document in the editor. This is just a stub to be used
  * for type identification later, the real work is done in {@link PesterTestController.getOrCreateFile()}
  */

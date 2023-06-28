@@ -5,21 +5,6 @@ using namespace System.IO
 using namespace System.IO.Pipes
 using namespace System.Text
 
-#region Model
-# Maps pester result status to vscode result status
-enum ResultStatus {
-	Unset
-	Queued
-	Running
-	Passed
-	Failed
-	Skipped
-	Errored
-	NotRun #Pester Specific, this should be ignored
-}
-
-#endregion Model
-
 function New-PesterTestAdapterPluginConfiguration {
 	param(
 		[string]$PipeName,
@@ -87,7 +72,7 @@ function New-PesterTestAdapterPluginConfiguration {
 			param($Context)
 			#Indicate the test is now running
 			$testItem = New-TestObject $context.test
-			$testItem.result = 2
+			$testItem.result = 'Running'
 			[string]$jsonObject = ConvertTo-Json $testItem -Compress -Depth 1
 			if (!$DryRun) {
 				if (!$pipeName -or $pipeName -eq 'stdout') {
@@ -366,7 +351,7 @@ function New-TestObject ($Test) {
 		startLine      = [int]($Test.StartLine - 1) #Lines are zero-based in vscode
 		endLine        = [int]($Test.ScriptBlock.StartPosition.EndLine - 1) #Lines are zero-based in vscode
 		label          = Expand-TestCaseName $Test
-		result         = [ResultStatus]$(if ($null -eq $Test.Result) { 'NotRun' } else { $Test.Result })
+		result         = Resolve-TestResult $Test
 		duration       = $Test.UserDuration.TotalMilliseconds #I don't think anyone is doing sub-millisecond code performance testing in PowerShell :)
 		durationDetail = Get-DurationString $Test
 		message        = $Message
@@ -380,6 +365,21 @@ function New-TestObject ($Test) {
 	}
 }
 
+function Resolve-TestResult ($TestObject) {
+	#This part borrowed from https://github.dev/pester/Pester/blob/7ca9c814cf32334303f7c506beaa6b1541554973/src/Pester.RSpec.ps1#L107-L122 because with the new plugin system it runs *after* our plugin unfortunately
+	$TestObject.Result = if ($TestObject.Skipped) {
+		'Skipped'
+	} elseif ($TestObject.Passed) {
+		'Passed'
+	} elseif (-not $discoveryOnly -and $TestObject.ShouldRun -and (-not $TestObject.Executed -or -not $TestObject.Passed)) {
+		'Failed'
+	} elseif ($discoveryOnly -and 0 -lt $TestObject.ErrorRecord.Count) {
+		'Failed'
+	} else {
+		'NotRun'
+	}
+	return $TestObject.Result
+}
 
 function Get-TestItemParents {
 	<#
