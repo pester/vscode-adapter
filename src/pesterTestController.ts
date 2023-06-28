@@ -108,7 +108,7 @@ export class PesterTestController implements Disposable {
 	}
 
 	/** Queues up testItems from resolveHandler requests because pester works faster scanning multiple files together **/
-	private resolveQueue = new Array<TestItem>()
+	private discoveryQueue = new Set<TestItem>()
 
 	/** The test controller API calls this whenever it needs to get the resolveChildrenHandler
 	 * for Pester, this is only relevant to TestFiles as this is pester's lowest level of test resolution
@@ -162,7 +162,7 @@ export class PesterTestController implements Disposable {
 
 			// Run Pester and get tests
 			log.debug('Adding to Discovery Queue: ', testItem.id)
-			this.resolveQueue.push(testItem)
+			this.discoveryQueue.add(testItem)
 			// For discovery we don't care about the terminal output, thats why no assignment to var here
 			await this.startTestDiscovery(this.testItemDiscoveryHandler.bind(this))
 			testItem.busy = false
@@ -228,14 +228,14 @@ export class PesterTestController implements Disposable {
 
 	/** Used to debounce multiple requests for test discovery at the same time to not overload the pester adapter */
 	private startTestDiscovery = debounce(async testItemDiscoveryHandler => {
-		log.info(`Starting Test Discovery of ${this.resolveQueue.length} files`)
+		log.info(`Starting Test Discovery of ${this.discoveryQueue.size} files`)
 		const result = await this.startPesterInterface(
-			this.resolveQueue,
+			Array.from(this.discoveryQueue),
 			testItemDiscoveryHandler as any,
 			true,
 			false
 		)
-		this.resolveQueue.length = 0
+		this.discoveryQueue.clear()
 		return result
 	}, 300)
 
