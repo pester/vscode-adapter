@@ -42,9 +42,9 @@ jobs:
         run: |
           [string]$version = & .github\Get-CalendarVersion.ps1 -MergeBuild
           "Calculated Version: $version"
-          "::set-output name=version::$version"
-          "::set-output name=calendarVersion::$version"
-          "::set-output name=semanticVersion::$version"
+          $ENV:GITHUB_OUTPUT = "version=$version"
+          $ENV:GITHUB_OUTPUT = "calendarVersion=$version"
+          $ENV:GITHUB_OUTPUT = "semanticVersion=$version"
 
       - name: 👷‍♂️ Build
         run: |
