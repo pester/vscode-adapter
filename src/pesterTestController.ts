@@ -272,8 +272,14 @@ export class PesterTestController implements Disposable {
 				: Array.from(this.getRunRequestTestItems(request))
 
 		// Indicate that the tests are ready to run
+		// Only mark actual tests as enqueued for better UI: https://github.com/microsoft/vscode-discussions/discussions/672
 		for (const testItem of testItems) {
-			forAll(testItem, run.enqueued)
+			forAll(testItem, item => {
+				const testItemData = TestData.get(item)
+				if (testItemData instanceof TestDefinition && testItemData.type === 'Test') {
+					run.enqueued(testItem)
+				}
+			})
 		}
 
 		/** Takes the returned objects from Pester and resolves their status in the test controller **/
