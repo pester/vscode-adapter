@@ -1,4 +1,5 @@
 import { TestItem, TestItemCollection } from 'vscode'
+import { TestDefinition, TestTree } from './pesterTestTree'
 
 /** Returns a Set of all TestItems and their children recursively in the collection. This assumes all your test IDs are unique, duplicates will be replaced **/
 export function getUniqueTestItems(collection: TestItemCollection) {
@@ -65,4 +66,8 @@ export function getParents(TestItem: TestItem) {
 		parent = parent.parent
 	}
 	return parents
+}
+
+export function isTestItemOptions(testItem: TestTree): testItem is TestDefinition {
+	return 'type' in testItem
 }

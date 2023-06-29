@@ -36,7 +36,7 @@ import {
 	IPowerShellExtensionClient,
 	PowerShellExtensionClient
 } from './powershellExtensionClient'
-import { findTestItem, forAll, getParents, getTestItems } from './testItemUtils'
+import { findTestItem, forAll, getParents, getTestItems, isTestItemOptions } from './testItemUtils'
 import debounce = require('debounce-promise')
 import { initialize as statusBarInitialize } from './features/toggleAutoRunOnSaveCommand'
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
@@ -145,7 +145,7 @@ export class PesterTestController implements Disposable {
 		}
 
 		// Test Definitions should never show up here, they aren't resolvable in Pester as we only do it at file level
-		if (testItemData instanceof TestDefinition) {
+		if (isTestItemOptions(testItemData)) {
 			log.warn(
 				`Received a test definition ${testItemData.id} to resolve. Should not happen`
 			)
@@ -276,10 +276,16 @@ export class PesterTestController implements Disposable {
 		for (const testItem of testItems) {
 			forAll(testItem, item => {
 				const testItemData = TestData.get(item)
-				if (testItemData instanceof TestDefinition && testItemData.type === 'Test') {
-					run.enqueued(testItem)
+				if (!testItemData) {
+					log.error(`Test Item Data not found for ${testItem.id}, this should not happen`)
+					return
 				}
-			})
+				if (isTestItemOptions(testItemData)) {
+					if (testItemData.type === 'Test') {
+						run.enqueued(item)
+					}
+				}
+			}, true)
 		}
 
 		/** Takes the returned objects from Pester and resolves their status in the test controller **/
@@ -529,8 +535,9 @@ export class PesterTestController implements Disposable {
 		const psOutput = new PSOutput()
 		psOutput.success.on('data', returnHandler)
 		psOutput.success.once('close', () => {
+			log.info(`Test Run Ended (PesterInterface stream closed)`)
 			testRun?.end()
-			log.debug(`Pester close received, removing returnHandler`)
+			log.trace(`Removing returnHandler from PSOutput`)
 			psOutput.success.removeListener('data', returnHandler)
 		})
 
@@ -542,6 +549,7 @@ export class PesterTestController implements Disposable {
 			const endSocketAtDebugTerminate = (session: DebugSession) => {
 				psListenerPromise.then(socket => socket.end())
 				if (testRun) {
+					log.warn("Test run ended due to abrupt debug session end such as the user cancelling the debug session.")
 					testRun.end()
 				}
 			}
