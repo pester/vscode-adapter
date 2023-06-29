@@ -167,8 +167,8 @@ export class PesterTestController implements Disposable {
 			await this.startTestDiscovery(this.testItemDiscoveryHandler.bind(this))
 			testItem.busy = false
 		} else {
-			log.info(
-				`Resolve for ${testItem.label} requested but it is already resolving/resolved. Skipping...`
+			log.warn(
+				`Resolve requested for ${testItem.label} requested but it is already resolving/resolved. Skipping...`
 			)
 		}
 	}
@@ -375,6 +375,8 @@ export class PesterTestController implements Disposable {
 
 		// testItems.forEach(run.started)
 		// TODO: Adjust testItems parameter to a Set
+
+		log.info(`Test Run Start: ${testItems.length} test items`)
 		await this.startPesterInterface(
 			Array.from(testItems),
 			runResultHandler.bind(this),
