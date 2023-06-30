@@ -1,6 +1,7 @@
 /** Represents a test result returned from pester, serialized into JSON */
 
 import { TestController, TestItem, Uri } from 'vscode'
+import log from './log'
 
 /** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
  * types and organization types such as suites
@@ -51,6 +52,7 @@ export class TestFile {
 		if (existing) {
 			return existing
 		}
+		log.trace('Creating test item for file: ' + uriFsPath)
 		const fileTestItem = controller.createTestItem(
 			uriFsPath,
 			uri.path.split('/').pop()!,

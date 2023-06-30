@@ -36,7 +36,7 @@ import {
 	IPowerShellExtensionClient,
 	PowerShellExtensionClient
 } from './powershellExtensionClient'
-import { findTestItem, forAll, getParents, getTestItems, isTestItemOptions } from './testItemUtils'
+import { findTestItem, forAll, getTestItems, isTestItemOptions } from './testItemUtils'
 import debounce = require('debounce-promise')
 import { initialize as statusBarInitialize } from './features/toggleAutoRunOnSaveCommand'
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
@@ -195,12 +195,20 @@ export class PesterTestController implements Disposable {
 		const parent = findTestItem(testDef.parent, this.testController.items)
 		if (parent === undefined) {
 			log.fatal(
-				`Test Item ${testDef.label} does not have a TestFile parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
+				`Test Item ${testDef.label} does not have a parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
 			)
 			throw new Error(
-				`Test Item ${testDef.label} does not have a TestFile parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
+				`Test Item ${testDef.label} does not have a parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
 			)
 		}
+
+		const existingTestItem = findTestItem(testDef.id, this.testController.items)
+		if (existingTestItem !== undefined) {
+			log.debug(`${testDef.id} was to be created but already exists. Skipping...`)
+			return
+		}
+
+		log.trace(`Creating Test Item in controller: ${testDef.id} uri: ${parent.uri}`)
 
 		const newTestItem = this.testController.createTestItem(
 			testDef.id,
@@ -228,7 +236,7 @@ export class PesterTestController implements Disposable {
 
 	/** Used to debounce multiple requests for test discovery at the same time to not overload the pester adapter */
 	private startTestDiscovery = debounce(async testItemDiscoveryHandler => {
-		log.info(`Starting Test Discovery of ${this.discoveryQueue.size} files`)
+		log.info(`Test Discovery Start: ${this.discoveryQueue.size} files`)
 		const result = await this.startPesterInterface(
 			Array.from(this.discoveryQueue),
 			testItemDiscoveryHandler as any,
@@ -251,18 +259,7 @@ export class PesterTestController implements Disposable {
 		// If nothing was included, assume it means "run all tests"
 		const include = request.include ?? getTestItems(this.testController.items)
 
-		// add the parent test suites of the included tests so that their status can be updated. This is needed for BeforeAll/AfterAll test updates
-		const includeWithParents = include.flatMap(getParents).concat(include)
-
-		log.debug(`${request.include?.map(i => i.id)} expanded to include parents: `, includeWithParents.map(i => i.id))
-
-		const RequestWithParents = new TestRunRequest(
-			includeWithParents,
-			request.exclude,
-			request.profile
-		)
-
-		const run = this.testController.createTestRun(RequestWithParents)
+		const run = this.testController.createTestRun(request)
 
 		// TODO: Make this cleaner and replace getRunRequestTestItems
 		// If there are no excludes we don't need to do any fancy exclusion test filtering
@@ -536,24 +533,30 @@ export class PesterTestController implements Disposable {
 		// Objects from the run will return to the success stream, which we then send to the return handler
 		const psOutput = new PSOutput()
 		psOutput.success.on('data', returnHandler)
-		psOutput.success.once('close', () => {
-			log.info(`Test Run Ended (PesterInterface stream closed)`)
-			testRun?.end()
+		psOutput.success.once('close', ((testRun: TestRun | undefined) => {
+			if (testRun) {
+				log.info(`Test Run End (PesterInterface stream closed)`)
+				testRun?.end()
+			} else {
+				log.info(`Discovery Run End (PesterInterface stream closed)`)
+			}
+
 			log.trace(`Removing returnHandler from PSOutput`)
 			psOutput.success.removeListener('data', returnHandler)
-		})
+		}).bind(null, testRun))
 
 		if (usePSIC) {
 			log.debug('Running Script in PSIC:', scriptPath, scriptArgs)
 			const psListenerPromise = this.returnServer.waitForConnection()
 
 			/** Handles situation where the debug adapter is stopped (usually due to user cancel) before the script completes. */
+			// TODO: Need to detect if test is still running
 			const endSocketAtDebugTerminate = (session: DebugSession) => {
-				psListenerPromise.then(socket => socket.end())
-				if (testRun) {
-					log.warn("Test run ended due to abrupt debug session end such as the user cancelling the debug session.")
-					testRun.end()
-				}
+				// psListenerPromise.then(socket => socket.end())
+				// if (testRun) {
+				// 	log.warn("Test run ended due to abrupt debug session end such as the user cancelling the debug session.")
+				// 	// testRun.end()
+				// }
 			}
 
 			scriptArgs.push('-PipeName')
@@ -656,7 +659,6 @@ export class PesterTestController implements Disposable {
 	 */
 	async watchWorkspaces() {
 		const testController = this.testController
-		const disposable = this.context.subscriptions
 		for (const pattern of this.getPesterRelativePatterns()) {
 			const testWatcher = workspace.createFileSystemWatcher(pattern)
 			const tests = this.testController.items
