@@ -271,13 +271,7 @@ export class PowerShell {
 			new ReadlineTransform({ skipEmpty: false })
 		)
 
-		// Workaround for https://github.com/nodejs/node/issues/40191
-		const pipelineCompleted = pipeline<
-			ReadlineTransform,
-			Transform,
-			Transform,
-			Writable
-		>(
+		const pipelineCompleted = pipeline(
 			readlineTransform,
 			createJsonParseTransform(),
 			createWatchForScriptFinishedMessageTransform(readlineTransform),

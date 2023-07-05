@@ -29,7 +29,6 @@ export async function activate(context: ExtensionContext) {
 
 	const suppressCodeLensNotice = workspace.getConfiguration('pester').get<boolean>('suppressCodeLensNotice') ?? false
 
-
 	if (psExtensionCodeLensSetting && !suppressCodeLensNotice) {
 		void window.showInformationMessage(
 			'The Pester Tests extension recommends disabling the built-in PowerShell Pester CodeLens. Would you like to do this?',
