@@ -577,7 +577,6 @@ export class PesterTestController implements Disposable {
 			const psListenerPromise = this.returnServer.waitForConnection()
 
 			/** Handles situation where the debug adapter is stopped (usually due to user cancel) before the script completes. */
-			// TODO: Need to detect if test is still running
 			const endSocketAtDebugTerminate = (testRun: TestRun | undefined, session: DebugSession) => {
 				psListenerPromise.then(socket => socket.end())
 				if (testRun && this.testRunStatus.get(testRun) === false) {
