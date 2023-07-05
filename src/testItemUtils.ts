@@ -29,7 +29,8 @@ export function findTestItem(id: string, collection: TestItemCollection) {
 	let match: TestItem | undefined
 	while (queue.length) {
 		const currentCollection = queue.shift()
-		currentCollection!.forEach(item => {
+		if (!currentCollection) { return }
+		currentCollection.forEach(item => {
 			if (item.id === id) {
 				match = item
 			}
@@ -56,6 +57,12 @@ export async function forAll(
 		forAll(child, fn, false)
 	})
 }
+
+/** Removes all items from a test item collection */
+export async function clear(collection: TestItemCollection) {
+	collection.forEach((item, collection) => collection.delete(item.id))
+}
+
 
 /** Gets the parents of the TestItem */
 export function getParents(TestItem: TestItem) {
