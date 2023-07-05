@@ -49,6 +49,7 @@ export class PesterTestController implements Disposable {
 	private readonly runProfile: TestRunProfile
 	private readonly debugProfile: TestRunProfile
 	private initialized = false
+	private readonly testRunStatus = new Map<TestRun, boolean>()
 	constructor(
 		private readonly powershellExtension: Extension<IPowerShellExtensionClient>,
 		private readonly context: ExtensionContext,
@@ -405,7 +406,7 @@ export class PesterTestController implements Disposable {
 		)
 	}
 
-	/** Runs pester either using the nodejs powershell adapterin the PSIC. Results will be sent via a named pipe and handled as events
+	/** Runs pester either using the nodejs powershell adapterin the PSIC. Results will be sent via a named pipe and handled as events. If a testRun is supplied, it will update the run information and end it when completed.
 	 * Returns a promise that completes with the terminal output during the pester run
 	 * returnHandler will run on each object that comes back from the Pester Interface
 	 */
@@ -440,6 +441,10 @@ export class PesterTestController implements Disposable {
 			)
 			// The resolve handler is debounced, this will wait until the delayed resolve handler completes
 			await Promise.all(undiscoveredTestFiles)
+
+			if (testRun) {
+				this.testRunStatus.set(testRun, false)
+			}
 		}
 
 		// Debug should always use PSIC for now, so if it is not explicity set, use it
@@ -557,14 +562,15 @@ export class PesterTestController implements Disposable {
 		psOutput.success.once('close', ((testRun: TestRun | undefined) => {
 			if (testRun) {
 				log.info(`Test Run End: PesterInterface stream closed`)
-				testRun?.end()
+				this.testRunStatus.set(testRun, true)
+				testRun.end()
 			} else {
 				log.info(`Discovery Run End (PesterInterface stream closed)`)
 			}
 
 			log.trace(`Removing returnHandler from PSOutput`)
 			psOutput.success.removeListener('data', returnHandler)
-		}).bind(null, testRun))
+		}).bind(this, testRun))
 
 		if (usePSIC) {
 			log.debug('Running Script in PSIC:', scriptPath, scriptArgs)
@@ -572,12 +578,12 @@ export class PesterTestController implements Disposable {
 
 			/** Handles situation where the debug adapter is stopped (usually due to user cancel) before the script completes. */
 			// TODO: Need to detect if test is still running
-			const endSocketAtDebugTerminate = (session: DebugSession) => {
-				// psListenerPromise.then(socket => socket.end())
-				// if (testRun) {
-				// 	log.warn("Test run ended due to abrupt debug session end such as the user cancelling the debug session.")
-				// 	// testRun.end()
-				// }
+			const endSocketAtDebugTerminate = (testRun: TestRun | undefined, session: DebugSession) => {
+				psListenerPromise.then(socket => socket.end())
+				if (testRun && this.testRunStatus.get(testRun) === false) {
+					log.warn("Test run ended due to abrupt debug session end such as the user cancelling the debug session.")
+					testRun.end()
+				}
 			}
 
 			scriptArgs.push('-PipeName')
@@ -585,13 +591,13 @@ export class PesterTestController implements Disposable {
 			await this.powerShellExtensionClient!.RunCommand(
 				scriptPath,
 				scriptArgs,
-				endSocketAtDebugTerminate
+				endSocketAtDebugTerminate.bind(this, testRun)
 			)
 			await this.ps.listen(psOutput, await psListenerPromise)
 		} else {
 			const script = `& '${scriptPath}' ${scriptArgs.join(' ')}`
 			log.debug('Running Script in PS Worker:', script)
-			if (testRun !== undefined) {
+			if (testRun) {
 				psOutput.information.on('data', (data: string) => {
 					testRun.appendOutput(data.trimEnd() + '\r\n')
 				})
