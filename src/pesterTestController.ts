@@ -23,6 +23,7 @@ import {
 	workspace,
 	languages,
 	FileSystemWatcher,
+	CancellationToken,
 } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import log, { VSCodeLogOutputChannelTransport } from './log'
@@ -121,8 +122,10 @@ export class PesterTestController implements Disposable {
 	 */
 	private async resolveHandler(
 		testItem: TestItem | undefined,
+		token?: CancellationToken,
 		force?: boolean
 	): Promise<void> {
+		whenCancelled('resolveHandler', token)
 		if (!this.initialized) {
 			log.info(
 				'Initializing Pester Test Controller and watching for Pester Files'
@@ -181,7 +184,8 @@ export class PesterTestController implements Disposable {
 	}
 
 	/** Called when the refresh button is pressed in vscode. Should clear the handler and restart */
-	private refreshHandler() {
+	private refreshHandler(token: CancellationToken) {
+		whenCancelled('TestHandler', token)
 		log.info("VSCode requested a refresh. Re-initializing the Pester Tests extension")
 		if (!this.stopPowerShell()) {
 			throw new Error("Failed to stop the PowerShell process. This is probably a bug and you should report it.")
@@ -271,7 +275,9 @@ export class PesterTestController implements Disposable {
 	}, 300)
 
 	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
-	private async testHandler(request: TestRunRequest) {
+	private async testHandler(request: TestRunRequest, token?: CancellationToken) {
+		whenCancelled('TestHandler', token)
+
 		if (request.profile === undefined) {
 			throw new Error('No profile provided. This is (currently) a bug.')
 		}
@@ -444,6 +450,7 @@ export class PesterTestController implements Disposable {
 
 			if (testRun) {
 				this.testRunStatus.set(testRun, false)
+				whenCancelled('TestRun', testRun.token)
 			}
 		}
 
@@ -700,7 +707,7 @@ export class PesterTestController implements Disposable {
 			testWatcher.onDidChange(uri => {
 				log.info(`File saved: ${uri.toString()}`)
 				const savedFile = TestFile.getOrCreate(testController, uri)
-				this.resolveHandler(savedFile, true).then(() => {
+				this.resolveHandler(savedFile, undefined, true).then(() => {
 					if (
 						workspace.getConfiguration('pester').get<boolean>('autoRunOnSave')
 					) {
@@ -775,4 +782,14 @@ export class PesterTestController implements Disposable {
 		this.testController.dispose()
 		this.returnServer.dispose()
 	}
+}
+
+
+function whenCancelled(source: string, token?: CancellationToken) {
+	if (token === undefined) {
+		return
+	}
+	token.onCancellationRequested(((s: string, e: any) => {
+		log.warn(`${s} Cancellation Detected. Event:`, e)
+	}).bind(null, source))
 }
