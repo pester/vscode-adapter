@@ -329,7 +329,7 @@ export class PowerShell {
 				'{"__PSINVOCATIONID": "CANCELLED", "finished": true}'
 			)
 		}
-		this.reset()
+		return this.reset()
 	}
 
 	/** Kill any existing invocations and reset the state */

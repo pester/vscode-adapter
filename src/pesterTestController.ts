@@ -23,6 +23,7 @@ import {
 	workspace,
 	languages,
 	FileSystemWatcher,
+	CancellationToken,
 } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import log, { VSCodeLogOutputChannelTransport } from './log'
@@ -121,8 +122,10 @@ export class PesterTestController implements Disposable {
 	 */
 	private async resolveHandler(
 		testItem: TestItem | undefined,
+		token?: CancellationToken,
 		force?: boolean
 	): Promise<void> {
+		this.handleRunCancelled(token, 'resolveHandler')
 		if (!this.initialized) {
 			log.info(
 				'Initializing Pester Test Controller and watching for Pester Files'
@@ -181,11 +184,10 @@ export class PesterTestController implements Disposable {
 	}
 
 	/** Called when the refresh button is pressed in vscode. Should clear the handler and restart */
-	private refreshHandler() {
+	private refreshHandler(token: CancellationToken) {
+		this.handleRunCancelled(token, 'refreshHandler')
 		log.info("VSCode requested a refresh. Re-initializing the Pester Tests extension")
-		if (!this.stopPowerShell()) {
-			throw new Error("Failed to stop the PowerShell process. This is probably a bug and you should report it.")
-		}
+		this.stopPowerShell()
 		clear(this.testController.items)
 		this.testWatchers.forEach(watcher => watcher.dispose())
 		// Clear the watchers after disposing
@@ -193,7 +195,7 @@ export class PesterTestController implements Disposable {
 		this.initialized = false
 
 		// Reinitialize the monitor which will restart the FileSystemWatchers
-		this.resolveHandler(undefined)
+		this.resolveHandler(undefined, token)
 	}
 
 	/**
@@ -272,6 +274,7 @@ export class PesterTestController implements Disposable {
 
 	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
 	private async testHandler(request: TestRunRequest) {
+
 		if (request.profile === undefined) {
 			throw new Error('No profile provided. This is (currently) a bug.')
 		}
@@ -283,6 +286,9 @@ export class PesterTestController implements Disposable {
 		const include = request.include ?? getTestItems(this.testController.items)
 
 		const run = this.testController.createTestRun(request)
+
+		// Will stop the run and reset the powershell process if the user cancels it
+		this.handleRunCancelled(run.token, 'TestRun', run)
 
 		// TODO: Make this cleaner and replace getRunRequestTestItems
 		// If there are no excludes we don't need to do any fancy exclusion test filtering
@@ -441,10 +447,6 @@ export class PesterTestController implements Disposable {
 			)
 			// The resolve handler is debounced, this will wait until the delayed resolve handler completes
 			await Promise.all(undiscoveredTestFiles)
-
-			if (testRun) {
-				this.testRunStatus.set(testRun, false)
-			}
 		}
 
 		// Debug should always use PSIC for now, so if it is not explicity set, use it
@@ -700,7 +702,7 @@ export class PesterTestController implements Disposable {
 			testWatcher.onDidChange(uri => {
 				log.info(`File saved: ${uri.toString()}`)
 				const savedFile = TestFile.getOrCreate(testController, uri)
-				this.resolveHandler(savedFile, true).then(() => {
+				this.resolveHandler(savedFile, undefined, true).then(() => {
 					if (
 						workspace.getConfiguration('pester').get<boolean>('autoRunOnSave')
 					) {
@@ -764,9 +766,10 @@ export class PesterTestController implements Disposable {
 		return testItems
 	}
 
-	stopPowerShell(): boolean {
+	/** stops the PowerShell Pester instance, it is expected another function will reinitialize it if needed. This function returns false if there was no instance to stop, and returns true otherwise */
+	stopPowerShell(cancel?: boolean): boolean {
 		if (this.ps !== undefined) {
-			return this.ps.reset()
+			return cancel ? this.ps.cancel() : this.ps.reset()
 		}
 		return false
 	}
@@ -774,5 +777,25 @@ export class PesterTestController implements Disposable {
 	dispose() {
 		this.testController.dispose()
 		this.returnServer.dispose()
+	}
+
+	/** Registers to handle cancellation events. This mostly exists to hide the bind function and make the code easier to read */
+	private handleRunCancelled(token?: CancellationToken, source?: string, testRun?: TestRun) {
+		token?.onCancellationRequested(
+			this.cancelRun.bind(this, source ?? 'Unspecified', testRun)
+		)
+	}
+
+	//** This function will gracefully cancel the current pester process  */
+	private cancelRun(source: string, testRun?: TestRun | undefined) {
+		log.warn(`${source} Cancellation Detected`)
+		log.warn(`Cancelling PowerShell Process`)
+		this.stopPowerShell(true)
+		if (testRun !== undefined) {
+			log.warn(`Cancelling ${testRun?.name ?? 'Unnamed'} Test Run`)
+			testRun.appendOutput(`\r\nTest Run was cancelled by user from VSCode\r\n`)
+			testRun.end()
+		}
+		log.warn(`Test Run Cancelled`)
 	}
 }
