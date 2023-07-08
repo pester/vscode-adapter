@@ -74,6 +74,8 @@ export class PesterTestController implements Disposable {
 			'Run',
 			TestRunProfileKind.Run,
 			this.testHandler.bind(this),
+			true,
+			undefined,
 			true
 		)
 		this.debugProfile = testController.createRunProfile(
@@ -169,11 +171,26 @@ export class PesterTestController implements Disposable {
 			// Indicate the start of a discovery, will cause the UI to show a spinner
 			testItem.busy = true
 
+			// We will use this to compare against the new test view so we can delete any tests that no longer exist
+			const existingTests = new Array<TestItem>()
+			await forAll(testItem, item => {
+				console.warn("DEBUG REMOVE ME PRE TEST Controller Item: ", item.id)
+				existingTests.push(item)
+			}, true)
+
+
 			// Run Pester and get tests
 			log.debug('Adding to Discovery Queue: ', testItem.id)
 			this.discoveryQueue.add(testItem)
 			// For discovery we don't care about the terminal output, thats why no assignment to var here
 			await this.startTestDiscovery(this.testItemDiscoveryHandler.bind(this))
+
+			const newTests = new Array<TestItem>()
+			await forAll(testItem, item => {
+				console.warn("DEBUG REMOVE ME POST TEST Controller Item: ", item.id)
+				newTests.push(item)
+			}, true)
+
 			testItem.busy = false
 		} else {
 			log.warn(
@@ -183,8 +200,8 @@ export class PesterTestController implements Disposable {
 	}
 
 	/** Called when the refresh button is pressed in vscode. Should clear the handler and restart */
-	private refreshHandler(token: CancellationToken) {
-		this.handleRunCancelled(token, 'refreshHandler')
+	private refreshHandler(cancelToken: CancellationToken) {
+		this.handleRunCancelled(cancelToken, 'refreshHandler')
 		log.info("VSCode requested a refresh. Re-initializing the Pester Tests extension")
 		this.stopPowerShell()
 		clear(this.testController.items)
@@ -194,7 +211,7 @@ export class PesterTestController implements Disposable {
 		this.initialized = false
 
 		// Reinitialize the monitor which will restart the FileSystemWatchers
-		this.resolveHandler(undefined, token)
+		this.resolveHandler(undefined, cancelToken)
 	}
 
 	/**
@@ -203,6 +220,7 @@ export class PesterTestController implements Disposable {
 	private testItemDiscoveryHandler(t: unknown) {
 		// TODO: This should be done before onDidReceiveObject maybe as a handler callback?
 		const testDef = t as TestDefinition
+		const testItems = this.testController.items
 		log.trace("Received discovery item from PesterInterface: ", t)
 		// If there was a syntax error, set the error and short circuit the rest
 		if (testDef.error) {
@@ -216,7 +234,7 @@ export class PesterTestController implements Disposable {
 			}
 		}
 
-		const parent = findTestItem(testDef.parent, this.testController.items)
+		const parent = findTestItem(testDef.parent, testItems)
 		if (parent === undefined) {
 			log.fatal(
 				`Test Item ${testDef.label} does not have a parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
@@ -226,7 +244,7 @@ export class PesterTestController implements Disposable {
 			)
 		}
 
-		const existingTestItem = findTestItem(testDef.id, this.testController.items)
+		const existingTestItem = findTestItem(testDef.id, testItems)
 		if (existingTestItem !== undefined) {
 			log.debug(`${testDef.id} was to be created but already exists. Skipping...`)
 			return
@@ -283,7 +301,14 @@ export class PesterTestController implements Disposable {
 	}, 300)
 
 	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
-	private async testHandler(request: TestRunRequest) {
+	private async testHandler(request: TestRunRequest, cancelToken?: CancellationToken) {
+
+		if (request.continuous) {
+			cancelToken?.onCancellationRequested(() => {
+				log.info(`Continuous run was disabled for ${request.include?.map(i => i.id)}`)
+			})
+			log.info(`Continuous run enabled for ${request.include?.map(i => i.id)}`)
+		}
 
 		if (request.profile === undefined) {
 			throw new Error('No profile provided. This is (currently) a bug.')
