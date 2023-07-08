@@ -33,7 +33,7 @@ import {
 	TestFile,
 	TestResult,
 } from './pesterTestTree'
-import { PowerShell, PSOutput } from './powershell'
+import { PowerShell, PowerShellError, PSOutput } from './powershell'
 import {
 	IPowerShellExtensionClient,
 	PowerShellExtensionClient
@@ -262,12 +262,21 @@ export class PesterTestController implements Disposable {
 	/** Used to debounce multiple requests for test discovery at the same time to not overload the pester adapter */
 	private startTestDiscovery = debounce(async testItemDiscoveryHandler => {
 		log.info(`Test Discovery Start: ${this.discoveryQueue.size} files`)
-		const result = await this.startPesterInterface(
-			Array.from(this.discoveryQueue),
-			testItemDiscoveryHandler as any,
-			true,
-			false
-		)
+		let result: void
+		try {
+			result = await this.startPesterInterface(
+				Array.from(this.discoveryQueue),
+				testItemDiscoveryHandler as any,
+				true,
+				false
+			)
+		} catch (err) {
+			if (err instanceof PowerShellError) {
+				const errMessage = 'Test Discovery failed: ' + err.message
+				window.showErrorMessage(errMessage)
+				log.fatal(errMessage)
+			}
+		}
 		this.discoveryQueue.clear()
 		return result
 	}, 300)
@@ -573,6 +582,14 @@ export class PesterTestController implements Disposable {
 			log.trace(`Removing returnHandler from PSOutput`)
 			psOutput.success.removeListener('data', returnHandler)
 		}).bind(this, testRun))
+		psOutput.error.on('data', err => {
+			window.showErrorMessage(`An error occured running Pester: ${err}`)
+			log.error(`PesterInterface Error: ${err}`)
+			if (testRun) {
+				this.testRunStatus.set(testRun, false)
+				testRun.end()
+			}
+		})
 
 		if (usePSIC) {
 			log.debug('Running Script in PSIC:', scriptPath, scriptArgs)

@@ -24,7 +24,7 @@ export interface IPSOutput {
 /** Includes an object of the full PowerShell error */
 export class PowerShellError extends Error {
 	constructor(message: string, public error: any) {
-		super(message)
+		super(`${message}: ${error.Exception.Message} ${error.ScriptStackTrace}`)
 	}
 }
 
