@@ -5,6 +5,8 @@ import { Readable, Transform, Writable } from 'stream'
 import { pipeline, finished } from 'stream/promises'
 import ReadlineTransform from 'readline-transform'
 import createStripAnsiTransform from './stripAnsiStream'
+import { openStdin } from 'process'
+import { homedir } from 'os'
 
 /** Streams for PowerShell Output: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_output_streams?view=powershell-7.1
  *
@@ -24,7 +26,7 @@ export interface IPSOutput {
 /** Includes an object of the full PowerShell error */
 export class PowerShellError extends Error {
 	constructor(message: string, public error: any) {
-		super(message)
+		super(`${message}: ${error.Exception.Message} ${error.ScriptStackTrace}`)
 	}
 }
 
@@ -186,15 +188,23 @@ export class PowerShell {
 					'pwsh not found in your path and you are not on Windows so PowerShell 5.1 is not an option. Did you install PowerShell first?'
 				)
 			}
+			const psEnv = process.env
+
+			if (!process.env.HOME) {
+				// Sometimes this is missing and will screw up PSModulePath detection on Windows/Linux
+				process.env.HOME = homedir()
+			}
+
+			// This disables ANSI output in PowerShell so it doesnt "corrupt" the JSON output
+			//Ref: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_ansi_terminals?view=powershell-7.3#disabling-ansi-output
+			psEnv.NO_COLOR = '1'
+
 			this.psProcess = spawn(
 				this.resolvedExePath,
 				['-NoProfile', '-NonInteractive', '-NoExit', '-Command', '-'],
 				{
 					cwd: this.cwd,
-					env: {
-						NO_COLOR: '1' // This disables ANSI output in PowerShell so it doesnt "corrupt" the JSON output
-						//Ref: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_ansi_terminals?view=powershell-7.3#disabling-ansi-output
-					}
+					env: psEnv
 				}
 			)
 			// Warn if we have more than one listener set on a process

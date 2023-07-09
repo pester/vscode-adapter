@@ -23,9 +23,8 @@ param(
 	[String]$IncludeAnsi
 )
 
-$VerbosePreference = 'SilentlyContinue'
-$WarningPreference = 'SilentlyContinue'
-$DebugPreference = 'SilentlyContinue'
+Write-Debug -Debug "Home: $env:HOME"
+Write-Debug -Debug "PSModulePath: $env:PSModulePath"
 
 if ($psversiontable.psversion -ge '7.2.0') {
 	if ($IncludeAnsi) {
