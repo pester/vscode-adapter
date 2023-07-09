@@ -569,6 +569,16 @@ export class PesterTestController implements Disposable {
 
 		// Objects from the run will return to the success stream, which we then send to the return handler
 		const psOutput = new PSOutput()
+		psOutput.verbose.on('data', (message: string) => {
+			log.info(`PesterInterface Verbose: ${message}`)
+		})
+		psOutput.debug.on('data', (message: string) => {
+			log.debug(`PesterInterface Debug: ${message}`)
+		})
+		psOutput.warning.on('data', (message: string) => {
+			log.warn(`PesterInterface Warning: ${message}`)
+		})
+
 		psOutput.success.on('data', returnHandler)
 		psOutput.success.once('close', ((testRun: TestRun | undefined) => {
 			if (testRun) {

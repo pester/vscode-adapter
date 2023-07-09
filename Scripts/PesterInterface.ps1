@@ -23,10 +23,6 @@ param(
 	[String]$IncludeAnsi
 )
 
-$VerbosePreference = 'SilentlyContinue'
-$WarningPreference = 'SilentlyContinue'
-$DebugPreference = 'SilentlyContinue'
-
 if ($psversiontable.psversion -ge '7.2.0') {
 	if ($IncludeAnsi) {
 		$PSStyle.OutputRendering = 'ANSI'
