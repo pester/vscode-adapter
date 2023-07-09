@@ -4,6 +4,7 @@ import { resolve } from 'path'
 import { Readable, Transform, Writable } from 'stream'
 import { pipeline, finished } from 'stream/promises'
 import ReadlineTransform from 'readline-transform'
+import createStripAnsiTransform from './stripAnsiStream'
 
 /** Streams for PowerShell Output: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_output_streams?view=powershell-7.1
  *
@@ -26,6 +27,7 @@ export class PowerShellError extends Error {
 		super(message)
 	}
 }
+
 
 /** A simple Readable that emits events when new objects are pushed from powershell.
  * read() does nothing and generally should not be called, you should subscribe to the events instead
@@ -187,7 +189,13 @@ export class PowerShell {
 			this.psProcess = spawn(
 				this.resolvedExePath,
 				['-NoProfile', '-NonInteractive', '-NoExit', '-Command', '-'],
-				{ cwd: this.cwd }
+				{
+					cwd: this.cwd,
+					env: {
+						NO_COLOR: '1' // This disables ANSI output in PowerShell so it doesnt "corrupt" the JSON output
+						//Ref: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_ansi_terminals?view=powershell-7.3#disabling-ansi-output
+					}
+				}
 			)
 			// Warn if we have more than one listener set on a process
 			this.psProcess.stdout.setMaxListeners(1)
@@ -257,9 +265,12 @@ export class PowerShell {
 				)
 			}
 
+			// Wires up
 			if (this.psProcess !== undefined) {
 				const errorStream = this.psProcess.stderr.pipe(
-					new ReadlineTransform({ skipEmpty: false })
+					new ReadlineTransform({ skipEmpty: false }),
+				).pipe(
+					createStripAnsiTransform()
 				)
 				errorStream.once('data', handleError)
 			}
@@ -271,8 +282,10 @@ export class PowerShell {
 			new ReadlineTransform({ skipEmpty: false })
 		)
 
+		// This is our main input stream processing pipeline where we handle messages from PowerShell
 		const pipelineCompleted = pipeline(
 			readlineTransform,
+			createStripAnsiTransform(),
 			createJsonParseTransform(),
 			createWatchForScriptFinishedMessageTransform(readlineTransform),
 			createSplitPSOutputStream(psOutput)

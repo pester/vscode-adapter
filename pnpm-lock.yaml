@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@ctiterm/strip-ansi':
+    specifier: ^1.0.0
+    version: 1.0.0
   debounce-promise:
     specifier: ^3.1.2
     version: 3.1.2
@@ -459,6 +462,10 @@ packages:
       exec-sh: 0.3.6
       minimist: 1.2.8
     dev: true
+
+  /@ctiterm/strip-ansi@1.0.0:
+    resolution: {integrity: sha512-wRU6/s021rXh9EEA4li01ZA5qBpq84VSnDRatMw49AaybviPxwMo0tHKaPnNOK0Qge+XG6VyeiZO37BSYh6LRQ==}
+    dev: false
 
   /@esbuild-kit/cjs-loader@2.4.2:
     resolution: {integrity: sha512-BDXFbYOJzT/NBEtp71cvsrGPwGAMGRB/349rwKuoxNSiKjPraNNnlK6MIIabViCjqZugu6j+xeMDlEkWdHHJSg==}
