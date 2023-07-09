@@ -5,6 +5,8 @@ import { Readable, Transform, Writable } from 'stream'
 import { pipeline, finished } from 'stream/promises'
 import ReadlineTransform from 'readline-transform'
 import createStripAnsiTransform from './stripAnsiStream'
+import { openStdin } from 'process'
+import { homedir } from 'os'
 
 /** Streams for PowerShell Output: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_output_streams?view=powershell-7.1
  *
@@ -192,8 +194,12 @@ export class PowerShell {
 				{
 					cwd: this.cwd,
 					env: {
-						NO_COLOR: '1' // This disables ANSI output in PowerShell so it doesnt "corrupt" the JSON output
+						// This disables ANSI output in PowerShell so it doesnt "corrupt" the JSON output
 						//Ref: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_ansi_terminals?view=powershell-7.3#disabling-ansi-output
+						NO_COLOR: '1',
+
+						// NodeJS does not populate this when using spawn(), and causes PSModulePath to be incorrect on non-windows.
+						HOME: homedir()
 					}
 				}
 			)
