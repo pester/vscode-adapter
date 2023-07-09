@@ -188,19 +188,23 @@ export class PowerShell {
 					'pwsh not found in your path and you are not on Windows so PowerShell 5.1 is not an option. Did you install PowerShell first?'
 				)
 			}
+			const psEnv = process.env
+
+			if (!process.env.HOME) {
+				// Sometimes this is missing and will screw up PSModulePath detection on Windows/Linux
+				process.env.HOME = homedir()
+			}
+
+			// This disables ANSI output in PowerShell so it doesnt "corrupt" the JSON output
+			//Ref: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_ansi_terminals?view=powershell-7.3#disabling-ansi-output
+			psEnv.NO_COLOR = '1'
+
 			this.psProcess = spawn(
 				this.resolvedExePath,
 				['-NoProfile', '-NonInteractive', '-NoExit', '-Command', '-'],
 				{
 					cwd: this.cwd,
-					env: {
-						// This disables ANSI output in PowerShell so it doesnt "corrupt" the JSON output
-						//Ref: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_ansi_terminals?view=powershell-7.3#disabling-ansi-output
-						NO_COLOR: '1',
-
-						// NodeJS does not populate this when using spawn(), and causes PSModulePath to be incorrect on non-windows.
-						HOME: homedir()
-					}
+					env: psEnv
 				}
 			)
 			// Warn if we have more than one listener set on a process
