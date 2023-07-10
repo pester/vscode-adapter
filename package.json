@@ -104,6 +104,7 @@
 		"@types/chai": "^4.3.5",
 		"@types/debounce-promise": "^3.1.6",
 		"@types/glob": "^8.1.0",
+		"@types/json-parse-safe": "^2.0.0",
 		"@types/mocha": "^10.0.1",
 		"@types/node": "^16.18.37",
 		"@types/readline-transform": "^1.0.1",
@@ -135,6 +136,7 @@
 	"dependencies": {
 		"@ctiterm/strip-ansi": "^1.0.0",
 		"debounce-promise": "^3.1.2",
+		"json-parse-safe": "^2.0.0",
 		"lookpath": "^1.2.2",
 		"path": "^0.12.7",
 		"readline-transform": "^1.0.0",

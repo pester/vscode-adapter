@@ -5,8 +5,8 @@ import { Readable, Transform, Writable } from 'stream'
 import { pipeline, finished } from 'stream/promises'
 import ReadlineTransform from 'readline-transform'
 import createStripAnsiTransform from './stripAnsiStream'
-import { openStdin } from 'process'
 import { homedir } from 'os'
+import jsonParseSafe from 'json-parse-safe'
 
 /** Streams for PowerShell Output: https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_output_streams?view=powershell-7.1
  *
@@ -26,7 +26,11 @@ export interface IPSOutput {
 /** Includes an object of the full PowerShell error */
 export class PowerShellError extends Error {
 	constructor(message: string, public error: any) {
-		super(`${message}: ${error.Exception.Message} ${error.ScriptStackTrace}`)
+		const errorDetail = (typeof error === 'string')
+			? error
+			: `${error.Exception.Message} ${error.ScriptStackTrace}`
+
+		super(`${message}: ${errorDetail}`)
 	}
 }
 
@@ -75,10 +79,15 @@ export class PSOutputUnified implements IPSOutput {
 export function createJsonParseTransform() {
 	return new Transform({
 		objectMode: true,
-		transform(chunk: string, encoding: string, done) {
-			const obj = JSON.parse(chunk)
-			this.push(obj)
-			done()
+		transform(chunk: string, encoding: string, next) {
+			const jsonResult = jsonParseSafe(chunk)
+			// Check if jsonResult is the non exported type OutputError
+			if ('error' in jsonResult) {
+				jsonResult.error.message = `${jsonResult.error.message} \r\nJSON: ${chunk}`
+				next(jsonResult.error)
+			} else {
+				next(undefined, jsonResult.value)
+			}
 		}
 	})
 }
@@ -93,15 +102,15 @@ export function createJsonParseTransform() {
 function createWatchForScriptFinishedMessageTransform(streamToEnd: Writable) {
 	return new Transform({
 		objectMode: true,
-		transform(chunk: any, encoding: string, done) {
+		transform(chunk: any, encoding: string, next) {
 			// If special message from PowerShell Invocation Script
 			// TODO: Handle this as a class?
 			if (chunk.__PSINVOCATIONID && chunk.finished === true) {
 				streamToEnd.end()
+				next()
 			} else {
-				this.push(chunk)
+				next(undefined, chunk)
 			}
-			done()
 		}
 	})
 }
@@ -110,7 +119,7 @@ function createWatchForScriptFinishedMessageTransform(streamToEnd: Writable) {
 export function createSplitPSOutputStream(streams: IPSOutput) {
 	return new Writable({
 		objectMode: true,
-		write(chunk, _, done) {
+		write(chunk, _, next) {
 			const record = chunk.value ?? chunk
 			switch (chunk.__PSStream) {
 				// Unless a stream is explicitly set, the default is to use the success stream
@@ -139,11 +148,11 @@ export function createSplitPSOutputStream(streams: IPSOutput) {
 					streams.progress.push(record)
 					break
 				default:
-					throw new Error(`Unknown PSStream Reported: ${chunk.__PSStream}`)
+					next(new Error(`Unknown PSStream Reported: ${chunk.__PSStream}`))
 			}
-			done()
+			next()
 		},
-		final(done) {
+		final(next) {
 			streams.success.destroy()
 			streams.error.destroy()
 			streams.warning.destroy()
@@ -151,7 +160,7 @@ export function createSplitPSOutputStream(streams: IPSOutput) {
 			streams.debug.destroy()
 			streams.information.destroy()
 			streams.progress.destroy()
-			done()
+			next()
 		}
 	})
 }
@@ -264,18 +273,25 @@ export class PowerShell {
 		// TODO: RemoveAllListeners should be more specific
 		this.psProcess.stdout.removeAllListeners()
 		this.psProcess.stderr.removeAllListeners()
+
+		/** Will emit an error if an error is received on the stderr of the PowerShell process */
 		const errorWasEmitted = new Promise((_resolve, reject) => {
 			// Read error output one line at a time
-			function handleError(jsonSerializedError: string) {
-				reject(
-					new PowerShellError(
-						'A terminating error occured while running the script',
-						JSON.parse(jsonSerializedError)
+			function handleError(errorAsJsonOrString: string) {
+				const jsonResult = jsonParseSafe(errorAsJsonOrString)
+				const error = ("error" in jsonResult)
+					? new PowerShellError(
+						'An initialization error occured while running the script',
+						errorAsJsonOrString
 					)
-				)
+					: new PowerShellError(
+						'A terminating error was received from PowerShell:',
+						jsonResult.value
+					)
+				reject(error)
 			}
 
-			// Wires up
+			// Wires up to the error stream
 			if (this.psProcess !== undefined) {
 				const errorStream = this.psProcess.stderr.pipe(
 					new ReadlineTransform({ skipEmpty: false }),

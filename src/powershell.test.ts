@@ -48,12 +48,13 @@ describe('jsonParseTransform', () => {
 			await pipeline(source, jsonPipe)
 		} catch (err) {
 			const result = err as Error
-			expect(result.message).to.match(/Unexpected non-whitespace/)
+			expect(result.message).to.match(/Unexpected token/)
 		}
 	})
 })
 
-describe('run', () => {
+describe('run', function () {
+	this.slow(2500)
 	let ps: PowerShell
 	beforeEach(() => {
 		ps = new PowerShell()
@@ -110,7 +111,8 @@ describe('run', () => {
 	})
 })
 
-describe('exec', () => {
+describe('exec', function () {
+	this.slow(2500)
 	let ps: PowerShell
 	beforeEach(() => {
 		ps = new PowerShell()

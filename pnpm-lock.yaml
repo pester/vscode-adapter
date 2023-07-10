@@ -11,6 +11,9 @@ dependencies:
   debounce-promise:
     specifier: ^3.1.2
     version: 3.1.2
+  json-parse-safe:
+    specifier: ^2.0.0
+    version: 2.0.0
   lookpath:
     specifier: ^1.2.2
     version: 1.2.2
@@ -34,6 +37,9 @@ devDependencies:
   '@types/glob':
     specifier: ^8.1.0
     version: 8.1.0
+  '@types/json-parse-safe':
+    specifier: ^2.0.0
+    version: 2.0.0
   '@types/mocha':
     specifier: ^10.0.1
     version: 10.0.1
@@ -1175,6 +1181,10 @@ packages:
     resolution: {integrity: sha512-c3mAZEuK0lvBp8tmuL74XRKn1+y2dcwOUpH7x4WrF6gk1GIgiluDRgMYQtw2OFcBvAJWlt6ASU3tSqxp0Uu0Aw==}
     dependencies:
       '@types/istanbul-lib-report': 3.0.0
+    dev: true
+
+  /@types/json-parse-safe@2.0.0:
+    resolution: {integrity: sha512-Gt690yxUHf1a5hKXPBF0Q5PAQMcy+gBDTijiHB2MqDm6GxTmj3shLgqZqhF8AoGbAH+1ARkkzm7iFMyYJdAFeQ==}
     dev: true
 
   /@types/json-schema@7.0.12:
@@ -3697,6 +3707,11 @@ packages:
     engines: {node: '>=4'}
     hasBin: true
     dev: true
+
+  /json-parse-safe@2.0.0:
+    resolution: {integrity: sha512-aK7Ccg46n9JkRil/M5s8ytNP9wk0Tc0TsTDVMOYxB2cGsL7XFJ1vfWsurkVZy6zR55KZ+2SWHEuzQeZK4PH6lg==}
+    engines: {node: '>=6'}
+    dev: false
 
   /json-schema-traverse@0.4.1:
     resolution: {integrity: sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==}
