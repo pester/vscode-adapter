@@ -1,6 +1,5 @@
 import { join, isAbsolute, dirname } from 'path'
 import {
-	DebugSession,
 	Disposable,
 	Extension,
 	ExtensionContext,
@@ -266,6 +265,8 @@ export class PesterTestController implements Disposable {
 		try {
 			result = await this.startPesterInterface(
 				Array.from(this.discoveryQueue),
+				// TODO: Type this
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				testItemDiscoveryHandler as any,
 				true,
 				false
@@ -538,7 +539,10 @@ export class PesterTestController implements Disposable {
 			}
 		}
 
+
 		const exePath = psicLoaded
+			// TODO: Fix non-null assertion
+			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 			? (await this.powerShellExtensionClient!.GetVersionDetails()).exePath
 			: undefined
 
@@ -606,7 +610,7 @@ export class PesterTestController implements Disposable {
 			const psListenerPromise = this.returnServer.waitForConnection()
 
 			/** Handles situation where the debug adapter is stopped (usually due to user cancel) before the script completes. */
-			const endSocketAtDebugTerminate = (testRun: TestRun | undefined, session: DebugSession) => {
+			const endSocketAtDebugTerminate = (testRun: TestRun | undefined) => {
 				psListenerPromise.then(socket => socket.end())
 				if (testRun && this.testRunStatus.get(testRun) === false) {
 					log.warn("Test run ended due to abrupt debug session end such as the user cancelling the debug session.")
@@ -616,6 +620,8 @@ export class PesterTestController implements Disposable {
 
 			scriptArgs.push('-PipeName')
 			scriptArgs.push(this.returnServer.name)
+			// TODO: Fix non-null assertion
+			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 			await this.powerShellExtensionClient!.RunCommand(
 				scriptPath,
 				scriptArgs,

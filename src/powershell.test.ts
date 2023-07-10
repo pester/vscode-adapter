@@ -9,7 +9,7 @@ import {
 	defaultPowershellExePath,
 	PowerShellError
 } from './powershell'
-import { should, assert, expect } from 'chai'
+import { expect } from 'chai'
 
 describe('jsonParseTransform', () => {
 	interface TestObject {
@@ -86,7 +86,9 @@ describe('run', function () {
 	})
 
 	it('mixed', async () => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const successResult: any[] = []
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const infoResult: any[] = []
 		const streams = new PSOutput()
 		streams.success

@@ -25,6 +25,8 @@ export interface IPSOutput {
 
 /** Includes an object of the full PowerShell error */
 export class PowerShellError extends Error {
+	// TODO: Strong type this
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	constructor(message: string, public error: any) {
 		const errorDetail = (typeof error === 'string')
 			? error
@@ -102,6 +104,8 @@ export function createJsonParseTransform() {
 function createWatchForScriptFinishedMessageTransform(streamToEnd: Writable) {
 	return new Transform({
 		objectMode: true,
+		// TODO: Strong type this
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		transform(chunk: any, encoding: string, next) {
 			// If special message from PowerShell Invocation Script
 			// TODO: Handle this as a class?

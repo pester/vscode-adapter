@@ -132,16 +132,6 @@ Describe 'PesterInterface' {
 		AfterAll {
 			Remove-Module PesterTestPlugin
 		}
-    It 'Multiple Module Failure' {
-      Set-ItResult -Skipped -Because 'Get-Module Mock is not working for some reason'
-      Mock -CommandName 'Get-Module' -MockWith { @('PesterModule1', 'PesterModule2') }
-
-      $mockTestParameter = [PSCustomObject] @{
-        UserDuration      = 10000
-        FrameworkDuration = 20000
-      }
-      { Get-DurationString @mockTestParameter } | Should -Throw '*Multiple Pester Modules found*'
-    }
     It 'Duration Format <Name>' {
       $mockTestParameter = [PSCustomObject] @{
         UserDuration      = $UserDuration
