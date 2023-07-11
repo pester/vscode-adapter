@@ -55,6 +55,8 @@ export class TestFile {
 		log.trace('Creating test item for file: ' + uriFsPath)
 		const fileTestItem = controller.createTestItem(
 			uriFsPath,
+			// TODO: Fix non-null assertion
+			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 			uri.path.split('/').pop()!,
 			uri
 		)
