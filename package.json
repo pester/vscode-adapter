@@ -29,15 +29,10 @@
 					"type": "boolean",
 					"markdownDescription": "If a skipped test is inconclusive or `Set-ItResult` had the `-Because` parameter specified, those are surfaced as test errors for easy viewing. Enable this setting if you prefer these to be displayed simply as skipped. **NOTE:** If you do this then you cannot see any BECAUSE messages without looking directly at the Pester output."
 				},
-				"pester.autoRunOnSave": {
-					"type": "boolean",
-					"default": true,
-					"markdownDescription": "Automatically runs Pester test files upon changes being detected on save. Uncheck this box to disable this behavior."
-				},
 				"pester.autoDebugOnSave": {
 					"type": "boolean",
 					"default": false,
-					"markdownDescription": "When enabled, will automatically start a debug run on a Pester file via the Powershell Integrated Console whenever it changes. This has no effect if `autoRunOnSave` is disabled."
+					"markdownDescription": "When enabled, continuous run tests will be debugged when changed in the PowerShell extension."
 				},
 				"pester.suppressCodeLensNotice": {
 					"type": "boolean",
@@ -54,34 +49,45 @@
 				"pester.workingDirectory": {
 					"type": "string",
 					"markdownDescription": "Specifies the working directory of the dedicated Pester Instance. While $PSScriptRoot is recommended when using relative paths in Pester Tests, the runner will also default to the path of the current first workspace folder. Specify this if you want a different working directory."
+				},
+
+				// Deprecated Settings
+				"pester.autoRunOnSave": {
+					"type": "boolean",
+					"default": false,
+					"deprecationMessage": "DEPRECATED: This is now handled by the VSCode native continuous run interface in the test handler.",
+					"markdownDescription": "Automatically runs Pester test files upon changes being detected on save. Uncheck this box to disable this behavior."
 				}
 			}
 		},
 		"commands": [
 			{
-				"command": "pester.toggleAutoRunOnSave",
-				"title": "Pester: Toggle Auto Run on Save",
-				"category": "PowerShell"
-			},
-			{
 				"command": "pester.stopPowerShell",
 				"title": "Pester: Stop PowerShell background process",
 				"category": "PowerShell"
 			}
+			// DEPRECATED: This is now handled by the VSCode native continuous interface
+			// {
+			// 	"command": "pester.toggleAutoRunOnSave",
+			// 	"title": "Pester: Toggle Auto Run on Save",
+			// 	"enablement": "",
+			// 	"category": "PowerShell"
+			// },
 		],
 		"menus": {
-			"testing/item/context": [
-				{
-					"command": "pester.toggleAutoRunOnSave",
-					"group": "pester"
-				}
-			],
-			"testing/item/gutter": [
-				{
-					"command": "pester.toggleAutoRunOnSave",
-					"group": "pester"
-				}
-			]
+			// DEPRECATED: This is now handled by the VSCode native continuous interface
+			// "testing/item/context": [
+			// 	{
+			// 		"command": "pester.toggleAutoRunOnSave",
+			// 		"group": "pester"
+			// 	}
+			// ],
+			// "testing/item/gutter": [
+			// 	{
+			// 		"command": "pester.toggleAutoRunOnSave",
+			// 		"group": "pester"
+			// 	}
+			// ]
 		}
 	},
 	"keywords": [

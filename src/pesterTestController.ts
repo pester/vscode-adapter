@@ -39,7 +39,6 @@ import {
 } from './powershellExtensionClient'
 import { clear, findTestItem, forAll, getTestItems, isTestItemOptions } from './testItemUtils'
 import debounce = require('debounce-promise')
-import { initialize as statusBarInitialize } from './features/toggleAutoRunOnSaveCommand'
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
  */
@@ -135,8 +134,6 @@ export class PesterTestController implements Disposable {
 			this.testWatchers.push(
 				... (await this.watchWorkspaces())
 			)
-
-			statusBarInitialize()
 		}
 
 		log.debug(`VSCode requested resolve for: ${testItem?.id}`)
@@ -300,15 +297,25 @@ export class PesterTestController implements Disposable {
 		return result
 	}, 300)
 
-	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
+	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging.
+	 * @param cancelToken The cancellation token passed by VSCode
+	*/
 	private async testHandler(request: TestRunRequest, cancelToken?: CancellationToken) {
 
 		if (request.continuous) {
-			cancelToken?.onCancellationRequested(() => {
+			/** This cancel will be called when the autorun button is disabled */
+			const disableContinuousRunToken = cancelToken
+
+			disableContinuousRunToken?.onCancellationRequested(() => {
 				log.info(`Continuous run was disabled for ${request.include?.map(i => i.id)}`)
 			})
 			log.info(`Continuous run enabled for ${request.include?.map(i => i.id)}`)
+		} else {
+			cancelToken?.onCancellationRequested(() => {
+				log.warn(`RunRequest cancel initiated for ${request.include?.map(i => i.id)}`)
+			})
 		}
+
 
 		if (request.profile === undefined) {
 			throw new Error('No profile provided. This is (currently) a bug.')
@@ -760,20 +767,7 @@ export class PesterTestController implements Disposable {
 			testWatcher.onDidChange(uri => {
 				log.info(`File saved: ${uri.toString()}`)
 				const savedFile = TestFile.getOrCreate(testController, uri)
-				this.resolveHandler(savedFile, undefined, true).then(() => {
-					if (
-						workspace.getConfiguration('pester').get<boolean>('autoRunOnSave')
-					) {
-						const runProfile = workspace
-							.getConfiguration('pester')
-							.get<boolean>('autoDebugOnSave')
-							? this.debugProfile
-							: this.runProfile
-						this.testHandler(
-							new TestRunRequest([savedFile], undefined, runProfile)
-						)
-					}
-				})
+				this.resolveHandler(savedFile, undefined, true)
 			}, this)
 			const files = await workspace.findFiles(pattern)
 			for (const file of files) {
