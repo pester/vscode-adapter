@@ -1,6 +1,6 @@
 /** Represents a test result returned from pester, serialized into JSON */
 
-import { TestController, TestItem, Uri } from 'vscode'
+import { Range, TestController, TestItem, Uri } from 'vscode'
 import log from './log'
 
 /** Represents all types that are allowed to be present in a test tree. This can be a single type or a combination of
@@ -93,6 +93,7 @@ export interface TestDefinition extends TestItemOptions {
 	description?: string
 	error?: string
 	tags?: string[]
+	scriptBlock?: string
 }
 
 /** The type used to represent a test run from the Pester runner, with additional status data */
@@ -107,4 +108,9 @@ export interface TestResult extends TestItemOptions {
 	targetFile: string
 	targetLine: number
 	description?: string
+}
+
+/** Given a testdefinition, fetch the vscode range */
+export function getRange(testDef: TestDefinition): Range {
+	return new Range(testDef.startLine, 0, testDef.endLine, 0)
 }

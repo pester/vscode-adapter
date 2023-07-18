@@ -78,3 +78,4 @@ export function getParents(TestItem: TestItem) {
 export function isTestItemOptions(testItem: TestTree): testItem is TestDefinition {
 	return 'type' in testItem
 }
+

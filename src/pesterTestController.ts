@@ -6,7 +6,6 @@ import {
 	Location,
 	MarkdownString,
 	Position,
-	Range,
 	RelativePattern,
 	TestController,
 	TestItem,
@@ -23,6 +22,7 @@ import {
 	languages,
 	FileSystemWatcher,
 	CancellationToken,
+	EventEmitter,
 } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import log, { VSCodeLogOutputChannelTransport } from './log'
@@ -31,6 +31,7 @@ import {
 	TestDefinition,
 	TestFile,
 	TestResult,
+	getRange,
 } from './pesterTestTree'
 import { PowerShell, PowerShellError, PSOutput } from './powershell'
 import {
@@ -39,7 +40,7 @@ import {
 } from './powershellExtensionClient'
 import { clear, findTestItem, forAll, getTestItems, isTestItemOptions } from './testItemUtils'
 import debounce = require('debounce-promise')
-import { initialize as statusBarInitialize } from './features/toggleAutoRunOnSaveCommand'
+import { isDeepStrictEqual } from 'util'
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
  */
@@ -54,6 +55,9 @@ export class PesterTestController implements Disposable {
 		private readonly powershellExtension: Extension<IPowerShellExtensionClient>,
 		private readonly context: ExtensionContext,
 		private readonly testWatchers = new Array<FileSystemWatcher>,
+		private readonly continuousRunTests = new Set<TestItem>(),
+		/** This emitter is wired up to the filewatchers and fires whenever a test file changes in the workspace */
+		private readonly testFileChanged = new EventEmitter<Uri>(),
 		public readonly id: string = 'Pester',
 		public testController: TestController = tests.createTestController(id, id),
 		private returnServer = new DotnetNamedPipeServer(
@@ -74,6 +78,8 @@ export class PesterTestController implements Disposable {
 			'Run',
 			TestRunProfileKind.Run,
 			this.testHandler.bind(this),
+			true,
+			undefined,
 			true
 		)
 		this.debugProfile = testController.createRunProfile(
@@ -83,7 +89,10 @@ export class PesterTestController implements Disposable {
 			true
 		)
 
-		// Watch for pester files to be opened
+		// Wire up the changed file handler
+		testFileChanged.event(this.refreshTests, this)
+
+		// Wire up the active document watcher
 		workspace.onDidOpenTextDocument(doc => {
 			if (
 				// Only file support for now
@@ -93,21 +102,18 @@ export class PesterTestController implements Disposable {
 			) {
 				return
 			}
-			const testFile = TestFile.getOrCreate(testController, doc.uri)
-			// TODO: Performance Optimization: Dont discover if the file was previously discovered and not changed
-			this.resolveHandler(testFile)
+
+			testFileChanged.fire(doc.uri)
 		}, this)
 
-		// Resolves a situation where the extension is loaded but a Pester file is already open
+		// Do a test discovery if a powershell document is currently open upon activation.
 		const activeDocument = window.activeTextEditor?.document
-
 		if (
 			activeDocument &&
 			activeDocument.uri.scheme === 'file' &&
 			languages.match(this.getPesterRelativePatterns(), activeDocument)
 		) {
-			const testFile = TestFile.getOrCreate(testController, activeDocument.uri)
-			this.resolveHandler(testFile)
+			testFileChanged.fire(activeDocument.uri)
 		}
 	}
 
@@ -133,8 +139,6 @@ export class PesterTestController implements Disposable {
 			this.testWatchers.push(
 				... (await this.watchWorkspaces())
 			)
-
-			statusBarInitialize()
 		}
 
 		log.debug(`VSCode requested resolve for: ${testItem?.id}`)
@@ -155,7 +159,7 @@ export class PesterTestController implements Disposable {
 
 		// Test Definitions should never show up here, they aren't resolvable in Pester as we only do it at file level
 		if (isTestItemOptions(testItemData)) {
-			log.warn(
+			log.error(
 				`Received a test definition ${testItemData.id} to resolve. Should not happen`
 			)
 		}
@@ -169,12 +173,47 @@ export class PesterTestController implements Disposable {
 			// Indicate the start of a discovery, will cause the UI to show a spinner
 			testItem.busy = true
 
+			// We will use this to compare against the new test view so we can delete any tests that no longer exist
+			const existingTests = new Set<TestItem>()
+			await forAll(testItem, item => {
+				existingTests.add(item)
+			}, true)
+
 			// Run Pester and get tests
 			log.debug('Adding to Discovery Queue: ', testItem.id)
 			this.discoveryQueue.add(testItem)
 			// For discovery we don't care about the terminal output, thats why no assignment to var here
-			await this.startTestDiscovery(this.testItemDiscoveryHandler.bind(this))
+
+			// TODO: We shouldn't be injecting the newTests set like this but rather have a more functional approach
+			const newAndChangedTests = new Set<TestItem>()
+			await this.startTestDiscovery(this.testItemDiscoveryHandler.bind(this, newAndChangedTests))
+
 			testItem.busy = false
+
+			// If tests were changed that were marked for continuous run, we want to start a run for them
+			const outdatedTests = new Set<TestItem>()
+
+			newAndChangedTests.forEach(test => {
+				if (this.continuousRunTests.has(test)) {
+					outdatedTests.add(test)
+				}
+			})
+
+			if (outdatedTests.size > 0) {
+				log.info(
+					`Continuous run tests changed. Starting a run for ${outdatedTests.size} outdated tests`
+				)
+
+				const outdatedTestRunRequest = new TestRunRequest(
+					Array.from(outdatedTests),
+					undefined,
+					this.runProfile //TODO: Implement option to use debug profile instead
+				)
+
+				this.testHandler(outdatedTestRunRequest)
+			}
+
+
 		} else {
 			log.warn(
 				`Resolve requested for ${testItem.label} requested but it is already resolving/resolved. Skipping...`
@@ -183,8 +222,8 @@ export class PesterTestController implements Disposable {
 	}
 
 	/** Called when the refresh button is pressed in vscode. Should clear the handler and restart */
-	private refreshHandler(token: CancellationToken) {
-		this.handleRunCancelled(token, 'refreshHandler')
+	private refreshHandler(cancelToken: CancellationToken) {
+		this.handleRunCancelled(cancelToken, 'refreshHandler')
 		log.info("VSCode requested a refresh. Re-initializing the Pester Tests extension")
 		this.stopPowerShell()
 		clear(this.testController.items)
@@ -194,15 +233,16 @@ export class PesterTestController implements Disposable {
 		this.initialized = false
 
 		// Reinitialize the monitor which will restart the FileSystemWatchers
-		this.resolveHandler(undefined, token)
+		this.resolveHandler(undefined, cancelToken)
 	}
 
 	/**
 	 * Raw test discovery result objects returned from Pester are processed by this function
 	 */
-	private testItemDiscoveryHandler(t: unknown) {
+	private testItemDiscoveryHandler(newTestItems: Set<TestItem>, t: unknown) {
 		// TODO: This should be done before onDidReceiveObject maybe as a handler callback?
 		const testDef = t as TestDefinition
+		const testItems = this.testController.items
 		log.trace("Received discovery item from PesterInterface: ", t)
 		// If there was a syntax error, set the error and short circuit the rest
 		if (testDef.error) {
@@ -216,7 +256,7 @@ export class PesterTestController implements Disposable {
 			}
 		}
 
-		const parent = findTestItem(testDef.parent, this.testController.items)
+		const parent = findTestItem(testDef.parent, testItems)
 		if (parent === undefined) {
 			log.fatal(
 				`Test Item ${testDef.label} does not have a parent or its parent was not sent by PesterInterface first. This is a bug and should not happen`
@@ -226,36 +266,70 @@ export class PesterTestController implements Disposable {
 			)
 		}
 
-		const existingTestItem = findTestItem(testDef.id, this.testController.items)
-		if (existingTestItem !== undefined) {
-			log.debug(`${testDef.id} was to be created but already exists. Skipping...`)
-			return
+		const testItem = findTestItem(testDef.id, testItems)
+
+		if (testItem !== undefined) {
+			const newTestItemData = testDef
+			const existingTestItemData = TestData.get(testItem)
+			if (isDeepStrictEqual(existingTestItemData, newTestItemData)) {
+				log.trace(`Discovery: Test Exists but has not changed. Skipping: ${testDef.id}`)
+				return
+			}
+
+			log.info(`Discovery: Test Moved Or Changed - ${testDef.id}`)
+
+			// Update the testItem data with the updated data
+			TestData.set(testItem, testDef)
+
+			// TODO: Deduplicate the below logic with the new item creation logic into a applyTestItemMetadata function or something
+
+			// If the range has changed, update it so the icons are in the correct location
+			const foundTestRange = getRange(testDef)
+			if (!(testItem.range?.isEqual(foundTestRange))) {
+				log.debug(`${testDef.id} moved, updating range`)
+				testItem.range = foundTestRange
+			}
+
+			// Update tags if changed
+			if (testDef.tags !== undefined) {
+				const newTestTags = testDef.tags?.map(tag => {
+					return new TestTag(tag)
+				})
+				if (!isDeepStrictEqual(newTestTags, testItem.tags)) {
+					log.debug(`New tags detected, updating: ${testDef.id}`)
+					testItem.tags = newTestTags
+					testItem.description = testDef.tags.join(', ')
+				}
+			}
+
+			newTestItems.add(testItem)
+		} else {
+			log.trace(`Creating Test Item in controller: ${testDef.id} uri: ${parent.uri}`)
+
+			const newTestItem = this.testController.createTestItem(
+				testDef.id,
+				testDef.label,
+				parent.uri
+			)
+			newTestItem.range = getRange(testDef)
+
+			if (testDef.tags !== undefined) {
+				newTestItem.tags = testDef.tags.map(tag => {
+					log.debug(`Adding tag ${tag} to ${newTestItem.label}`)
+					return new TestTag(tag)
+				})
+				newTestItem.description = testDef.tags.join(', ')
+			}
+
+			if (testDef.error !== undefined) {
+				newTestItem.error = testDef.error
+			}
+
+			TestData.set(newTestItem, testDef)
+			log.debug(`Adding ${newTestItem.label} to ${parent.label}`)
+			parent.children.add(newTestItem)
+			newTestItems.add(newTestItem)
 		}
-
-		log.trace(`Creating Test Item in controller: ${testDef.id} uri: ${parent.uri}`)
-
-		const newTestItem = this.testController.createTestItem(
-			testDef.id,
-			testDef.label,
-			parent.uri
-		)
-		newTestItem.range = new Range(testDef.startLine, 0, testDef.endLine, 0)
-
-		if (testDef.tags !== undefined) {
-			newTestItem.tags = testDef.tags.map(tag => {
-				log.debug(`Adding tag ${tag} to ${newTestItem.label}`)
-				return new TestTag(tag)
-			})
-			newTestItem.description = testDef.tags.join(', ')
-		}
-
-		if (testDef.error !== undefined) {
-			newTestItem.error = testDef.error
-		}
-
-		TestData.set(newTestItem, testDef)
-		log.debug(`Adding ${newTestItem.label} to ${parent.label}`)
-		parent.children.add(newTestItem)
 	}
 
 	/** Used to debounce multiple requests for test discovery at the same time to not overload the pester adapter */
@@ -282,8 +356,36 @@ export class PesterTestController implements Disposable {
 		return result
 	}, 300)
 
-	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging */
-	private async testHandler(request: TestRunRequest) {
+	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging.
+	 * @param cancelToken The cancellation token passed by VSCode
+	*/
+	private async testHandler(request: TestRunRequest, cancelToken?: CancellationToken) {
+
+		if (request.continuous) {
+			// Add each item in the request include to the continuous run list
+			log.info(`Continuous run enabled for ${request.include?.map(i => i.id)}`)
+			request.include?.forEach(testItem => {
+				this.continuousRunTests.add(testItem)
+			})
+
+			/** This cancel will be called when the autorun button is disabled */
+			const disableContinuousRunToken = cancelToken
+
+			disableContinuousRunToken?.onCancellationRequested(() => {
+				log.info(`Continuous run was disabled for ${request.include?.map(i => i.id)}`)
+				request.include?.forEach(testItem => {
+					this.continuousRunTests.delete(testItem)
+				})
+			})
+
+			// Stop here, we don't actually run tests until discovered or refreshed, at which point continuous flag will not be present.
+			return
+		}
+
+		// FIXME: This is just a placeholder to notify that a cancel was requested but it should actually do something.
+		cancelToken?.onCancellationRequested(() => {
+			log.warn(`RunRequest cancel initiated for ${request.include?.map(i => i.id)}`)
+		})
 
 		if (request.profile === undefined) {
 			throw new Error('No profile provided. This is (currently) a bug.')
@@ -712,6 +814,12 @@ export class PesterTestController implements Disposable {
 		return pesterFilePatterns
 	}
 
+	/** Triggered whenever new tests are discovered as the result of a document change */
+	private refreshTests(changedFile: Uri) {
+		const testFile = TestFile.getOrCreate(this.testController, changedFile)
+		this.resolveHandler(testFile)
+	}
+
 	/**
 	 * Starts up filewatchers for each workspace to scan for pester files and add them to the test controller root.
 	 *
@@ -735,20 +843,7 @@ export class PesterTestController implements Disposable {
 			testWatcher.onDidChange(uri => {
 				log.info(`File saved: ${uri.toString()}`)
 				const savedFile = TestFile.getOrCreate(testController, uri)
-				this.resolveHandler(savedFile, undefined, true).then(() => {
-					if (
-						workspace.getConfiguration('pester').get<boolean>('autoRunOnSave')
-					) {
-						const runProfile = workspace
-							.getConfiguration('pester')
-							.get<boolean>('autoDebugOnSave')
-							? this.debugProfile
-							: this.runProfile
-						this.testHandler(
-							new TestRunRequest([savedFile], undefined, runProfile)
-						)
-					}
-				})
+				this.resolveHandler(savedFile, undefined, true)
 			}, this)
 			const files = await workspace.findFiles(pattern)
 			for (const file of files) {
