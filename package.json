@@ -50,8 +50,6 @@
 					"type": "string",
 					"markdownDescription": "Specifies the working directory of the dedicated Pester Instance. While $PSScriptRoot is recommended when using relative paths in Pester Tests, the runner will also default to the path of the current first workspace folder. Specify this if you want a different working directory."
 				},
-
-				// Deprecated Settings
 				"pester.autoRunOnSave": {
 					"type": "boolean",
 					"default": false,
@@ -63,31 +61,32 @@
 		"commands": [
 			{
 				"command": "pester.stopPowerShell",
-				"title": "Pester: Stop PowerShell background process",
+				"title": "Pester: Stop PowerShell background process DEPRECATED: Use Test UI refresh button instead",
+				"category": "PowerShell",
+				"enablement": "false"
+			},
+			{
+				"command": "pester.toggleAutoRunOnSave",
+				"title": "Pester: Toggle Auto Run on Save DEPRECATED: Use Test UI continuous run button instead",
+				"enablement": "false",
 				"category": "PowerShell"
 			}
-			// DEPRECATED: This is now handled by the VSCode native continuous interface
-			// {
-			// 	"command": "pester.toggleAutoRunOnSave",
-			// 	"title": "Pester: Toggle Auto Run on Save",
-			// 	"enablement": "",
-			// 	"category": "PowerShell"
-			// },
 		],
 		"menus": {
-			// DEPRECATED: This is now handled by the VSCode native continuous interface
-			// "testing/item/context": [
-			// 	{
-			// 		"command": "pester.toggleAutoRunOnSave",
-			// 		"group": "pester"
-			// 	}
-			// ],
-			// "testing/item/gutter": [
-			// 	{
-			// 		"command": "pester.toggleAutoRunOnSave",
-			// 		"group": "pester"
-			// 	}
-			// ]
+			"testing/item/context": [
+				{
+					"command": "pester.toggleAutoRunOnSave",
+					"group": "pester",
+					"when": "false"
+				}
+			],
+			"testing/item/gutter": [
+				{
+					"command": "pester.toggleAutoRunOnSave",
+					"group": "pester",
+					"when": "false"
+				}
+			]
 		}
 	},
 	"keywords": [
