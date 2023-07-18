@@ -81,7 +81,7 @@ export class PSOutputUnified implements IPSOutput {
 export function createJsonParseTransform() {
 	return new Transform({
 		objectMode: true,
-		transform(chunk: string, encoding: string, next) {
+		transform(chunk: string, _encoding: string, next) {
 			const jsonResult = jsonParseSafe(chunk)
 			// Check if jsonResult is the non exported type OutputError
 			if ('error' in jsonResult) {
@@ -106,7 +106,7 @@ function createWatchForScriptFinishedMessageTransform(streamToEnd: Writable) {
 		objectMode: true,
 		// TODO: Strong type this
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		transform(chunk: any, encoding: string, next) {
+		transform(chunk: any, _encoding: string, next) {
 			// If special message from PowerShell Invocation Script
 			// TODO: Handle this as a class?
 			if (chunk.__PSINVOCATIONID && chunk.finished === true) {

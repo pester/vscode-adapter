@@ -6,7 +6,6 @@ import {
 	Location,
 	MarkdownString,
 	Position,
-	Range,
 	RelativePattern,
 	TestController,
 	TestItem,
@@ -32,6 +31,7 @@ import {
 	TestDefinition,
 	TestFile,
 	TestResult,
+	getRange,
 } from './pesterTestTree'
 import { PowerShell, PowerShellError, PSOutput } from './powershell'
 import {
@@ -40,6 +40,7 @@ import {
 } from './powershellExtensionClient'
 import { clear, findTestItem, forAll, getTestItems, isTestItemOptions } from './testItemUtils'
 import debounce = require('debounce-promise')
+import { isDeepStrictEqual } from 'util'
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  * This should only be instantiated once in the extension activate method.
  */
@@ -173,26 +174,46 @@ export class PesterTestController implements Disposable {
 			testItem.busy = true
 
 			// We will use this to compare against the new test view so we can delete any tests that no longer exist
-			const existingTests = new Array<TestItem>()
+			const existingTests = new Set<TestItem>()
 			await forAll(testItem, item => {
-				console.warn("DEBUG REMOVE ME PRE TEST Controller Item: ", item.id)
-				existingTests.push(item)
+				existingTests.add(item)
 			}, true)
-
 
 			// Run Pester and get tests
 			log.debug('Adding to Discovery Queue: ', testItem.id)
 			this.discoveryQueue.add(testItem)
 			// For discovery we don't care about the terminal output, thats why no assignment to var here
-			await this.startTestDiscovery(this.testItemDiscoveryHandler.bind(this))
 
-			const newTests = new Array<TestItem>()
-			await forAll(testItem, item => {
-				console.warn("DEBUG REMOVE ME POST TEST Controller Item: ", item.id)
-				newTests.push(item)
-			}, true)
+			// TODO: We shouldn't be injecting the newTests set like this but rather have a more functional approach
+			const newAndChangedTests = new Set<TestItem>()
+			await this.startTestDiscovery(this.testItemDiscoveryHandler.bind(this, newAndChangedTests))
 
 			testItem.busy = false
+
+			// If tests were changed that were marked for continuous run, we want to start a run for them
+			const outdatedTests = new Set<TestItem>()
+
+			newAndChangedTests.forEach(test => {
+				if (this.continuousRunTests.has(test)) {
+					outdatedTests.add(test)
+				}
+			})
+
+			if (outdatedTests.size > 0) {
+				log.info(
+					`Continuous run tests changed. Starting a run for ${outdatedTests.size} outdated tests`
+				)
+
+				const outdatedTestRunRequest = new TestRunRequest(
+					Array.from(outdatedTests),
+					undefined,
+					this.runProfile //TODO: Implement option to use debug profile instead
+				)
+
+				this.testHandler(outdatedTestRunRequest)
+			}
+
+
 		} else {
 			log.warn(
 				`Resolve requested for ${testItem.label} requested but it is already resolving/resolved. Skipping...`
@@ -218,7 +239,7 @@ export class PesterTestController implements Disposable {
 	/**
 	 * Raw test discovery result objects returned from Pester are processed by this function
 	 */
-	private testItemDiscoveryHandler(t: unknown) {
+	private testItemDiscoveryHandler(newTestItems: Set<TestItem>, t: unknown) {
 		// TODO: This should be done before onDidReceiveObject maybe as a handler callback?
 		const testDef = t as TestDefinition
 		const testItems = this.testController.items
@@ -245,9 +266,43 @@ export class PesterTestController implements Disposable {
 			)
 		}
 
-		let testItemResult = findTestItem(testDef.id, testItems)
-		if (testItemResult !== undefined) {
-			log.debug(`${testDef.id} was to be created but already exists. Skipping...`)
+		const testItem = findTestItem(testDef.id, testItems)
+
+		if (testItem !== undefined) {
+			const newTestItemData = testDef
+			const existingTestItemData = TestData.get(testItem)
+			if (isDeepStrictEqual(existingTestItemData, newTestItemData)) {
+				log.trace(`Discovery: Test Exists but has not changed. Skipping: ${testDef.id}`)
+				return
+			}
+
+			log.info(`Discovery: Test Moved Or Changed - ${testDef.id}`)
+
+			// Update the testItem data with the updated data
+			TestData.set(testItem, testDef)
+
+			// TODO: Deduplicate the below logic with the new item creation logic into a applyTestItemMetadata function or something
+
+			// If the range has changed, update it so the icons are in the correct location
+			const foundTestRange = getRange(testDef)
+			if (!(testItem.range?.isEqual(foundTestRange))) {
+				log.debug(`${testDef.id} moved, updating range`)
+				testItem.range = foundTestRange
+			}
+
+			// Update tags if changed
+			if (testDef.tags !== undefined) {
+				const newTestTags = testDef.tags?.map(tag => {
+					return new TestTag(tag)
+				})
+				if (!isDeepStrictEqual(newTestTags, testItem.tags)) {
+					log.debug(`New tags detected, updating: ${testDef.id}`)
+					testItem.tags = newTestTags
+					testItem.description = testDef.tags.join(', ')
+				}
+			}
+
+			newTestItems.add(testItem)
 		} else {
 			log.trace(`Creating Test Item in controller: ${testDef.id} uri: ${parent.uri}`)
 
@@ -256,7 +311,7 @@ export class PesterTestController implements Disposable {
 				testDef.label,
 				parent.uri
 			)
-			newTestItem.range = new Range(testDef.startLine, 0, testDef.endLine, 0)
+			newTestItem.range = getRange(testDef)
 
 			if (testDef.tags !== undefined) {
 				newTestItem.tags = testDef.tags.map(tag => {
@@ -273,19 +328,7 @@ export class PesterTestController implements Disposable {
 			TestData.set(newTestItem, testDef)
 			log.debug(`Adding ${newTestItem.label} to ${parent.label}`)
 			parent.children.add(newTestItem)
-			testItemResult = newTestItem
-		}
-
-
-		const allContinuousRunTests = new Set<TestItem>()
-		this.continuousRunTests.forEach(
-			testItem => forAll(testItem,
-				item => allContinuousRunTests.add(item)
-			)
-		)
-
-		if (allContinuousRunTests.has(testItemResult)) {
-			log.info(`Continuous Run is enabled for changed new test ${testItemResult.id}`)
+			newTestItems.add(newTestItem)
 		}
 	}
 

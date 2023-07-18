@@ -322,6 +322,7 @@ function New-TestObject ($Test) {
 		targetLine     = [int]$Test.ErrorRecord.TargetObject.Line - 1
 		parent         = $Parent
 		tags           = $Test.Tag.Where{ $PSItem }
+		scriptBlock    = if ($Test -is [Pester.Test]) { $Test.Block.ScriptBlock.ToString().Trim() }
 		#TODO: Severity. Failed = Error Skipped = Warning
 	}
 }
