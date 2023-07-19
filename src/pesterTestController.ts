@@ -38,7 +38,7 @@ import {
 	IPowerShellExtensionClient,
 	PowerShellExtensionClient
 } from './powershellExtensionClient'
-import { clear, findTestItem, forAll, getTestItems, isTestItemOptions } from './testItemUtils'
+import { clear, findTestItem, forAll, getTestItems, getUniqueTestItems, isTestItemOptions } from './testItemUtils'
 import debounce = require('debounce-promise')
 import { isDeepStrictEqual } from 'util'
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
@@ -193,8 +193,17 @@ export class PesterTestController implements Disposable {
 			// If tests were changed that were marked for continuous run, we want to start a run for them
 			const outdatedTests = new Set<TestItem>()
 
+
+			//Get all children of the standing continuous run tests so that we make sure to run them if they are changed.
+			const allContinuousRunTests = new Set<TestItem>(this.continuousRunTests)
+			this.continuousRunTests.forEach(test =>
+				getUniqueTestItems(test.children).forEach(
+					child => allContinuousRunTests.add(child)
+				)
+			)
+
 			newAndChangedTests.forEach(test => {
-				if (this.continuousRunTests.has(test)) {
+				if (allContinuousRunTests.has(test)) {
 					outdatedTests.add(test)
 				}
 			})
