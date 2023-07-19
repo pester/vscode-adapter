@@ -329,7 +329,7 @@ export class PowerShell {
 		)
 		// Start the script, the output will be processed by the above events
 		if (script) {
-			const fullScript = `${runnerScriptPath} {${script}}\n`
+			const fullScript = `& '${runnerScriptPath}' {${script}}\n`
 			this.psProcess.stdin.write(fullScript)
 		}
 
