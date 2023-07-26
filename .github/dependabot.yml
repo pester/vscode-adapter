@@ -5,8 +5,8 @@ updates:
     schedule:
       interval: "weekly"
     groups:
-      dev-dependencies:
-        pattterns:
+      dependencies:
+        patterns:
           - "*"
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -14,5 +14,5 @@ updates:
       interval: "weekly"
     groups:
       dependencies:
-        dev-pattterns:
+        patterns:
           - "*"
