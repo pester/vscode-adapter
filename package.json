@@ -57,38 +57,6 @@
 					"markdownDescription": "Automatically runs Pester test files upon changes being detected on save. Uncheck this box to disable this behavior."
 				}
 			}
-		},
-		"commands": [
-			{
-				"command": "pester.stopPowerShell",
-				"title": "Pester: Stop PowerShell background process DEPRECATED: Use Test UI refresh button instead",
-				"category": "PowerShell",
-				"enablement": "false"
-			},
-			{
-				"command": "pester.toggleAutoRunOnSave",
-				"title": "Pester: Toggle Auto Run on Save DEPRECATED: Use Test UI continuous run button instead",
-				"enablement": "false",
-				"category": "PowerShell"
-			}
-		],
-		"menus": {
-			"testing/item/context": [
-				{
-					"command": "pester.toggleAutoRunOnSave",
-					"group": "pester",
-					"alt": "This action was deprecated and disabled in favor of the VSCode native continuous run interface in the test handler.",
-					"when": "false"
-				}
-			],
-			"testing/item/gutter": [
-				{
-					"command": "pester.toggleAutoRunOnSave",
-					"group": "pester",
-					"alt": "This action was deprecated and disabled in favor of the VSCode native continuous run interface in the test handler.",
-					"when": "false"
-				}
-			]
 		}
 	},
 	"keywords": [
