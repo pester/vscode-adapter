@@ -23,10 +23,10 @@
 			],
 			"sourceMaps": true,
 			"autoAttachChildProcesses": true,
-			"enableTurboSourcemaps": true,
 			"skipFiles": [
 				"<node_internals>/**",
-				"**/extensionHostProcess.js"
+				"**/extensionHostProcess.js",
+				"**/.vscode/extensions/**"
 			],
 			"showAsyncStacks": true,
 			"smartStep": true,

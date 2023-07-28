@@ -53,6 +53,9 @@ function runTestsInner(testsRoot: string): Promise<void> {
 		mocha.addFile(testFile)
 	}
 
+	// Only run tests with the vscode tag
+	mocha.grep(/^vscode/)
+
 	mocha.reporter("mocha-multi-reporters", {
 		reporterEnabled: "spec, xunit",
 		xunitReporterOptions: {
