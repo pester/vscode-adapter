@@ -39,9 +39,13 @@ if ($psversiontable.psversion -ge '7.2.0') {
 	}
 }
 
-Write-Debug -Debug "Home: $env:HOME"
-Write-Debug -Debug "PSModulePath: $env:PSModulePath"
-Write-Debug -Debug "OutputRendering: $($PSStyle.OutputRendering)"
+if ($PSVersionTable.PSEdition -eq 'Desktop') {
+	#Defaults to inquire
+	$DebugPreference = 'continue'
+}
+Write-Debug "Home: $env:HOME"
+Write-Debug "PSModulePath: $env:PSModulePath"
+Write-Debug "OutputRendering: $($PSStyle.OutputRendering)"
 
 filter Import-PrivateModule ([Parameter(ValueFromPipeline)][string]$Path) {
 	<#

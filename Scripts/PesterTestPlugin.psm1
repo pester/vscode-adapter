@@ -312,7 +312,7 @@ function New-TestObject ($Test) {
 		startLine      = [int]($Test.StartLine - 1) #Lines are zero-based in vscode
 		endLine        = [int]($Test.ScriptBlock.StartPosition.EndLine - 1) #Lines are zero-based in vscode
 		label          = Expand-TestCaseName $Test
-		result         = if (-not $Discovery) { $Test | Resolve-TestResult }
+		result         = $(if (-not $Discovery) { $Test | Resolve-TestResult })
 		duration       = $Test.UserDuration.TotalMilliseconds #I don't think anyone is doing sub-millisecond code performance testing in PowerShell :)
 		durationDetail = Get-DurationString $Test
 		message        = $Message
