@@ -72,7 +72,8 @@
 		"Testing"
 	],
 	"activationEvents": [
-		"workspaceContains:**/*.[tT]ests.[pP][sS]1"
+		"workspaceContains:**/*.[tT]ests.[pP][sS]1",
+		"onStartupFinished"
 	],
 	"main": "./dist/extension.js",
 	"devDependencies": {
