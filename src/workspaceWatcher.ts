@@ -1,4 +1,4 @@
-import { FileSystemWatcher, RelativePattern, WorkspaceFolder, workspace } from "vscode"
+import { FileChangeEvent, FileChangeType, FileSystemWatcher, RelativePattern, Uri, WorkspaceFolder, workspace } from "vscode"
 import log from "./log"
 import { registerDisposable, registerDisposables } from "./extension"
 import { PesterTestController } from "./pesterTestController"
@@ -11,6 +11,7 @@ export async function watchWorkspace() {
 			folder => new PesterTestController(folder)
 		)
 		registerDisposables(newTestControllers)
+		newTestControllers.forEach(controller => controller.watch())
 	})
 
 	const watchers = new Set<FileSystemWatcher>()
@@ -21,6 +22,7 @@ export async function watchWorkspace() {
 			folder => new PesterTestController(folder)
 		)
 		registerDisposables(newTestControllers)
+		newTestControllers.forEach(controller => controller.watch())
 	}
 
 	return watchers
@@ -28,39 +30,17 @@ export async function watchWorkspace() {
 
 /**
  * Starts up a filewatcher for each workspace and initialize a test controller for each workspace.
+ * @param folder The workspace folder to watch
+ * @param cb A callback to be called when a file change is detected
  */
 export async function watchWorkspaceFolder(folder: WorkspaceFolder) {
 	const testWatchers = new Set<FileSystemWatcher>
 
 	for (const pattern of getPesterRelativePatterns(folder)) {
-
 		// Register a filewatcher for each workspace's patterns
 		const testWatcher = workspace.createFileSystemWatcher(pattern)
-		testWatcher.onDidCreate(uri => {
-			log.info(`File created: ${uri.toString()}`)
-			// tests.add(TestFile.getOrCreate(testController, uri))
-		})
-		testWatcher.onDidDelete(uri => {
-			log.info(`File deleted: ${uri.toString()}`)
-			// tests.delete(TestFile.getOrCreate(testController, uri).id)
-		})
-		testWatcher.onDidChange(uri => {
-			log.info(`File saved: ${uri.toString()}`)
-			// const savedFile = TestFile.getOrCreate(testController, uri)
-			// this.resolveHandler(savedFile, undefined, true)
-		})
-
 		registerDisposable(testWatcher)
-
 		testWatchers.add(testWatcher)
-
-		// Add the filewatcher to the set of watchers to be returned
-		const files = await workspace.findFiles(pattern)
-
-		for (const file of files) {
-			log.info('Detected Pester File: ', file.fsPath)
-			// TestFile.getOrCreate(testController, file)
-		}
 	}
 	return testWatchers
 }

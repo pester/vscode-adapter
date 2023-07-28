@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "Tests"
+		},
+		{
+			"path": "Tests.2"
+		},
+		{
+			"path": "Tests.3"
+		}
+	],
+	"settings": {
+		"powershell.cwd": "c:\\Users\\jgrote\\Projects\\vscode-adapter\\sample\\Tests"
+	}
+}

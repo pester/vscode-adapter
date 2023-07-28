@@ -7,6 +7,7 @@ import {
 import { watchWorkspace } from './workspaceWatcher'
 
 export async function activate(context: ExtensionContext) {
+
 	subscriptions = context.subscriptions
 
 	// PowerShell extension is a prerequisite
