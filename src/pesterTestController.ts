@@ -6,7 +6,6 @@ import {
 	Location,
 	MarkdownString,
 	Position,
-	RelativePattern,
 	TestController,
 	TestItem,
 	TestMessage,
@@ -23,6 +22,9 @@ import {
 	FileSystemWatcher,
 	CancellationToken,
 	WorkspaceFolder,
+	TextDocument,
+	RelativePattern,
+	DocumentSelector,
 } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import { default as parentLog, VSCodeLogOutputChannelTransport } from './log'
@@ -52,7 +54,8 @@ export class PesterTestController implements Disposable {
 	/** Queues up testItems from resolveHandler requests because pester works faster scanning multiple files together **/
 	private discoveryQueue = new Set<TestItem>()
 	private readonly testRunStatus = new Map<TestRun, boolean>()
-	private readonly testWatchers = new Array<FileSystemWatcher>
+	private testFileWatchers = new Map<RelativePattern, FileSystemWatcher>()
+	private get testFilePatterns() { return Array.from(this.testFileWatchers.keys()) }
 	private readonly continuousRunTests = new Set<TestItem>()
 	private readonly disposables = new Array<Disposable>()
 	private runProfile?: TestRunProfile
@@ -96,7 +99,6 @@ export class PesterTestController implements Disposable {
 			name: workspaceFolder.name
 		})
 	) {
-		this.log.attachTransport((new VSCodeLogOutputChannelTransport(label)).transport)
 		const pesterExtensionContext = getPesterExtensionContext()
 		this.context = pesterExtensionContext.extensionContext
 		this.powershellExtension = pesterExtensionContext.powerShellExtension
@@ -117,10 +119,12 @@ export class PesterTestController implements Disposable {
 		)
 	}
 
-	// Initializes file system watchers for the workspace
+	/** Initializes file system watchers for the workspace and checks for Pester files in open windows */
 	async watch() {
 		const watchers = await watchWorkspaceFolder(this.workspaceFolder)
-		this.registerDisposable(...Array.from(watchers).flatMap(
+		this.testFileWatchers = watchers
+
+		this.registerDisposable(...Array.from(watchers.values()).flatMap(
 			watcher => {
 				return [
 					watcher.onDidChange(this.onFileChanged, this),
@@ -130,25 +134,39 @@ export class PesterTestController implements Disposable {
 			}
 		))
 
-		// Wire up the active document watcher to refresh tests whenever a document that matches a test file is opened
-		const openDocumentWatcher = workspace.onDidOpenTextDocument(doc => {
-			if (
-				// Only file support for now
-				// TODO: Virtual File Support and "hot editing" via scriptblock entry into Pester
-				doc.uri.scheme !== 'file' ||
-				!languages.match(this.getPesterRelativePatterns(), doc)
-			) {
-				this.refreshTests(doc.uri)
-			}
-		})
-		this.registerDisposable(openDocumentWatcher)
+		// Watch for new open documents and initiate a test refresh
+		this.registerDisposable(
+			workspace.onDidOpenTextDocument(
+				this.refreshIfPesterTestDocument
+			)
+		)
 
 		// Do a test discovery if a pester document is already open
-		const activeDocument = window.activeTextEditor?.document
-		if (activeDocument &&
-			activeDocument.uri.scheme === 'file' &&
-			languages.match(this.getPesterRelativePatterns(), activeDocument)) {
-			this.refreshTests(activeDocument.uri)
+		if (window.activeTextEditor?.document !== undefined) {
+			this.refreshIfPesterTestDocument(window.activeTextEditor.document)
+		}
+
+		this.log.info('Scanning workspace for Pester files:', this.workspaceFolder.uri.fsPath)
+		const detectedPesterFiles = (await Promise.all(this.testFilePatterns.map(
+			pattern => {
+				this.log.debug('Scanning for files matching pattern:', pattern)
+				return workspace.findFiles(pattern, '**/node_modules/**')
+			}
+		))).flat()
+
+		detectedPesterFiles.forEach(uri => this.onFileAdded(uri))
+	}
+
+	refreshIfPesterTestDocument(
+		doc: TextDocument,
+		documentSelector: DocumentSelector = Array.from(this.testFileWatchers.keys())
+	) {
+		if (
+			// TODO: Support virtual pester test files by running them as a scriptblock
+			doc.uri.scheme === 'file' &&
+			languages.match(documentSelector, doc)
+		) {
+			this.refreshTests(doc.uri)
 		}
 	}
 
@@ -843,28 +861,6 @@ export class PesterTestController implements Disposable {
 		const resolvedPath = join(workspace.workspaceFolders[0].uri.fsPath, path)
 		this.log.debug(`Resolved Pester CustomModulePath ${path} to ${resolvedPath}`)
 		return resolvedPath
-	}
-
-	/** Returns a list of relative patterns based on user configuration for matching Pester files in the workspace */
-	getPesterRelativePatterns() {
-		const pesterFilePatterns = new Array<RelativePattern>()
-
-		if (!workspace.workspaceFolders) {
-			// TODO: Register event to look for when a workspace folder is added
-			this.log.warn('No workspace folders detected.')
-			return pesterFilePatterns
-		}
-		const pathToWatch: string[] = workspace
-			.getConfiguration('pester')
-			.get<string[]>('testFilePath', ['**/*.[tT]ests.[pP][sS]1'])
-
-		for (const workspaceFolder of workspace.workspaceFolders) {
-			for (const pathToWatchItem of pathToWatch) {
-				const pattern = new RelativePattern(workspaceFolder, pathToWatchItem)
-				pesterFilePatterns.push(pattern)
-			}
-		}
-		return pesterFilePatterns
 	}
 
 	/** Triggered whenever new tests are discovered as the result of a document change */

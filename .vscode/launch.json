@@ -32,6 +32,33 @@
 			"smartStep": true,
 			"preLaunchTask": "build-watch"
 		},
+		{
+			"name": "Run Extension Multi-Root Workspace",
+						"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--profile=Debug-PesterExtension",
+				"--trace-warnings",
+				"${workspaceFolder}/sample/Tests.code-workspace"
+			],
+			"env": {
+				"VSCODE_DEBUG_MODE": "true"
+			},
+			"outFiles": [
+				"${workspaceFolder}/dist/**/*.js"
+			],
+			"sourceMaps": true,
+			"autoAttachChildProcesses": true,
+			"skipFiles": [
+				"<node_internals>/**",
+				"**/extensionHostProcess.js",
+				"**/.vscode/extensions/**"
+			],
+			"showAsyncStacks": true,
+			"smartStep": true,
+			"preLaunchTask": "build-watch"
+		},
     {
       "name": "Test Extension",
       "type": "node",

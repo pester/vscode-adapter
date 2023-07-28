@@ -5,8 +5,11 @@ import {
 	IPowerShellExtensionClient
 } from './powershellExtensionClient'
 import { watchWorkspace } from './workspaceWatcher'
+import log, { VSCodeLogOutputChannelTransport } from './log'
 
 export async function activate(context: ExtensionContext) {
+
+	log.attachTransport(new VSCodeLogOutputChannelTransport('Pester').transport)
 
 	subscriptions = context.subscriptions
 

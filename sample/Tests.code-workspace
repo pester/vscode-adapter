@@ -11,6 +11,7 @@
 		}
 	],
 	"settings": {
-		"powershell.cwd": "c:\\Users\\jgrote\\Projects\\vscode-adapter\\sample\\Tests"
-	}
+    "git.openRepositoryInParentFolders": "never",
+    "extensions.ignoreRecommendations": true,
+  }
 }

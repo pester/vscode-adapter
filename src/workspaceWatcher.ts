@@ -1,9 +1,8 @@
-import { FileChangeEvent, FileChangeType, FileSystemWatcher, RelativePattern, Uri, WorkspaceFolder, workspace } from "vscode"
-import log from "./log"
+import { FileSystemWatcher, RelativePattern, WorkspaceFolder, workspace } from "vscode"
 import { registerDisposable, registerDisposables } from "./extension"
 import { PesterTestController } from "./pesterTestController"
 
-/** Watches the workspace for changes in workspace folders */
+/** Registers Pester Test Controllers for each workspace folder in the workspace and monitors for changes */
 export async function watchWorkspace() {
 	// Create a test controller for each workspace folder
 	workspace.onDidChangeWorkspaceFolders(async changedFolders => {
@@ -34,19 +33,19 @@ export async function watchWorkspace() {
  * @param cb A callback to be called when a file change is detected
  */
 export async function watchWorkspaceFolder(folder: WorkspaceFolder) {
-	const testWatchers = new Set<FileSystemWatcher>
+	const testWatchers = new Map<RelativePattern, FileSystemWatcher>()
 
 	for (const pattern of getPesterRelativePatterns(folder)) {
 		// Register a filewatcher for each workspace's patterns
 		const testWatcher = workspace.createFileSystemWatcher(pattern)
 		registerDisposable(testWatcher)
-		testWatchers.add(testWatcher)
+		testWatchers.set(pattern, testWatcher)
 	}
 	return testWatchers
 }
 
 /** Returns a list of relative patterns based on user configuration for matching Pester files in the workspace */
-function getPesterRelativePatterns(workspaceFolder: WorkspaceFolder): RelativePattern[] {
+export function getPesterRelativePatterns(workspaceFolder: WorkspaceFolder): RelativePattern[] {
 	const pathsToWatch = workspace
 		.getConfiguration('pester')
 		.get<string[]>('testFilePath')
