@@ -23,6 +23,7 @@ import {
 	FileSystemWatcher,
 	CancellationToken,
 	EventEmitter,
+	WorkspaceFolder,
 } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import log, { VSCodeLogOutputChannelTransport } from './log'
@@ -41,33 +42,58 @@ import {
 import { clear, findTestItem, forAll, getTestItems, getUniqueTestItems, isTestItemOptions } from './testItemUtils'
 import debounce = require('debounce-promise')
 import { isDeepStrictEqual } from 'util'
+import { getPesterExtensionContext } from './extension'
+import { watchWorkspaceFolder } from './workspaceWatcher'
+
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
- * This should only be instantiated once in the extension activate method.
  */
 export class PesterTestController implements Disposable {
 	private ps: PowerShell | undefined
 	private powerShellExtensionClient: PowerShellExtensionClient | undefined
-	private readonly runProfile: TestRunProfile
-	private readonly debugProfile: TestRunProfile
+	/** Queues up testItems from resolveHandler requests because pester works faster scanning multiple files together **/
+	private discoveryQueue = new Set<TestItem>()
 	private initialized = false
 	private readonly testRunStatus = new Map<TestRun, boolean>()
+	private readonly testWatchers = new Array<FileSystemWatcher>
+	private readonly continuousRunTests = new Set<TestItem>()
+	/** This emitter is wired up to the filewatchers and fires whenever a test file changes in the workspace */
+	private readonly testFileChanged = new EventEmitter<Uri>()
+	public testController?: TestController
+	private runProfile?: TestRunProfile
+	private debugProfile?: TestRunProfile
+	private readonly powershellExtension: Extension<IPowerShellExtensionClient>
+	private readonly context: ExtensionContext
+	private readonly returnServer: DotnetNamedPipeServer
+
 	constructor(
-		private readonly powershellExtension: Extension<IPowerShellExtensionClient>,
-		private readonly context: ExtensionContext,
-		private readonly testWatchers = new Array<FileSystemWatcher>,
-		private readonly continuousRunTests = new Set<TestItem>(),
-		/** This emitter is wired up to the filewatchers and fires whenever a test file changes in the workspace */
-		private readonly testFileChanged = new EventEmitter<Uri>(),
-		public readonly id: string = 'Pester',
-		public testController: TestController = tests.createTestController(id, id),
-		private returnServer = new DotnetNamedPipeServer(
+		public readonly workspaceFolder: WorkspaceFolder,
+		public readonly id: string = '🐢 Pester',
+	) {
+		const pesterExtensionContext = getPesterExtensionContext()
+		this.context = pesterExtensionContext.extensionContext
+		this.powershellExtension = pesterExtensionContext.powerShellExtension
+		// TODO: Delay this until ready to run tests
+		this.returnServer = new DotnetNamedPipeServer(
 			id + 'TestController-' + process.pid
 		)
-	) {
-		// Log to nodejs console when debugging
-		// if (process.env.VSCODE_DEBUG_MODE === 'true') {
-		// 	log.attachTransport(new ConsoleLogTransport())
-		// }
+
+		// Register to dispose the test controller if the workspace is removed
+		workspace.onDidChangeWorkspaceFolders(
+			e => e.removed.filter(
+				f => f === workspaceFolder
+			).forEach(
+				() => this.dispose()
+			)
+		)
+	}
+
+	// Initializes file system watchers for the workspace
+	async watch() {
+		await watchWorkspaceFolder(this.workspaceFolder)
+	}
+
+	start(id: string, testController: TestController, testFileChanged: EventEmitter<Uri>) {
+		tests.createTestController(this.id, this.id)
 		log.attachTransport(new VSCodeLogOutputChannelTransport(id).transport)
 
 		// wire up our custom handlers to the managed instance
@@ -98,8 +124,7 @@ export class PesterTestController implements Disposable {
 				// Only file support for now
 				// TODO: Virtual File Support and "hot editing" via scriptblock entry into Pester
 				doc.uri.scheme !== 'file' ||
-				!languages.match(this.getPesterRelativePatterns(), doc)
-			) {
+				!languages.match(this.getPesterRelativePatterns(), doc)) {
 				return
 			}
 
@@ -108,17 +133,12 @@ export class PesterTestController implements Disposable {
 
 		// Do a test discovery if a powershell document is currently open upon activation.
 		const activeDocument = window.activeTextEditor?.document
-		if (
-			activeDocument &&
+		if (activeDocument &&
 			activeDocument.uri.scheme === 'file' &&
-			languages.match(this.getPesterRelativePatterns(), activeDocument)
-		) {
+			languages.match(this.getPesterRelativePatterns(), activeDocument)) {
 			testFileChanged.fire(activeDocument.uri)
 		}
 	}
-
-	/** Queues up testItems from resolveHandler requests because pester works faster scanning multiple files together **/
-	private discoveryQueue = new Set<TestItem>()
 
 	/** The test controller API calls this whenever it needs to get the resolveChildrenHandler
 	 * for Pester, this is only relevant to TestFiles as this is pester's lowest level of test resolution
@@ -912,7 +932,8 @@ export class PesterTestController implements Disposable {
 	}
 
 	dispose() {
-		this.testController.dispose()
+		console.log(`Disposing Pester Test Controller ${this.id}`)
+		this.testController?.dispose()
 		this.returnServer.dispose()
 	}
 

@@ -1,24 +1,77 @@
-import { type ExtensionContext, window, workspace, commands } from 'vscode'
-
-import { PesterTestController } from './pesterTestController'
+import { type ExtensionContext, window, workspace, Disposable, WorkspaceConfiguration, Extension } from 'vscode'
 import {
-	getPowerShellExtension,
-	PowerShellExtensionClient
+	waitForPowerShellExtension,
+	PowerShellExtensionClient,
+	IPowerShellExtensionClient
 } from './powershellExtensionClient'
+import { watchWorkspace } from './workspaceWatcher'
 
 export async function activate(context: ExtensionContext) {
-	// PowerShell extension is a prerequisite, but we allow either preview or normal, which is why we do this instead of
-	// leverage package.json dependencies
-	const powershellExtension = getPowerShellExtension(context)
+	subscriptions = context.subscriptions
 
-	// Short circuit this activate call if we didn't find a PowerShell Extension. Another activate will be triggered once
-	// the powershell extension is available
-	if (powershellExtension === undefined) {
-		return
+	// PowerShell extension is a prerequisite
+	const powershellExtension = await waitForPowerShellExtension()
+
+	pesterExtensionContext = {
+		extensionContext: context,
+		powerShellExtension: powershellExtension,
+		powershellExtensionPesterConfig: PowerShellExtensionClient.GetPesterSettings()
 	}
 
+	promptForPSLegacyCodeLensDisable()
+
+	await watchWorkspace()
+
+	// TODO: Rig this up for multiple workspaces
+	// const stopPowerShellCommand = commands.registerCommand('pester.stopPowershell', () => {
+	// 	if (controller.stopPowerShell()) {
+	// 		void window.showInformationMessage('PowerShell background process stopped.')
+	// 	} else {
+	// 		void window.showWarningMessage('No PowerShell background process was running !')
+	// 	}
+	// })
+
+	// context.subscriptions.push(
+	// 	controller,
+	// 	stopPowerShellCommand,
+	// )
+
+}
+
+/** Register a Disposable with the extension so that it can be cleaned up if the extension is disabled */
+export function registerDisposable(disposable: Disposable) {
+	if (subscriptions == undefined) {
+		throw new Error('registerDisposable called before activate. This should never happen and is a bug.')
+	}
+	subscriptions.push(disposable)
+}
+
+export function registerDisposables(disposables: Disposable[]) {
+	subscriptions.push(Disposable.from(...disposables))
+}
+
+let subscriptions: Disposable[]
+
+type PesterExtensionContext = {
+	extensionContext: ExtensionContext
+	powerShellExtension: Extension<IPowerShellExtensionClient>
+	powershellExtensionPesterConfig: WorkspaceConfiguration
+}
+
+/** Get the activated extension context */
+export function getPesterExtensionContext() {
+	if (pesterExtensionContext == undefined) {
+		throw new Error('Pester Extension Context attempted to be fetched before activation. This should never happen and is a bug')
+	}
+
+	return pesterExtensionContext
+}
+let pesterExtensionContext: PesterExtensionContext
+
+function promptForPSLegacyCodeLensDisable() {
 	// Disable PowerShell codelens setting if present
 	const config = PowerShellExtensionClient.GetPesterSettings()
+
 	const psExtensionCodeLensSetting: boolean = config.codeLens
 
 	const suppressCodeLensNotice = workspace.getConfiguration('pester').get<boolean>('suppressCodeLensNotice') ?? false
@@ -50,18 +103,4 @@ export async function activate(context: ExtensionContext) {
 			}
 		})
 	}
-
-	const controller = new PesterTestController(powershellExtension, context)
-	const stopPowerShellCommand = commands.registerCommand('pester.stopPowershell', () => {
-		if (controller.stopPowerShell()) {
-			void window.showInformationMessage('PowerShell background process stopped.')
-		} else {
-			void window.showWarningMessage('No PowerShell background process was running !')
-		}
-	})
-
-	context.subscriptions.push(
-		controller,
-		stopPowerShellCommand,
-	)
 }
