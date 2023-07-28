@@ -23,6 +23,14 @@ param(
 	[String]$IncludeAnsi
 )
 
+try {
+	Import-Module -Name Pester -MinimumVersion '5.2.0'  -ErrorAction Stop
+} catch {
+	if ($PSItem.FullyQualifiedErrorId -ne 'Modules_ModuleWithVersionNotFound,Microsoft.PowerShell.Commands.ImportModuleCommand') {throw}
+
+	throw [NotSupportedException]'Pester 5.2.0 or greater is required to use the Pester Tests extension but was not found on your system. Please install the latest version of Pester from the PowerShell Gallery.'
+}
+
 if ($psversiontable.psversion -ge '7.2.0') {
 	if ($IncludeAnsi) {
 		$PSStyle.OutputRendering = 'ANSI'

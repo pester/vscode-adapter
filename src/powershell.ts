@@ -289,7 +289,7 @@ export class PowerShell {
 						errorAsJsonOrString
 					)
 					: new PowerShellError(
-						'A terminating error was received from PowerShell:',
+						'A terminating error was received from PowerShell',
 						jsonResult.value
 					)
 				reject(error)
