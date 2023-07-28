@@ -94,7 +94,7 @@ export class PesterTestController implements Disposable {
 
 	constructor(
 		public readonly workspaceFolder: WorkspaceFolder,
-		public readonly label: string = `🐢 Pester: ${workspaceFolder.name}`,
+		public readonly label: string = `Pester: ${workspaceFolder.name}`,
 		public readonly log = parentLog.getSubLogger({
 			name: workspaceFolder.name
 		})
