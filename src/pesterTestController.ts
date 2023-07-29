@@ -46,6 +46,12 @@ import { isDeepStrictEqual } from 'util'
 import { getPesterExtensionContext } from './extension'
 import { watchWorkspaceFolder } from './workspaceWatcher'
 
+const defaultControllerLabel = 'Pester'
+
+/** Used to store the first controller in the system so it can be renamed if multiple controllers are instantiated */
+let firstTestController: [string, TestController]
+let firstTestControllerRenamed = false
+
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  */
 export class PesterTestController implements Disposable {
@@ -89,12 +95,23 @@ export class PesterTestController implements Disposable {
 		)
 		this.registerDisposable(this._testController)
 
+		// The first controller should simply be named 'Pester' and not include the workspace name in a single root workspace. By default this is hidden if no other non-Pester test controllers but keeps it simple if there are other controllers. In a multi-root workspace, we want to include the workspace name in the label to differentiate between controllers.
+		if (firstTestController === undefined) {
+			firstTestController = [this.label, this._testController]
+			this._testController.label = defaultControllerLabel
+		} else {
+			if (firstTestControllerRenamed === false) {
+				firstTestController[1].label = firstTestController[0]
+				firstTestControllerRenamed = true
+			}
+		}
+
 		return this._testController
 	}
 
 	constructor(
 		public readonly workspaceFolder: WorkspaceFolder,
-		public readonly label: string = `Pester: ${workspaceFolder.name}`,
+		public readonly label: string = `${defaultControllerLabel}: ${workspaceFolder.name}`,
 		public readonly log = parentLog.getSubLogger({
 			name: workspaceFolder.name
 		})
@@ -117,6 +134,8 @@ export class PesterTestController implements Disposable {
 				this.dispose()
 			}, this)
 		)
+
+		// TODO: Label the first one 'Pester' if we are the first and only controller and relabel it if multiple controllers are present
 	}
 
 	/** Initializes file system watchers for the workspace and checks for Pester files in open windows */
