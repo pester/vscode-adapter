@@ -95,7 +95,11 @@ export class PesterTestController implements Disposable {
 		)
 		this.registerDisposable(this._testController)
 
-		// The first controller should simply be named 'Pester' and not include the workspace name in a single root workspace. By default this is hidden if no other non-Pester test controllers but keeps it simple if there are other controllers. In a multi-root workspace, we want to include the workspace name in the label to differentiate between controllers.
+		/** The first controller should simply be named 'Pester' and not include the workspace name in a single root
+		 * workspace. By default this is hidden if no other non-Pester test controllers but keeps it simple if there are
+		 * other controllers. In a multi-root workspace, we want to include the workspace name in the label to differentiate
+		 * between controllers.
+		*/
 		if (firstTestController === undefined) {
 			firstTestController = [this.label, this._testController]
 			this._testController.label = defaultControllerLabel
@@ -134,8 +138,6 @@ export class PesterTestController implements Disposable {
 				this.dispose()
 			}, this)
 		)
-
-		// TODO: Label the first one 'Pester' if we are the first and only controller and relabel it if multiple controllers are present
 	}
 
 	/** Initializes file system watchers for the workspace and checks for Pester files in open windows */
