@@ -74,9 +74,9 @@ let pesterExtensionContext: PesterExtensionContext
 
 function promptForPSLegacyCodeLensDisable() {
 	// Disable PowerShell codelens setting if present
-	const config = PowerShellExtensionClient.GetPesterSettings()
+	const powershellExtensionConfig = PowerShellExtensionClient.GetPesterSettings()
 
-	const psExtensionCodeLensSetting: boolean = config.codeLens
+	const psExtensionCodeLensSetting: boolean = powershellExtensionConfig.codeLens
 
 	const suppressCodeLensNotice = workspace.getConfiguration('pester').get<boolean>('suppressCodeLensNotice') ?? false
 
@@ -87,21 +87,21 @@ function promptForPSLegacyCodeLensDisable() {
 			'Workspace Only',
 			'No',
 			'Dont Ask Again'
-		).then(response => {
+		).then(async response => {
 			switch (response) {
 				case 'No': {
 					return
 				}
 				case 'Yes': {
-					void config.update('codeLens', false, true)
+					await powershellExtensionConfig.update('codeLens', false, true)
 					break
 				}
 				case 'Workspace Only': {
-					void config.update('codeLens', false, false)
+					await powershellExtensionConfig.update('codeLens', false, false)
 					break
 				}
 				case 'Dont Ask Again': {
-					void config.update('suppressCodeLensNotice', true, true)
+					await workspace.getConfiguration('pester').update('suppressCodeLensNotice', true, true)
 					break
 				}
 			}
