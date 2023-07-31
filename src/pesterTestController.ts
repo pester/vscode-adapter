@@ -43,7 +43,7 @@ import {
 import { clear, findTestItem, forAll, getTestItems, getUniqueTestItems, isTestItemOptions } from './util/testItemUtils'
 import debounce = require('debounce-promise')
 import { isDeepStrictEqual } from 'util'
-import { getPesterExtensionContext } from './extension'
+import { registerDisposable as registerExtensionDisposable, getPesterExtensionContext } from './extension'
 import { watchWorkspaceFolder } from './workspaceWatcher'
 
 const defaultControllerLabel = 'Pester'
@@ -329,11 +329,13 @@ export class PesterTestController implements Disposable {
 		this.log.info("VSCode requested a refresh. Re-initializing the Pester Tests extension")
 		this.stopPowerShell()
 		clear(this.testController.items)
+		this.testFileWatchers.forEach(watcher => {
+			watcher.dispose()
+			this.disposables.splice(this.disposables.indexOf(watcher), 1)
+		})
 
-		// TODO: Check settings and refresh if changed
-
-		// Reinitialize the monitor which will restart the FileSystemWatchers
-		this.resolveHandler(undefined, cancelToken)
+		this.testFileWatchers = new Map<RelativePattern, FileSystemWatcher>()
+		this.watch()
 	}
 
 	/**
@@ -966,3 +968,4 @@ export class PesterTestController implements Disposable {
 		this.log.warn(`Test Run Cancelled`)
 	}
 }
+
