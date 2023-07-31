@@ -1,4 +1,5 @@
 using namespace Pester
+using namespace System.Management.Automation
 using namespace System.Collections
 using namespace System.Collections.Generic
 using namespace System.IO
@@ -292,6 +293,12 @@ function New-TestObject ($Test) {
 	if ($Test.ErrorRecord) {
 		if ($Test -is [Pester.Block]) {
 			[String]$DiscoveryError = $Test.ErrorRecord
+			# Better formatting of parsing errors
+			if ($Test.ErrorRecord.Exception -is [ParseException]) {
+				$FirstParseError = $Test.ErrorRecord.Exception.Errors[0]
+				$firstParseMessage = "Line $($FirstParseError.Extent.StartScriptPosition.LineNumber): $($FirstParseError.Message)"
+				$DiscoveryError = $firstParseMessage + ([Environment]::NewLine * 2) + $Test.ErrorRecord
+			}
 		} else {
 			#TODO: Better handling once pester adds support
 			#Reference: https://github.com/pester/Pester/issues/1993
