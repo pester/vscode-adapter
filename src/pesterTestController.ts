@@ -75,7 +75,7 @@ export class PesterTestController implements Disposable {
 	private runProfile?: TestRunProfile
 	private debugProfile?: TestRunProfile
 	private readonly powershellExtension: Extension<IPowerShellExtensionClient>
-	private powerShellExtensionClient?: PowerShellExtensionClient
+	get powerShellExtensionClientPromise() { return getPowerShellExtensionClient() }
 	private readonly context: ExtensionContext
 
 	// pipe for PSIC communication should be lazy initialized
@@ -635,7 +635,7 @@ export class PesterTestController implements Disposable {
 		returnHandler: (event: unknown) => void,
 		discovery?: boolean,
 		debug?: boolean,
-		usePSIC?: boolean,
+		usePSExtension?: boolean,
 		testRun?: TestRun
 	): Promise<void> {
 		if (!discovery) {
@@ -663,7 +663,7 @@ export class PesterTestController implements Disposable {
 		}
 
 		// Debug should always use PSIC for now, so if it is not explicity set, use it
-		usePSIC ??= debug
+		usePSExtension ??= debug
 
 		// Derive Pester-friendly test line identifiers from the testItem info
 		const testsToRun = testItems.map(testItem => {
@@ -717,24 +717,21 @@ export class PesterTestController implements Disposable {
 		}
 
 		// Initialize the PSIC if we are using it
-		if (usePSIC) {
-			// HACK: Calling this function indirectly starts/waits for PSIC to be available
-			await (await getPowerShellExtensionClient()).GetVersionDetails()
+		if (usePSExtension) {
+			// HACK: Calling this function indirectly starts/waits for PS Extension to be available
+			await (await this.powerShellExtensionClientPromise).GetVersionDetails()
 		}
 
 		// If PSIC is running, we will connect the PowershellExtensionClient to be able to fetch info about it
-		const psicLoaded = window.terminals.find(
-			t => t.name === 'PowerShell Integrated Console'
+		const psExtensionTerminalLoaded = window.terminals.find(
+			t => t.name === 'PowerShell Extension'
 		)
-		if (psicLoaded) {
-			this.powerShellExtensionClient = await getPowerShellExtensionClient()
+		if (!psExtensionTerminalLoaded) {
+			this.log.fatal('PowerShell Extension Terminal should be started but was not found in VSCode. This is a bug')
 		}
 
-
-		const exePath = psicLoaded
-			// TODO: Fix non-null assertion
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			? (await this.powerShellExtensionClient!.GetVersionDetails()).exePath
+		const exePath = psExtensionTerminalLoaded
+			? (await (await this.powerShellExtensionClientPromise).GetVersionDetails()).exePath
 			: undefined
 
 		const cwd = this.getPesterWorkingDirectory()
@@ -796,7 +793,7 @@ export class PesterTestController implements Disposable {
 			}
 		})
 
-		if (usePSIC) {
+		if (usePSExtension) {
 			this.log.debug('Running Script in PSIC:', scriptPath, scriptArgs)
 			const psListenerPromise = this.returnServer.waitForConnection()
 
@@ -813,10 +810,12 @@ export class PesterTestController implements Disposable {
 			scriptArgs.push(this.returnServer.name)
 			// TODO: Fix non-null assertion
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			await this.powerShellExtensionClient!.RunCommand(
+			const powershellExtensionClient = await this.powerShellExtensionClientPromise
+			await powershellExtensionClient.RunCommand(
 				scriptPath,
 				scriptArgs,
-				endSocketAtDebugTerminate.bind(this, testRun)
+				endSocketAtDebugTerminate.bind(this, testRun),
+				this.workspaceFolder.uri.fsPath
 			)
 			await this.ps.listen(psOutput, await psListenerPromise)
 		} else {

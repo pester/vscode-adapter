@@ -109,7 +109,8 @@ export class PowerShellExtensionClient {
 	public async RunCommand(
 		command: string,
 		args?: string[],
-		onComplete?: (terminalData: DebugSession) => void
+		onComplete?: (terminalData: DebugSession) => void,
+		cwd?: string,
 	) {
 		// This indirectly loads the PSES extension and console
 		await this.GetVersionDetails()
@@ -129,7 +130,7 @@ export class PowerShellExtensionClient {
 			// We use the PSIC, not the vscode native debug console
 			internalConsoleOptions: 'neverOpen',
 			// TODO: Update this deprecation to match with the paths in the arg?
-			cwd: workspace.rootPath!,
+			cwd: cwd,
 			__Id: debugId
 			// createTemporaryIntegratedConsole: settings.debugging.createTemporaryIntegratedConsole,
 			// cwd:
