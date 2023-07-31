@@ -27,7 +27,7 @@ import {
 	DocumentSelector,
 } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
-import { default as parentLog, VSCodeLogOutputChannelTransport } from './log'
+import { default as parentLog } from './log'
 import {
 	TestData,
 	TestDefinition,
@@ -52,66 +52,43 @@ const defaultControllerLabel = 'Pester'
 let firstTestController: [string, TestController]
 let firstTestControllerRenamed = false
 
+/** Used to provide a lazily initialized singleton PowerShell extension client */
+let powerShellExtensionClient: PowerShellExtensionClient | undefined
+async function getPowerShellExtensionClient() {
+	return powerShellExtensionClient ??= await PowerShellExtensionClient.create(
+		getPesterExtensionContext().extensionContext,
+		getPesterExtensionContext().powerShellExtension
+	)
+}
+
 /** A wrapper for the vscode TestController API specific to PowerShell Pester Test Suite.
  */
 export class PesterTestController implements Disposable {
 	private ps: PowerShell | undefined
-	private powerShellExtensionClient: PowerShellExtensionClient | undefined
 	/** Queues up testItems from resolveHandler requests because pester works faster scanning multiple files together **/
 	private discoveryQueue = new Set<TestItem>()
 	private readonly testRunStatus = new Map<TestRun, boolean>()
 	private testFileWatchers = new Map<RelativePattern, FileSystemWatcher>()
-	private get testFilePatterns() { return Array.from(this.testFileWatchers.keys()) }
+	private get testFilePatterns(): ReadonlyArray<RelativePattern> { return Array.from(this.testFileWatchers.keys()) }
 	private readonly continuousRunTests = new Set<TestItem>()
 	private readonly disposables = new Array<Disposable>()
 	private runProfile?: TestRunProfile
 	private debugProfile?: TestRunProfile
 	private readonly powershellExtension: Extension<IPowerShellExtensionClient>
+	private powerShellExtensionClient?: PowerShellExtensionClient
 	private readonly context: ExtensionContext
-	private readonly returnServer: DotnetNamedPipeServer
+
+	// pipe for PSIC communication should be lazy initialized
+	private _returnServer?: DotnetNamedPipeServer
+	private get returnServer(): DotnetNamedPipeServer {
+		return this._returnServer ??= new DotnetNamedPipeServer(
+			'VSCodePester' + process.pid + '' + this.workspaceFolder.index
+		)
+	}
 
 	// We want our "inner" vscode testController to be lazily initialized on first request so it doesn't show in the UI unless there are relevant test files
 	private _testController: TestController | undefined
-	public get testController(): TestController {
-		this._testController ??= tests.createTestController(
-			`${this.context.extension.id}-${this.workspaceFolder.uri.toString()}`,
-			this.label
-		)
-		this._testController.refreshHandler = this.refreshHandler.bind(this)
-		this._testController.resolveHandler = this.resolveHandler.bind(this)
-		this.runProfile = this._testController.createRunProfile(
-			'Run',
-			TestRunProfileKind.Run,
-			this.testHandler.bind(this),
-			true,
-			undefined,
-			true
-		)
-		this.debugProfile = this._testController.createRunProfile(
-			'Debug',
-			TestRunProfileKind.Debug,
-			this.testHandler.bind(this),
-			true
-		)
-		this.registerDisposable(this._testController)
-
-		/** The first controller should simply be named 'Pester' and not include the workspace name in a single root
-		 * workspace. By default this is hidden if no other non-Pester test controllers but keeps it simple if there are
-		 * other controllers. In a multi-root workspace, we want to include the workspace name in the label to differentiate
-		 * between controllers.
-		*/
-		if (firstTestController === undefined) {
-			firstTestController = [this.label, this._testController]
-			this._testController.label = defaultControllerLabel
-		} else {
-			if (firstTestControllerRenamed === false) {
-				firstTestController[1].label = firstTestController[0]
-				firstTestControllerRenamed = true
-			}
-		}
-
-		return this._testController
-	}
+	public get testController(): TestController { return this._testController ??= this.createTestController() }
 
 	constructor(
 		public readonly workspaceFolder: WorkspaceFolder,
@@ -123,10 +100,6 @@ export class PesterTestController implements Disposable {
 		const pesterExtensionContext = getPesterExtensionContext()
 		this.context = pesterExtensionContext.extensionContext
 		this.powershellExtension = pesterExtensionContext.powerShellExtension
-		// TODO: Delay this until ready to run tests
-		this.returnServer = new DotnetNamedPipeServer(
-			label + 'TestController-' + process.pid
-		)
 
 		/** Remove the controller if the matching workspace is removed in vscode */
 		const onWorkspaceFolderRemoved = workspace.onDidChangeWorkspaceFolders(
@@ -140,11 +113,53 @@ export class PesterTestController implements Disposable {
 		)
 	}
 
+	/** Creates a managed vscode instance of our test controller and wires up the appropraite handlers */
+	private createTestController() {
+		const testController = tests.createTestController(
+			`${this.context.extension.id}-${this.workspaceFolder.uri.toString()}`,
+			this.label
+		)
+		testController.refreshHandler = this.refreshHandler.bind(this)
+		testController.resolveHandler = this.resolveHandler.bind(this)
+		this.runProfile = testController.createRunProfile(
+			'Dedicated Pester PowerShell Instance',
+			TestRunProfileKind.Run,
+			this.testHandler.bind(this),
+			true,
+			undefined,
+			true
+		)
+		this.debugProfile = testController.createRunProfile(
+			'Dedicated Pester PowerShell Instance',
+			TestRunProfileKind.Debug,
+			this.testHandler.bind(this),
+			true
+		)
+		this.registerDisposable(testController)
+
+		/** The first controller should simply be named 'Pester' and not include the workspace name in a single root
+		 * workspace. By default this is hidden if no other non-Pester test controllers but keeps it simple if there are
+		 * other controllers. In a multi-root workspace, we want to include the workspace name in the label to differentiate
+		 * between controllers.
+		*/
+		if (firstTestController === undefined) {
+			firstTestController = [this.label, testController]
+			testController.label = defaultControllerLabel
+		} else {
+			if (firstTestControllerRenamed === false) {
+				firstTestController[1].label = firstTestController[0]
+				firstTestControllerRenamed = true
+			}
+		}
+		return testController
+	}
+
 	/** Initializes file system watchers for the workspace and checks for Pester files in open windows */
 	async watch() {
 		const watchers = await watchWorkspaceFolder(this.workspaceFolder)
 		this.testFileWatchers = watchers
 
+		this.log.info(`Watching for Pester file changes in ${this.workspaceFolder.uri.fsPath}`)
 		this.registerDisposable(...Array.from(watchers.values()).flatMap(
 			watcher => {
 				return [
@@ -157,9 +172,7 @@ export class PesterTestController implements Disposable {
 
 		// Watch for new open documents and initiate a test refresh
 		this.registerDisposable(
-			workspace.onDidOpenTextDocument(
-				this.refreshIfPesterTestDocument
-			)
+			workspace.onDidOpenTextDocument(this.refreshIfPesterTestDocument)
 		)
 
 		// Do a test discovery if a pester document is already open
@@ -170,8 +183,8 @@ export class PesterTestController implements Disposable {
 		this.log.info('Scanning workspace for Pester files:', this.workspaceFolder.uri.fsPath)
 		const detectedPesterFiles = (await Promise.all(this.testFilePatterns.map(
 			pattern => {
-				this.log.debug('Scanning for files matching pattern:', pattern)
-				return workspace.findFiles(pattern, '**/node_modules/**')
+				this.log.debug('Scanning for files matching pattern:', pattern.baseUri, pattern.pattern)
+				return workspace.findFiles(pattern)
 			}
 		))).flat()
 
@@ -180,7 +193,7 @@ export class PesterTestController implements Disposable {
 
 	refreshIfPesterTestDocument(
 		doc: TextDocument,
-		documentSelector: DocumentSelector = Array.from(this.testFileWatchers.keys())
+		documentSelector: DocumentSelector = this.testFilePatterns
 	) {
 		if (
 			// TODO: Support virtual pester test files by running them as a scriptblock
@@ -207,10 +220,6 @@ export class PesterTestController implements Disposable {
 		} else {
 			this.log.error('A file that matches the pester test item was deleted but could not find a match in the controller items. This is probably a bug: ', file.fsPath)
 		}
-	}
-
-	start() {
-		this.log.attachTransport(new VSCodeLogOutputChannelTransport(this.label).transport)
 	}
 
 	/** The test controller API calls this whenever it needs to get the resolveChildrenHandler
@@ -320,9 +329,8 @@ export class PesterTestController implements Disposable {
 		this.log.info("VSCode requested a refresh. Re-initializing the Pester Tests extension")
 		this.stopPowerShell()
 		clear(this.testController.items)
-		this.testWatchers.forEach(watcher => watcher.dispose())
-		// Clear the watchers after disposing
-		this.testWatchers.splice(0, this.testWatchers.length)
+
+		// TODO: Check settings and refresh if changed
 
 		// Reinitialize the monitor which will restart the FileSystemWatchers
 		this.resolveHandler(undefined, cancelToken)
@@ -483,7 +491,8 @@ export class PesterTestController implements Disposable {
 			throw new Error('No profile provided. This is (currently) a bug.')
 		}
 
-		this.log.trace(`VSCode requested ${TestRunProfileKind[request.profile.kind]} for: `, request.include?.map(i => i.id))
+
+		this.log.trace(`VSCode requested ${request.profile.label} [${TestRunProfileKind[request.profile.kind]}] for: `, request.include?.map(i => i.id))
 
 		const isDebug = request.profile.kind === TestRunProfileKind.Debug
 		// If nothing was included, assume it means "run all tests"
@@ -605,7 +614,7 @@ export class PesterTestController implements Disposable {
 
 		// testItems.forEach(run.started)
 		// TODO: Adjust testItems parameter to a Set
-		this.log.info(`Test Run Start: ${testItems.length} test items`)
+		this.log.info(`Test ${isDebug ? 'Debug' : 'Run'} Start: ${testItems.length} test items`)
 		await this.startPesterInterface(
 			Array.from(testItems),
 			runResultHandler.bind(this),
@@ -709,15 +718,8 @@ export class PesterTestController implements Disposable {
 
 		// Initialize the PSIC if we are using it
 		if (usePSIC) {
-			if (this.powerShellExtensionClient === undefined) {
-				this.powerShellExtensionClient = await PowerShellExtensionClient.create(
-					this.context,
-					this.powershellExtension
-				)
-			}
-
 			// HACK: Calling this function indirectly starts/waits for PSIC to be available
-			await this.powerShellExtensionClient.GetVersionDetails()
+			await (await getPowerShellExtensionClient()).GetVersionDetails()
 		}
 
 		// If PSIC is running, we will connect the PowershellExtensionClient to be able to fetch info about it
@@ -725,12 +727,7 @@ export class PesterTestController implements Disposable {
 			t => t.name === 'PowerShell Integrated Console'
 		)
 		if (psicLoaded) {
-			if (this.powerShellExtensionClient === undefined) {
-				this.powerShellExtensionClient = await PowerShellExtensionClient.create(
-					this.context,
-					this.powershellExtension
-				)
-			}
+			this.powerShellExtensionClient = await getPowerShellExtensionClient()
 		}
 
 
