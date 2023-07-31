@@ -155,7 +155,7 @@ export class PesterTestController implements Disposable {
 	}
 
 	/** Initializes file system watchers for the workspace and checks for Pester files in open windows */
-	async watch() {
+	async watch(cancelToken?: CancellationToken) {
 		const watchers = await watchWorkspaceFolder(this.workspaceFolder)
 		this.testFileWatchers = watchers
 
@@ -180,13 +180,19 @@ export class PesterTestController implements Disposable {
 			this.refreshIfPesterTestDocument(window.activeTextEditor.document)
 		}
 
+		await this.findPesterFiles(cancelToken)
+	}
+
+	private async findPesterFiles(cancelToken?: CancellationToken) {
 		this.log.info('Scanning workspace for Pester files:', this.workspaceFolder.uri.fsPath)
 		const detectedPesterFiles = (await Promise.all(this.testFilePatterns.map(
 			pattern => {
 				this.log.debug('Scanning for files matching pattern:', pattern.baseUri, pattern.pattern)
-				return workspace.findFiles(pattern)
+				return workspace.findFiles(pattern, undefined, undefined, cancelToken)
 			}
 		))).flat()
+
+		if (cancelToken?.isCancellationRequested) { return }
 
 		detectedPesterFiles.forEach(uri => this.onFileAdded(uri))
 	}
@@ -324,8 +330,7 @@ export class PesterTestController implements Disposable {
 	}
 
 	/** Called when the refresh button is pressed in vscode. Should clear the handler and restart */
-	private refreshHandler(cancelToken: CancellationToken) {
-		this.handleRunCancelled(cancelToken, 'refreshHandler')
+	private refreshHandler() {
 		this.log.info("VSCode requested a refresh. Re-initializing the Pester Tests extension")
 		this.stopPowerShell()
 		clear(this.testController.items)
