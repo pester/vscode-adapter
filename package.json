@@ -117,6 +117,9 @@
 		"readline-transform": "^1.0.0",
 		"tslog": "^4.8.2"
 	},
+	"extensionDependencies": [
+		"ms-vscode.powershell"
+	],
 	"icon": "images/pesterlogo.png",
 	"badges": [
 		{

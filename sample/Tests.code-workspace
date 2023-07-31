@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "Tests"
+		},
+		{
+			"path": "Tests.2"
+		},
+		{
+			"path": "Tests.3"
+		}
+	],
+	"settings": {
+    "git.openRepositoryInParentFolders": "never",
+    "extensions.ignoreRecommendations": true,
+  }
+}

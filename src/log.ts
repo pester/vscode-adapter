@@ -18,7 +18,6 @@ type DefaultTSLogLevel =
 	| "FATAL"
 
 export class VSCodeLogOutputChannelTransport {
-	// TODO: Make this lazy initialize so the window only starts once a log has been requested
 	/** Used to ensure multiple registered transports that request the same name use the same output window. NOTE: You can still get duplicate windows if you register channels outside this transport */
 	private static readonly channels = new Map<string, LogOutputChannel>()
 	private readonly name: string
@@ -80,6 +79,9 @@ log.attachTransport(new VSCodeOutputChannelTransport('Pester'))
 const log = new Logger<DefaultLog>({
 	name: 'default',
 	type: 'pretty',
+	prettyErrorLoggerNameDelimiter: "-",
+	prettyErrorParentNamesSeparator: "-",
+	stylePrettyLogs: true,
 	argumentsArrayName: "args",
 	overwrite: {
 		transportFormatted: () => { return } 		// We want pretty formatting but no default output

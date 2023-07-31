@@ -11,7 +11,6 @@ import {
 	window,
 	workspace
 } from 'vscode'
-import { activate } from './extension'
 
 export interface IPowerShellExtensionClient {
 	registerExternalExtension(id: string, apiVersion?: string): string
@@ -110,7 +109,8 @@ export class PowerShellExtensionClient {
 	public async RunCommand(
 		command: string,
 		args?: string[],
-		onComplete?: (terminalData: DebugSession) => void
+		onComplete?: (terminalData: DebugSession) => void,
+		cwd?: string,
 	) {
 		// This indirectly loads the PSES extension and console
 		await this.GetVersionDetails()
@@ -130,7 +130,7 @@ export class PowerShellExtensionClient {
 			// We use the PSIC, not the vscode native debug console
 			internalConsoleOptions: 'neverOpen',
 			// TODO: Update this deprecation to match with the paths in the arg?
-			cwd: workspace.rootPath!,
+			cwd: cwd,
 			__Id: debugId
 			// createTemporaryIntegratedConsole: settings.debugging.createTemporaryIntegratedConsole,
 			// cwd:
@@ -174,32 +174,24 @@ export interface IExternalPowerShellDetails {
 	architecture: string
 }
 
-export function getPowerShellExtension(context: ExtensionContext) {
-	const powershellExtension = findPowerShellExtension()
-	if (powershellExtension) {
-		return powershellExtension as Extension<IPowerShellExtensionClient>
-	} else {
+export function waitForPowerShellExtension() {
+	return new Promise<Extension<IPowerShellExtensionClient>>(resolve => {
+		const powershellExtension = extensions.getExtension('ms-vscode.PowerShell')
+		if (powershellExtension) {
+			return resolve(powershellExtension)
+		}
+
 		window.showWarningMessage(
 			'You must first install or enable the PowerShell or PowerShell Preview extension to ' +
-				'use the Pester Test Adapter. It will be activated automatically.'
+			'use the Pester Test Adapter. It will be activated automatically once the required extension is installed'
 		)
 		// Register an event that watch for the PowerShell Extension to show up
 		const activatedEvent = extensions.onDidChange(() => {
-			// Stay registered until PowerShell is detected as installed
-			if (findPowerShellExtension()) {
-				activate(context)
+			const powershellExtension = extensions.getExtension('ms-vscode.PowerShell')
+			if (powershellExtension) {
 				activatedEvent.dispose()
+				return resolve(powershellExtension)
 			}
 		})
-	}
-}
-
-/** Retrieves either the PowerShell or PowerShell Preview extension. This is used in place of a package.json extension dependency
- * because either/or is acceptable and there's no way to do this with an extension depenency.
- */
-function findPowerShellExtension() {
-	return (
-		extensions.getExtension('ms-vscode.PowerShell-Preview') ||
-		extensions.getExtension('ms-vscode.PowerShell')
-	)
+	})
 }
