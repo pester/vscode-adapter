@@ -371,7 +371,7 @@ export class PesterTestController implements Disposable {
 
 		const duplicateTestItem = Array.from(newTestItems).find(item => item.id == testDef.id)
 		if (duplicateTestItem !== undefined) {
-			const duplicateTestItemMessage = `Duplicate test item ${testDef.id} detected. Two Describe/Context/It objects with duplicate names are not supported by the Pester Tests extension, please rename one of them, use TestCases, or move it to a separate Pester test file. The duplicate will be ignored.`
+			const duplicateTestItemMessage = `Duplicate test item ${testDef.id} detected. Two Describe/Context/It objects with duplicate names are not supported by the Pester Test Extension. Please rename one of them, use TestCases/ForEach, or move it to a separate Pester test file. The duplicate will be ignored. This includes ForEach and TestCases, you must use a variable (e.g. <name>) in your test title.`
 			this.log.error(duplicateTestItemMessage)
 			window.showErrorMessage(duplicateTestItemMessage, 'OK')
 			return
