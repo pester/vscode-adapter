@@ -20,13 +20,15 @@ param(
 	#An optional custom path to the Pester module.
 	[String]$CustomModulePath,
 	#Include ANSI characters in output
-	[String]$IncludeAnsi
+	[Switch]$IncludeAnsi,
+	#Specify the path to a PesterConfiguration.psd1 file. The script will also look for a PesterConfiguration.psd1 in the current working directory.
+	[String]$ConfigurationPath
 )
 
 try {
-	Import-Module -Name Pester -MinimumVersion '5.2.0'  -ErrorAction Stop
+	Import-Module -Name Pester -MinimumVersion '5.2.0' -ErrorAction Stop
 } catch {
-	if ($PSItem.FullyQualifiedErrorId -ne 'Modules_ModuleWithVersionNotFound,Microsoft.PowerShell.Commands.ImportModuleCommand') {throw}
+	if ($PSItem.FullyQualifiedErrorId -ne 'Modules_ModuleWithVersionNotFound,Microsoft.PowerShell.Commands.ImportModuleCommand') { throw }
 
 	throw [NotSupportedException]'Pester 5.2.0 or greater is required to use the Pester Tests extension but was not found on your system. Please install the latest version of Pester from the PowerShell Gallery.'
 }
@@ -150,12 +152,24 @@ function Invoke-Main {
 				[void]$paths.Add($PSItem)
 			}
 		}
-		$config = New-PesterConfiguration @{
-			Run = @{
-				SkipRun  = [bool]$Discovery
-				PassThru = $true
-			}
+
+		[PesterConfiguration]$config = if ($PesterPreference) {
+			Write-Debug "$PesterPreference Detected, using for base configuration"
+			$pesterPreference
+		} elseif ($ConfigurationPath) {
+			Write-Debug "-ConfigurationPath $ConfigurationPath was specified, looking for configuration"
+			$resolvedConfigPath = Resolve-Path $ConfigurationPath -ErrorAction Stop
+			Write-Debug "Pester Configuration found at $ConfigurationPath, using as base configuration."
+			Import-PowerShellDataFile $resolvedConfigPath -ErrorAction Stop
+		} elseif (Test-Path './PesterConfiguration.psd1') {
+			Write-Debug "PesterConfiguration.psd1 found in test root directory $cwd, using as base configuration."
+			Import-PowerShellDataFile './PesterConfiguration.psd1' -ErrorAction Stop
+		} else {
+			New-PesterConfiguration
 		}
+
+		$config.Run.SkipRun = [bool]$Discovery
+		$config.Run.PassThru = $true
 
 		#If Verbosity is $null it will use PesterPreference
 		if ($Discovery) { $config.Output.Verbosity = 'None' }

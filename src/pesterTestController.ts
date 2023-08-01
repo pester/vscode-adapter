@@ -464,7 +464,7 @@ export class PesterTestController implements Disposable {
 		} catch (err) {
 			if (err instanceof PowerShellError) {
 				const errMessage = 'Test Discovery failed: ' + err.message
-				window.showErrorMessage(errMessage)
+				window.showErrorMessage(errMessage, 'OK')
 				this.log.fatal(errMessage)
 			}
 		}
@@ -732,6 +732,12 @@ export class PesterTestController implements Disposable {
 			scriptArgs.push(pesterCustomModulePath)
 		}
 
+		const configurationPath = workspace.getConfiguration('pester').get<string>('configurationPath')
+		if (configurationPath !== undefined) {
+			scriptArgs.push('-ConfigurationPath')
+			scriptArgs.push(configurationPath)
+		}
+
 		// Initialize the PSIC if we are using it
 		if (usePSExtension) {
 			// HACK: Calling this function indirectly starts/waits for PS Extension to be available
@@ -801,7 +807,7 @@ export class PesterTestController implements Disposable {
 			psOutput.success.removeListener('data', returnHandler)
 		}).bind(this, testRun))
 		psOutput.error.on('data', err => {
-			window.showErrorMessage(`An error occured running Pester: ${err}`)
+			window.showErrorMessage(`An error occured running Pester: ${err}`, 'OK')
 			this.log.error(`PesterInterface Error: ${err}`)
 			if (testRun) {
 				this.testRunStatus.set(testRun, false)
