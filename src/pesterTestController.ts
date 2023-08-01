@@ -346,9 +346,9 @@ export class PesterTestController implements Disposable {
 	/**
 	 * Raw test discovery result objects returned from Pester are processed by this function
 	 */
-	private testItemDiscoveryHandler(newTestItems: Set<TestItem>, t: unknown) {
+	private testItemDiscoveryHandler(newTestItems: Set<TestItem>, t: TestDefinition) {
 		// TODO: This should be done before onDidReceiveObject maybe as a handler callback?
-		const testDef = t as TestDefinition
+		const testDef = t
 		const testItems = this.testController.items
 		this.log.trace("Received discovery item from PesterInterface: ", t)
 		// If there was a syntax error, set the error and short circuit the rest
@@ -361,6 +361,14 @@ export class PesterTestController implements Disposable {
 				)
 				return
 			}
+		}
+
+		const duplicateTestItem = Array.from(newTestItems).find(item => item.id == testDef.id)
+		if (duplicateTestItem !== undefined) {
+			const duplicateTestItemMessage = `Duplicate test item ${testDef.id} detected. Two Describe/Context/It objects with duplicate names are not supported by the Pester Tests extension, please rename one of them, use TestCases, or move it to a separate Pester test file. The duplicate will be ignored.`
+			this.log.error(duplicateTestItemMessage)
+			window.showErrorMessage(duplicateTestItemMessage, 'OK')
+			return
 		}
 
 		const parent = findTestItem(testDef.parent, testItems)
@@ -407,6 +415,7 @@ export class PesterTestController implements Disposable {
 					testItem.tags = newTestTags
 					testItem.description = testDef.tags.join(', ')
 				}
+
 			}
 
 			newTestItems.add(testItem)
