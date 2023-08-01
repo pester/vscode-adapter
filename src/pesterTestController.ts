@@ -25,6 +25,7 @@ import {
 	TextDocument,
 	RelativePattern,
 	DocumentSelector,
+	WorkspaceConfiguration,
 } from 'vscode'
 import { DotnetNamedPipeServer } from './dotnetNamedPipeServer'
 import { default as parentLog } from './log'
@@ -43,7 +44,7 @@ import {
 import { clear, findTestItem, forAll, getTestItems, getUniqueTestItems, isTestItemOptions } from './util/testItemUtils'
 import debounce = require('debounce-promise')
 import { isDeepStrictEqual } from 'util'
-import { registerDisposable as registerExtensionDisposable, getPesterExtensionContext } from './extension'
+import { getPesterExtensionContext } from './extension'
 import { watchWorkspaceFolder } from './workspaceWatcher'
 
 const defaultControllerLabel = 'Pester'
@@ -84,6 +85,11 @@ export class PesterTestController implements Disposable {
 		return this._returnServer ??= new DotnetNamedPipeServer(
 			'VSCodePester' + process.pid + '' + this.workspaceFolder.index
 		)
+	}
+
+	private _config?: WorkspaceConfiguration
+	private get config(): WorkspaceConfiguration {
+		return this._config ??= workspace.getConfiguration('pester', this.workspaceFolder.uri)
 	}
 
 	// We want our "inner" vscode testController to be lazily initialized on first request so it doesn't show in the UI unless there are relevant test files
@@ -612,9 +618,7 @@ export class PesterTestController implements Disposable {
 				} else if (
 					testResult.result === "Skipped" &&
 					testResult.message &&
-					!workspace
-						.getConfiguration('pester')
-						.get<boolean>('hideSkippedBecauseMessages')
+					this.config.get<boolean>('hideSkippedBecauseMessages')
 				) {
 					// We use "errored" because there is no "skipped" message support in the vscode UI
 					return run.errored(testRequestItem, message, testResult.duration)
@@ -713,7 +717,7 @@ export class PesterTestController implements Disposable {
 			})
 		)
 
-		const pesterSettings = PowerShellExtensionClient.GetPesterSettings()
+		const pesterSettings = this.config
 		let verbosity = debug
 			? pesterSettings.get<string>('debugOutputVerbosity')
 			: pesterSettings.get<string>('outputVerbosity')
@@ -732,8 +736,8 @@ export class PesterTestController implements Disposable {
 			scriptArgs.push(pesterCustomModulePath)
 		}
 
-		const configurationPath = workspace.getConfiguration('pester').get<string>('configurationPath')
-		if (configurationPath !== undefined) {
+		const configurationPath = workspace.getConfiguration('pester', this.workspaceFolder).get<string>('configurationPath')
+		if (configurationPath !== undefined && configurationPath !== '') {
 			scriptArgs.push('-ConfigurationPath')
 			scriptArgs.push(configurationPath)
 		}
@@ -848,37 +852,19 @@ export class PesterTestController implements Disposable {
 					testRun.appendOutput(data.trimEnd() + '\r\n')
 				})
 			}
-			const useNewProcess = workspace
-				.getConfiguration('pester')
-				.get<boolean>('runTestsInNewProcess')
+			const useNewProcess = this.config.get<boolean>('runTestsInNewProcess')
 			await this.ps.run(script, psOutput, undefined, true, useNewProcess)
 		}
 	}
 	// Fetches the current working directory that Pester should use.
 	getPesterWorkingDirectory() {
-		const customCwd = workspace
-			.getConfiguration('pester')
-			.get<string>('workingDirectory')
-		if (customCwd) {
-			return customCwd
-		}
-
-		// TODO: Multi-root workspace support, for now this just looks for the first defined workspace
-		if (workspace.workspaceFolders && workspace.workspaceFolders.length > 1) {
-			this.log.warn(
-				'Multi-root workspace detected. Relative paths in Pester files will only work for the first workspace.'
-			)
-		}
-		return workspace.workspaceFolders
-			? workspace.workspaceFolders[0].uri.fsPath
-			: undefined
+		const customCwd = this.config.get<string>('workingDirectory')
+		return customCwd ?? this.workspaceFolder.uri.fsPath
 	}
 
 	/** Fetches the current pester module path if a custom path was defined, otherwise returns undefined */
 	getPesterCustomModulePath() {
-		const path = workspace
-			.getConfiguration('pester')
-			.get<string>('pesterModulePath')
+		const path = this.config.get<string>('pesterModulePath')
 
 		// Matches both an empty string and undefined
 		if (!path) {

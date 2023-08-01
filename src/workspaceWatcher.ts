@@ -47,7 +47,7 @@ export async function watchWorkspaceFolder(folder: WorkspaceFolder) {
 /** Returns a list of relative patterns based on user configuration for matching Pester files in the workspace */
 export function getPesterRelativePatterns(workspaceFolder: WorkspaceFolder): RelativePattern[] {
 	const pathsToWatch = workspace
-		.getConfiguration('pester')
+		.getConfiguration('pester', workspaceFolder.uri)
 		.get<string[]>('testFilePath')
 
 	if (!pathsToWatch) {

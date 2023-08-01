@@ -83,16 +83,7 @@ Describe 'Describe Nested Foreach <name> <symbol>' -ForEach @(
 	}
 }
 
-# Edge cases that may occur during editing
-
-Describe 'Empty Describe' {}
-Describe 'Duplicate Describe' {}
-Describe 'Duplicate Describe' {}
-Describe 'Duplicate DescribeWithContext' {
-	Context 'DupeContext' {
-		It 'DupeContext' { $true }
-	}
-}
+# Edge cases
 Context 'RootLevelContextWithTags' -Tag 'ContextTag', 'ContextTag2' {
 	It 'ItTestWithTags' -Tag 'ItTag' {
 		$true
