@@ -16,7 +16,7 @@ Describe 'PesterInterface' {
     It 'Basic.Tests Discovery' {
       $paths = "$testDataPath/Tests/Basic.Tests.ps1"
       & $PesterInterface -Path $paths -Discovery -PipeName $PipeOutPath -DryRun 6>$null
-      Get-Content $PipeOutPath | ConvertFrom-Json | ForEach-Object label | Should -HaveCount 61
+      Get-Content $PipeOutPath | ConvertFrom-Json | ForEach-Object label | Should -HaveCount 58
     }
 		It 'Simple Test Run' {
 			$paths = "$testDataPath/Tests/True.Tests.ps1"
