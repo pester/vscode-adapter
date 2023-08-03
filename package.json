@@ -58,7 +58,12 @@
 				},
 				"pester.configurationPath": {
 					"type": "string",
-					"markdownDescription": "Specifies the path to a custom Pester configuration in `.psd1` format. This is useful if you want to use a custom configuration file, or if you want to use a configuration file that is not named `PesterConfiguration.psd1`. If this is not set then the runner will look for a file named `PesterConfiguration.psd1` at the root of the workspace folder. This is best specified as a workspace setting and not a user setting. You may also provide a configuration via a `$PesterPreference` variable in your running session, this will apply for debug runs only."
+					"markdownDescription": "Specifies the path to a custom Pester configuration in `.psd1` format. This is useful if you want to use a custom configuration file, or if you want to use a configuration file that is not named `PesterConfiguration.psd1`. If this is not set then the runner will look for a file named `PesterConfiguration.psd1` at the root of the workspace folder. This is best specified as a workspace setting and not a user setting. You may also provide a configuration via a `$PesterPrefer ence` variable in your running session, this will apply for debug runs only."
+				},
+				"pester.testChangeTimeout": {
+					"type": "integer",
+					"default": 100,
+					"markdownDescription": "Specifies the timeout in milliseconds that the test adapter waits for changes to be detected before running the test. You may need to increase this value if you are on a slower computer and are getting duplicate runs after making changes or starting up the test adapter."
 				}
 			}
 		}

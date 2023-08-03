@@ -391,7 +391,17 @@ export class PesterTestController implements Disposable {
 
 		if (testItem !== undefined) {
 			const newTestItemData = testDef
-			const existingTestItemData = TestData.get(testItem)
+			const existingTestItemData = TestData.get(testItem) as TestDefinition
+
+			if (existingTestItemData === undefined) {
+				this.log.fatal(
+					`Test Item ${testDef.label} exists but does not have test data. This is a bug and should not happen`
+				)
+				throw new Error(
+					`Test Item ${testDef.label} exists but does not have test data. This is a bug and should not happen`
+				)
+			}
+
 			if (isDeepStrictEqual(existingTestItemData, newTestItemData)) {
 				this.log.trace(`Discovery: Test Exists but has not changed. Skipping: ${testDef.id}`)
 				return
@@ -476,7 +486,7 @@ export class PesterTestController implements Disposable {
 		}
 		this.discoveryQueue.clear()
 		return result
-	}, 300)
+	}, workspace.getConfiguration('pester', this.workspaceFolder).get<number>('testChangeTimeout') ?? 100)
 
 	/** The test controller API calls this when tests are requested to run in the UI. It handles both runs and debugging.
 	 * @param cancelToken The cancellation token passed by VSCode
@@ -736,7 +746,7 @@ export class PesterTestController implements Disposable {
 			scriptArgs.push(pesterCustomModulePath)
 		}
 
-		const configurationPath = workspace.getConfiguration('pester', this.workspaceFolder).get<string>('configurationPath')
+		const configurationPath = this.config.get<string>('configurationPath')
 		if (configurationPath !== undefined && configurationPath !== '') {
 			scriptArgs.push('-ConfigurationPath')
 			scriptArgs.push(configurationPath)
