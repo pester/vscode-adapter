@@ -30,6 +30,7 @@ jobs:
         with:
           path: |
             node_modules
+            .vscode-test
           key: ${{ runner.os }}-node-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: ➕ Dependencies
@@ -40,11 +41,13 @@ jobs:
       - name: 🔍 Get Calendar Version
         id: version
         run: |
+          git config --global --add safe.directory $PWD
+          dir env:
           [string]$version = & .github\Get-CalendarVersion.ps1 -MergeBuild
           "Calculated Version: $version"
-          $ENV:GITHUB_OUTPUT = "version=$version"
-          $ENV:GITHUB_OUTPUT = "calendarVersion=$version"
-          $ENV:GITHUB_OUTPUT = "semanticVersion=$version"
+          "version=$version" >> $ENV:GITHUB_OUTPUT
+          "calendarVersion=$version" >> $ENV:GITHUB_OUTPUT
+          "semanticVersion=$version" >> $ENV:GITHUB_OUTPUT
 
       - name: 👷‍♂️ Build
         run: |
@@ -64,3 +67,5 @@ jobs:
         with:
           version: '${{steps.version.outputs.version}}'
           prerelease: true
+          tag: 'v${{steps.version.outputs.version}}'
+
