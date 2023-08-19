@@ -26,7 +26,8 @@ param(
 )
 
 try {
-	Import-Module -Name Pester -MinimumVersion '5.2.0' -ErrorAction Stop
+    $modulePath = if ($CustomModulePath) { Resolve-Path $CustomModulePath -ErrorAction Stop } else { 'Pester' }
+	Import-Module -Name $modulePath -MinimumVersion '5.2.0' -ErrorAction Stop
 } catch {
 	if ($PSItem.FullyQualifiedErrorId -ne 'Modules_ModuleWithVersionNotFound,Microsoft.PowerShell.Commands.ImportModuleCommand') { throw }
 
@@ -121,8 +122,6 @@ function Unregister-PesterPlugin ([hashtable]$PluginConfiguration) {
 
 #Main Function
 function Invoke-Main {
-	$modulePath = if ($CustomModulePath) { Resolve-Path $CustomModulePath -ErrorAction Stop } else { 'Pester' }
-	Import-Module -MinimumVersion '5.2.0' -Name $modulePath -ErrorAction Stop
 	$pluginModule = Import-PrivateModule $PSScriptRoot/PesterTestPlugin.psm1
 
 	$configArgs = @{
