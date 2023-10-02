@@ -92,7 +92,7 @@
 		"@types/json-parse-safe": "^2.0.0",
 		"@types/mocha": "^10.0.1",
 		"@types/node": "^16.18.39",
-		"@types/readline-transform": "^1.0.1",
+		"@types/readline-transform": "^1.0.2",
 		"@typescript-eslint/eslint-plugin": "^5.62.0",
 		"@typescript-eslint/parser": "^5.62.0",
 		"@vscode/dts": "^0.4.0",
