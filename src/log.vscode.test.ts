@@ -1,5 +1,5 @@
 import log, { VSCodeLogOutputChannelTransport } from "./log"
-describe('vscode', () => {
+describe('vscode-e2e', () => {
 	describe('log', () => {
 		it('should be able to log', async () => {
 			const transport = new VSCodeLogOutputChannelTransport('test')

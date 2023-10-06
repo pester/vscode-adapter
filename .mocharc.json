@@ -1,13 +1,23 @@
 {
 	"$schema": "https://json.schemastore.org/mocharc",
+	"spec": "**/*.test.ts",
+	"extension": [
+		"ts",
+		"cts",
+		"mts"
+	],
+	"require": [
+		"@swc-node/register"
+	],
+	"ui": "bdd",
+	"exit": true,
+	"failZero": true,
   "color": true,
   "enable-source-maps": true,
-  "extensions": [
-    ".js",
-    ".jsx"
-  ],
-  "require": "source-map-support/register",
   "timeout": 10000,
-  "spec": "dist/**/*.test.js",
-	"ui": "bdd"
+	"ignore": [
+		"**/*.vscode.test.ts"
+	],
+	"grep": "vscode-e2e",
+	"invert": true
 }
