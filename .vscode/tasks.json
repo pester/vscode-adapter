@@ -23,7 +23,31 @@
       "type": "npm",
       "script": "build-watch",
       "group": "build",
-      "problemMatcher": "$esbuild-watch",
+      "problemMatcher": {
+				"owner": "typescript",
+				"pattern": {
+					"regexp": "^(.*):(\\d+):(\\d+) - (error|warning) TS(\\d+): (.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"code": 5,
+					"message": 6
+				},
+				"severity": "info",
+				"source": "swc",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}"
+				],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^rollup v\\d+\\.\\d+\\.\\d+$",
+					"endsPattern": {
+						"regexp": "^\\[[:-\\s\\d]+\\] waiting for changes\\.\\.\\.$"
+					}
+				}
+			},
       "isBackground": true,
     }
   ]
