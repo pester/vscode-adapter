@@ -42,6 +42,15 @@ export async function main(): Promise<void> {
 		InstallExtension(testVSCodePath, "ms-vscode.powershell")
 
 		const launchArgs = [
+			// https://github.com/microsoft/vscode/issues/84238
+			'--no-sandbox',
+			// https://github.com/microsoft/vscode-test/issues/221
+			'--disable-gpu-sandbox',
+			// https://github.com/microsoft/vscode-test/issues/120
+			'--disable-updates',
+			'--skip-welcome',
+			'--skip-release-notes',
+			'--disable-workspace-trust',
 			workspaceToOpen
 		]
 

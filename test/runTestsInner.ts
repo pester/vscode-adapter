@@ -12,7 +12,7 @@ import Mocha from "mocha"
  * @throws An error if the environment variable __TEST_EXTENSION_DEVELOPMENT_PATH is missing, if no tests are found for the specified glob pattern, or if the test run has one or more failures
  */
 export async function run(): Promise<void> {
-/** Allow tools like Mocha Test Explorer to inject their own Mocha worker, overriding the default behavior */
+	/** Allow tools like Mocha Test Explorer to inject their own Mocha worker, overriding the default behavior */
 	if (process.env.MOCHA_WORKER_PATH) {
 		return require(process.env.MOCHA_WORKER_PATH)
 	}
