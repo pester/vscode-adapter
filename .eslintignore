@@ -1,2 +1,5 @@
 vscode.d.ts
 vscode.proposed.d.ts
+dist
+node_modules
+.vscode-test

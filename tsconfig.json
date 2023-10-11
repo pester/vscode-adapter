@@ -4,11 +4,11 @@
 		"target": "ES2022",
 		"lib": ["ES2022"],
 		"outDir": "dist",
-		"sourceMap": true,
 		"inlineSources": true,
+		"inlineSourceMap": true,
 		"strict": true,
 		"esModuleInterop": true,
 		"allowSyntheticDefaultImports": true
 	},
-	"exclude": ["node_modules", ".vscode-test", "*.config.ts", "TestsToRefactor"]
+	"exclude": ["node_modules", ".vscode-test", "*.config.ts", "TestsToRefactor"],
 }

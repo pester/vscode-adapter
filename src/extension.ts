@@ -15,7 +15,6 @@ export async function activate(context: ExtensionContext) {
 
 	// PowerShell extension is a prerequisite
 	const powershellExtension = await waitForPowerShellExtension()
-
 	pesterExtensionContext = {
 		extensionContext: context,
 		powerShellExtension: powershellExtension,

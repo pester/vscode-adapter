@@ -48,7 +48,7 @@ describe('jsonParseTransform', () => {
 			await pipeline(source, jsonPipe)
 		} catch (err) {
 			const result = err as Error
-			expect(result.message).to.match(/Unexpected non-whitespace/)
+			expect(result.message).to.match(/Unexpected token :/)
 		}
 	})
 })

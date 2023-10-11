@@ -18,23 +18,20 @@
 			"env": {
 				"VSCODE_DEBUG_MODE": "true"
 			},
-			"outFiles": [
-				"${workspaceFolder}/dist/**/*.js"
-			],
+			"presentation": {
+				"group": "_build"
+			},
+			"outFiles": ["${workspaceFolder}/dist/**/*.js"],
 			"sourceMaps": true,
 			"autoAttachChildProcesses": true,
-			"skipFiles": [
-				"<node_internals>/**",
-				"**/extensionHostProcess.js",
-				"**/.vscode/extensions/**"
-			],
+			"skipFiles": ["<node_internals>/**", "**/extensionHostProcess.js", "**/.vscode/extensions/**"],
 			"showAsyncStacks": true,
 			"smartStep": true,
 			"preLaunchTask": "build-watch"
 		},
 		{
 			"name": "Run Extension Multi-Root Workspace",
-						"type": "extensionHost",
+			"type": "extensionHost",
 			"request": "launch",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
@@ -45,41 +42,37 @@
 			"env": {
 				"VSCODE_DEBUG_MODE": "true"
 			},
-			"outFiles": [
-				"${workspaceFolder}/dist/**/*.js"
-			],
+			"presentation": {
+				"group": "_build"
+			},
+			"outFiles": ["${workspaceFolder}/dist/**/*.js"],
 			"sourceMaps": true,
 			"autoAttachChildProcesses": true,
-			"skipFiles": [
-				"<node_internals>/**",
-				"**/extensionHostProcess.js",
-				"**/.vscode/extensions/**"
-			],
+			"skipFiles": ["<node_internals>/**", "**/extensionHostProcess.js", "**/.vscode/extensions/**"],
 			"showAsyncStacks": true,
 			"smartStep": true,
 			"preLaunchTask": "build-watch"
 		},
-    {
-      "name": "Test Extension",
-      "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/dist/test/runTests.js",
+		{
+			"name": "Test Extension",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/test/runTests.ts",
+			"runtimeArgs": ["-r", "@swc-node/register"],
 			"sourceMaps": true,
-			"outFiles": [
-				"${workspaceFolder}/dist/**/*.js"
-			],
+			"resolveSourceMapLocations": ["${workspaceFolder}/**", "!**/node_modules/**", "!**/.vscode-test/**"],
 			"smartStep": true,
-      "attachSimplePort": 59229, // The default is 9229 but we want to avoid conflicts because we will have two vscode instances running.
-      "env": {
-        "__TEST_DEBUG_INSPECT_PORT": "59229" // Needs to match attachSimplePort
-      },
-      "presentation": {
-        "hidden": false,
-      },
-      "internalConsoleOptions": "neverOpen",
-      "console": "integratedTerminal",
-      "autoAttachChildProcesses": false,
-      "preLaunchTask": "test-watch"
-    }
+			"attachSimplePort": 59229, // The default is 9229 but we want to avoid conflicts because we will have two vscode instances running.
+			"env": {
+				"__TEST_DEBUG_INSPECT_PORT": "59229" // Needs to match attachSimplePort
+			},
+			"presentation": {
+				"hidden": false,
+				"group": "_test"
+			},
+			"internalConsoleOptions": "neverOpen",
+			"console": "integratedTerminal",
+			"autoAttachChildProcesses": false
+		}
 	]
 }

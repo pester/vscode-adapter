@@ -1,22 +1,21 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
-
 import { globSync } from "glob"
 import path from "path"
 import Mocha from "mocha"
-/** This is the entrypoint into the standalone vscode instance that should be passed to the --extensionsTestPath parameter of the test VSCode instance. */
-export function run(testsRoot: string): Promise<void> {
-	return runTestsInner(testsRoot)
-}
 
-/** Runs inside of the test vscode instance, and should set up and activate the test runner */
-function runTestsInner(testsRoot: string): Promise<void> {
-	// Allow tools like Mocha Test Explorer to inject their own Mocha worker
+/**
+ * This is the entrypoint into the standalone vscode instance that should be passed to the --extensionsTestPath
+ * parameter of the test VSCode instance. The vscode instance will close once this function either completes or throws
+ * an error and will return an appropriate exit code.
+ * @returns A Promise that resolves when the tests have completed.
+ * @throws An error if the environment variable __TEST_EXTENSION_DEVELOPMENT_PATH is missing, if no tests are found for the specified glob pattern, or if the test run has one or more failures
+ */
+export async function run(): Promise<void> {
+	/** Allow tools like Mocha Test Explorer to inject their own Mocha worker, overriding the default behavior */
 	if (process.env.MOCHA_WORKER_PATH) {
 		return require(process.env.MOCHA_WORKER_PATH)
 	}
-
-	console.log(`\n\n=====\nTest Runner START\n${testsRoot}\n=====`)
 
 	/** Passed from RunTests */
 	const rootDir = process.env.__TEST_EXTENSION_DEVELOPMENT_PATH
@@ -34,11 +33,13 @@ function runTestsInner(testsRoot: string): Promise<void> {
 		throw new Error("spec must be specified in the config options when running vscode launch tests")
 	}
 
+	// Only run E2E tests in the test runner
+	if (config.grep === 'vscode-e2e') {
+		console.log("Running vscode-e2e tests only")
+		config.invert = false
+	}
+
 	const mocha = new Mocha(config)
-	// if (process.env.TF_BUILD) {
-	//     console.log("Detected Azure DevOps, disabling color output as ANSI escapes do not make Azure Devops happy.");
-	//     config.color = false;
-	// }
 
 	// Test if files is empty
 	const files = globSync(config.spec, { cwd: rootDir })
@@ -53,9 +54,6 @@ function runTestsInner(testsRoot: string): Promise<void> {
 		mocha.addFile(testFile)
 	}
 
-	// Only run tests with the vscode tag
-	mocha.grep(/^vscode/)
-
 	mocha.reporter("mocha-multi-reporters", {
 		reporterEnabled: "spec, xunit",
 		xunitReporterOptions: {
@@ -63,20 +61,22 @@ function runTestsInner(testsRoot: string): Promise<void> {
 		}
 	})
 
-	return new Promise((c, e) => {
-		try {
-			mocha.run(failures => {
-				console.log(`Mocha Run Finished with ${failures} failures.`)
-				if (failures > 0) {
-					throw new Error(`${failures} tests failed.`)
-				} else {
-					console.log("\n\n=====\nTest Runner STOP\n=====")
-					return c()
-				}
-			})
-		} catch (err) {
-			console.error("Failed to run tests")
-			e(err)
-		}
+	return runMochaAsync(mocha)
+}
+
+/**
+ * Runs the given Mocha instance asynchronously and returns a Promise that resolves when all tests have completed.
+ * @param mocha The Mocha instance to run.
+ * @returns A Promise that resolves when all tests have completed successfully, or rejects with an error if any tests fail.
+ */
+async function runMochaAsync(mocha: Mocha): Promise<void> {
+	return new Promise((resolve, reject) => {
+		mocha.run(failures => {
+			if (failures > 0) {
+				reject(new Error(`${failures} tests failed.`))
+			} else {
+				resolve()
+			}
+		})
 	})
 }

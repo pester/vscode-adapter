@@ -1,30 +1,71 @@
 {
   "version": "2.0.0",
   "tasks": [
-    {
-      "label": "test-watch",
-      "icon": {
-        "color": "terminal.ansiCyan",
-        "id": "sync"
-      },
-      "type": "npm",
-      "script": "build-test-watch",
-      "group": "test",
-      "problemMatcher": "$tsc-watch",
-      "isBackground": true,
-      "dependsOn": "build-watch" // We need to also build main.js extension for testing or it leads to sourcemap errors
-    },
-    {
-      "label": "build-watch",
-      "icon": {
-        "color": "terminal.ansiCyan",
-        "id": "sync"
-      },
-      "type": "npm",
-      "script": "build-watch",
-      "group": "build",
-      "problemMatcher": "$esbuild-watch",
-      "isBackground": true,
-    }
-  ]
+		{
+			"label": "build-watch",
+			"icon": {
+				"color": "terminal.ansiBlue",
+				"id": "sync"
+			},
+			"type": "npm",
+			"script": "build-watch",
+			"group": "build",
+			"problemMatcher": {
+				"owner": "typescript",
+				"source": "rollup",
+				"pattern": {
+					"regexp": "^(.*):(\\d+):(\\d+) - (error|warning) TS(\\d+): (.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"code": 5,
+					"message": 6
+				},
+				"severity": "info",
+				"fileLocation": ["relative", "${workspaceFolder}"],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^rollup v\\d+\\.\\d+\\.\\d+$",
+					"endsPattern": {
+						"regexp": "^\\[[:-\\s\\d]+\\] waiting for changes\\.\\.\\.$"
+					}
+				}
+			},
+			"isBackground": true
+		},
+		{
+			"label": "test-watch",
+			"icon": {
+				"color": "terminal.ansiCyan",
+				"id": "sync"
+			},
+			"type": "npm",
+			"script": "test-watch",
+			"group": "test",
+			"problemMatcher": {
+				"owner": "typescript",
+				"source": "mocha",
+				"pattern": {
+					"regexp": "^(.*):(\\d+):(\\d+) - (error|warning) TS(\\d+): (.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"code": 5,
+					"message": 6
+				},
+				"severity": "info",
+				"fileLocation": ["relative", "${workspaceFolder}"],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "  ",
+					"endsPattern": {
+						"regexp": "^ℹ \\[mocha\\] waiting for changes...$"
+					}
+				}
+			},
+			"isBackground": true
+		}
+	]
 }

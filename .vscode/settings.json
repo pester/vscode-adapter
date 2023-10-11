@@ -1,23 +1,16 @@
 {
 	"github-actions.workflows.pinned.workflows": [".github/workflows/ci.yml"],
 	"editor.detectIndentation": false,
-	"pester.testFilePath": [
-    "Scripts/PesterInterface.[tT]ests.[pP][sS]1"
-	],
+	"pester.testFilePath": ["Scripts/PesterInterface.[tT]ests.[pP][sS]1"],
 	"typescript.format.semicolons": "remove", // Some actions ignore ESLint
 	"[typescript]": {
 		"editor.defaultFormatter": "vscode.typescript-language-features"
 	},
-  "mochaExplorer.configFile": ".mocharc.json",
-  "mochaExplorer.launcherScript": "dist/test/runTests",
-  "mochaExplorer.autoload": false, // The test instance pops up every time discovery or run is done, this could be annoying on startup.
-  "mochaExplorer.debuggerPort": 59229, // Matches the launch config, we dont want to use the default port as we are launching a duplicate instance of vscode and it might conflict.
-  "mochaExplorer.ipcRole": "server",
-  "mochaExplorer.ipcTimeout": 10000,
-	"mochaExplorer.debuggerConfig": "Test Extension",
-  "testExplorer.useNativeTesting": true,
-  "mochaExplorer.env": {
-    "VSCODE_VERSION": "insiders",
-    "ELECTRON_RUN_AS_NODE": null
-  },
+	"mochaExplorer.configFile": ".mocharc.json",
+	"mochaExplorer.logpanel": true,
+	"testExplorer.useNativeTesting": true,
+	"mochaExplorer.env": {
+		"VSCODE_VERSION": "insiders",
+		"ELECTRON_RUN_AS_NODE": null
+	}
 }

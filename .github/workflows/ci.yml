@@ -49,9 +49,9 @@ jobs:
           "calendarVersion=$version" >> $ENV:GITHUB_OUTPUT
           "semanticVersion=$version" >> $ENV:GITHUB_OUTPUT
 
-      - name: 👷‍♂️ Build
+      - name: 👷‍♂️ Build and Package
         run: |
-          pnpm run build ${{steps.version.outputs.version}}
+          pnpm package ${{steps.version.outputs.version}}
 
       - name: ⬆ Artifact
         uses: actions/upload-artifact@v3

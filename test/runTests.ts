@@ -15,9 +15,9 @@ import { spawnSync } from "child_process"
  *
  * Tools like npm run test and vscode tasks should point to this script to begin the testing process. It is assumed you have built the extension prior to this step, it will error if it does not find the built extension or related test scaffolding.
  * */
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
 	// Verify that the extension is built
-	const compiledExtensionPath = path.resolve(__dirname, "../extension.js")
+	const compiledExtensionPath = path.resolve(__dirname, "../dist/extension.js")
 	if (!existsSync(compiledExtensionPath)) {
 		console.error("ERROR: The extension is not built yet. Check that your build watch task is functioning correctly.")
 		process.exit(1)
@@ -25,10 +25,10 @@ async function main(): Promise<void> {
 
 	try {
 		/** The folder containing the Extension Manifest package.json. Passed to `--extensionDevelopmentPath */
-		const extensionDevelopmentPath = path.resolve(__dirname, "../../")
+		const extensionDevelopmentPath = path.resolve(__dirname, "../")
 
 		/** The path to the test script that will run inside the vscode instance. Passed to --extensionTestsPath */
-		const extensionTestsPath = path.resolve(__dirname, "./runTestsInner")
+		const extensionTestsPath = path.resolve(__dirname, "./runTestsInnerLoader.cjs")
 
 		/** The starting workspace/folder to open in vscode. By default this is a testing instance pointed to the Examples folder */
 		const workspacePath = process.env.__TEST_WORKSPACE_PATH ?? "test/TestEnvironment.code-workspace"
@@ -42,6 +42,15 @@ async function main(): Promise<void> {
 		InstallExtension(testVSCodePath, "ms-vscode.powershell")
 
 		const launchArgs = [
+			// https://github.com/microsoft/vscode/issues/84238
+			'--no-sandbox',
+			// https://github.com/microsoft/vscode-test/issues/221
+			'--disable-gpu-sandbox',
+			// https://github.com/microsoft/vscode-test/issues/120
+			'--disable-updates',
+			'--skip-welcome',
+			'--skip-release-notes',
+			'--disable-workspace-trust',
 			workspaceToOpen
 		]
 
@@ -81,7 +90,7 @@ async function main(): Promise<void> {
 			version: vsCodeVersion,
 			extensionTestsEnv
 		})
-	} catch (err: any) {
+	} catch (err: unknown) {
 		console.error(`RunTests failed to run tests: ${err}`)
 		process.exit(1)
 	} finally {
