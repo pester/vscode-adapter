@@ -164,6 +164,6 @@
 	},
 	"dependencies": {
 		"@ctiterm/strip-ansi": "^1.0.0",
-		"@swc/core": "^1.3.92"
+		"@swc/core": "^1.3.93"
 	}
 }
