@@ -120,7 +120,7 @@
 		"path": "^0.12.7",
 		"pkgroll": "^2.0.1",
 		"prettier": "^2.8.8",
-		"prettier-eslint": "^15.0.1",
+		"prettier-eslint": "^16.1.1",
 		"readline-transform": "^1.0.0",
 		"rollup": "^3.29.4",
 		"sinon": "^15.2.0",
