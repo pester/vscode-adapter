@@ -1,9 +1,5 @@
 lockfileVersion: '6.0'
 
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
-
 dependencies:
   '@ctiterm/strip-ansi':
     specifier: ^1.0.0
@@ -32,8 +28,8 @@ devDependencies:
     specifier: ^4.3.5
     version: 4.3.6
   '@types/debounce-promise':
-    specifier: ^3.1.6
-    version: 3.1.7
+    specifier: ^3.1.8
+    version: 3.1.8
   '@types/glob':
     specifier: ^8.1.0
     version: 8.1.0
@@ -800,8 +796,8 @@ packages:
     resolution: {integrity: sha512-VOVRLM1mBxIRxydiViqPcKn6MIxZytrbMpd6RJLIWKxUNr3zux8no0Oc7kJx0WAPIitgZ0gkrDS+btlqQpubpw==}
     dev: true
 
-  /@types/debounce-promise@3.1.7:
-    resolution: {integrity: sha512-XzqG8zCd9n33gmusdQo0d4p9iRKg/mZbG52wfHxnuZZyeO68ryOT5xyv9Fk3vLAvQBUsHmSL14Cqpsx4jjzz1Q==}
+  /@types/debounce-promise@3.1.8:
+    resolution: {integrity: sha512-xtglA5PhbH1XpWrzeiE+dUwuzZlhtICqq+IoXMIepMa39qM2YHhmsqCMG5ZTDX8i4G6833PZDgSbm0ALiZcngg==}
     dev: true
 
   /@types/eslint@8.44.3:
@@ -4159,3 +4155,7 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
     dev: true
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false

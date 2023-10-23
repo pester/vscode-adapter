@@ -92,7 +92,7 @@
 		"@rollup/plugin-terser": "^0.4.4",
 		"@swc-node/register": "^1.6.8",
 		"@types/chai": "^4.3.5",
-		"@types/debounce-promise": "^3.1.6",
+		"@types/debounce-promise": "^3.1.8",
 		"@types/glob": "^8.1.0",
 		"@types/json-parse-safe": "^2.0.0",
 		"@types/mocha": "^10.0.1",
