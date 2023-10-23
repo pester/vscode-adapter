@@ -94,7 +94,7 @@
 		"@types/chai": "^4.3.5",
 		"@types/debounce-promise": "^3.1.6",
 		"@types/glob": "^8.1.0",
-		"@types/json-parse-safe": "^2.0.0",
+		"@types/json-parse-safe": "^2.0.2",
 		"@types/mocha": "^10.0.1",
 		"@types/node": "^18.15.0",
 		"@types/readline-transform": "^1.0.1",
