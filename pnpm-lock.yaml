@@ -1,9 +1,5 @@
 lockfileVersion: '6.0'
 
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
-
 dependencies:
   '@ctiterm/strip-ansi':
     specifier: ^1.0.0
@@ -47,8 +43,8 @@ devDependencies:
     specifier: ^18.15.0
     version: 18.15.0
   '@types/readline-transform':
-    specifier: ^1.0.1
-    version: 1.0.2
+    specifier: ^1.0.3
+    version: 1.0.3
   '@typescript-eslint/eslint-plugin':
     specifier: ^5.62.0
     version: 5.62.0(@typescript-eslint/parser@5.62.0)(eslint@8.50.0)(typescript@5.1.6)
@@ -854,10 +850,10 @@ packages:
     resolution: {integrity: sha512-+68kP9yzs4LMp7VNh8gdzMSPZFL44MLGqiHWvttYJe+6qnuVr4Ek9wSBQoveqY/r+LwjCcU29kNVkidwim+kYA==}
     dev: true
 
-  /@types/readline-transform@1.0.2:
-    resolution: {integrity: sha512-yonDIHc4avTGdZ6E4lCokUObUf2up5B44jLVsgi16sWOovKc0h+TYG9mBUCj2Sw1YiX146Hr3MeICzMNw3/4Yw==}
+  /@types/readline-transform@1.0.3:
+    resolution: {integrity: sha512-/tmeH1BxmJdzz7jSa4a+5CR4zMVZ564ASzECEtbTrsFlmoU3JdQHF4ig/q+1a/cf2+5nLLHsMG4sahMKv1r8OA==}
     dependencies:
-      '@types/node': 16.18.57
+      '@types/node': 18.15.0
     dev: true
 
   /@types/resolve@1.20.2:
@@ -4159,3 +4155,7 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
     dev: true
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
