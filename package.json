@@ -102,7 +102,7 @@
 		"@typescript-eslint/parser": "^5.62.0",
 		"@vscode/dts": "^0.4.0",
 		"@vscode/test-electron": "^2.3.5",
-		"@vscode/vsce": "^2.19.0",
+		"@vscode/vsce": "^2.22.0",
 		"chai": "^4.3.7",
 		"debounce-promise": "^3.1.2",
 		"esbuild": "^0.18.16",
