@@ -88,7 +88,7 @@
 	"devDependencies": {
 		"@rollup/plugin-commonjs": "^25.0.5",
 		"@rollup/plugin-node-resolve": "^15.2.3",
-		"@rollup/plugin-swc": "^0.2.1",
+		"@rollup/plugin-swc": "^0.3.0",
 		"@rollup/plugin-terser": "^0.4.4",
 		"@swc-node/register": "^1.6.8",
 		"@types/chai": "^4.3.5",
