@@ -17,7 +17,7 @@
 			"label": "build-test-vscode-watch",
 			"icon": {
 				"color": "terminal.ansiBlue",
-				"id": "sync"
+				"id": "beaker"
 			},
 			"type": "npm",
 			"script": "build-test-vscode-watch",
@@ -28,8 +28,8 @@
 		{
 			"label": "test-watch",
 			"icon": {
-				"color": "terminal.ansiCyan",
-				"id": "sync"
+				"color": "terminal.ansiBlue",
+				"id": "beaker"
 			},
 			"type": "npm",
 			"script": "test-watch",

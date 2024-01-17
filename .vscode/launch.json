@@ -52,33 +52,6 @@
 			"showAsyncStacks": true,
 			"smartStep": true,
 			"preLaunchTask": "build-watch"
-		},
-		{
-			"name": "Test Extension",
-			"type": "node",
-			"request": "launch",
-			"program": "${workspaceFolder}/test/runTests.ts",
-			"runtimeArgs": ["-r", "@swc-node/register"],
-			"sourceMaps": true,
-			"resolveSourceMapLocations": ["${workspaceFolder}/**", "!**/node_modules/**", "!**/.vscode-test/**"],
-			"smartStep": true,
-			"attachSimplePort": 59229, // The default is 9229 but we want to avoid conflicts because we will have two vscode instances running.
-			"env": {
-				"__TEST_DEBUG_INSPECT_PORT": "59229" // Needs to match attachSimplePort
-			},
-			"presentation": {
-				"hidden": false,
-				"group": "_test"
-			},
-			"internalConsoleOptions": "neverOpen",
-			"console": "integratedTerminal",
-			"autoAttachChildProcesses": false
-		},
-		{
-			"name": "VSCode Extension Test CLI",
-			"request": "launch",
-			"type": "extensionHost",
-			"args": ["--extensionDevelopmentPath=${workspaceFolder}"]
 		}
 	]
 }
