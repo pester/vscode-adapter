@@ -73,6 +73,12 @@
 			"internalConsoleOptions": "neverOpen",
 			"console": "integratedTerminal",
 			"autoAttachChildProcesses": false
+		},
+		{
+			"name": "VSCode Extension Test CLI",
+			"request": "launch",
+			"type": "extensionHost",
+			"args": ["--extensionDevelopmentPath=${workspaceFolder}"]
 		}
 	]
 }

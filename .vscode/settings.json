@@ -6,9 +6,11 @@
 	"[typescript]": {
 		"editor.defaultFormatter": "vscode.typescript-language-features"
 	},
-	"mochaExplorer.configFile": ".mocharc.json",
 	"mochaExplorer.logpanel": true,
 	"testExplorer.useNativeTesting": true,
+	"extension-test-runner.debugOptions": {
+		"resolveSourceMapLocations": ["${workspaceFolder}/**", "!**/node_modules/**"]
+	},
 	"mochaExplorer.env": {
 		"VSCODE_VERSION": "insiders",
 		"ELECTRON_RUN_AS_NODE": null

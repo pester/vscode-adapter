@@ -1,7 +1,7 @@
 
-import { Logger, type ILogObj } from 'tslog'
-import { type ILogObjMeta } from 'tslog/dist/types/BaseLogger'
-import { type LogOutputChannel, window } from 'vscode'
+import { Logger, ILogObj } from 'tslog'
+import { ILogObjMeta } from 'tslog/dist/types/BaseLogger'
+import { LogOutputChannel, window } from 'vscode'
 
 interface DefaultLog extends ILogObj {
 	args: unknown[]
