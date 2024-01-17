@@ -1,0 +1,9 @@
+require: 'esbuild-register'
+spec:
+  - 'src/**/*.test.ts'
+  - 'test/**/*.test.ts'
+ignore: ['**/*.vscode.test.ts']
+exit: true
+failZero: true
+color: true
+enable-source-maps: true

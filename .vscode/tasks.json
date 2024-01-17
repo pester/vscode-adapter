@@ -10,50 +10,39 @@
 			"type": "npm",
 			"script": "build-watch",
 			"group": "build",
-			"problemMatcher": {
-				"owner": "typescript",
-				"source": "rollup",
-				"pattern": {
-					"regexp": "^(.*):(\\d+):(\\d+) - (error|warning) TS(\\d+): (.*)$",
-					"file": 1,
-					"line": 2,
-					"column": 3,
-					"severity": 4,
-					"code": 5,
-					"message": 6
-				},
-				"severity": "info",
-				"fileLocation": ["relative", "${workspaceFolder}"],
-				"background": {
-					"activeOnStart": true,
-					"beginsPattern": "^rollup v\\d+\\.\\d+\\.\\d+$",
-					"endsPattern": {
-						"regexp": "^\\[[:-\\s\\d]+\\] waiting for changes\\.\\.\\.$"
-					}
-				}
+			"problemMatcher": "$esbuild-watch",
+			"isBackground": true
+		},
+		{
+			"label": "build-test-vscode-watch",
+			"icon": {
+				"color": "terminal.ansiBlue",
+				"id": "beaker"
 			},
+			"type": "npm",
+			"script": "build-test-vscode-watch",
+			"group": "build",
+			"problemMatcher": "$esbuild-watch",
 			"isBackground": true
 		},
 		{
 			"label": "test-watch",
 			"icon": {
-				"color": "terminal.ansiCyan",
-				"id": "sync"
+				"color": "terminal.ansiBlue",
+				"id": "beaker"
 			},
 			"type": "npm",
 			"script": "test-watch",
 			"group": "test",
+			"isBackground": true,
 			"problemMatcher": {
 				"owner": "typescript",
 				"source": "mocha",
 				"pattern": {
-					"regexp": "^(.*):(\\d+):(\\d+) - (error|warning) TS(\\d+): (.*)$",
-					"file": 1,
-					"line": 2,
-					"column": 3,
-					"severity": 4,
-					"code": 5,
-					"message": 6
+					"regexp": "\\w+?(Error): (.+)\\w+?\\((.+)\\)",
+					"severity": 1,
+					"message": 2,
+					"file": 3
 				},
 				"severity": "info",
 				"fileLocation": ["relative", "${workspaceFolder}"],
@@ -64,8 +53,7 @@
 						"regexp": "^ℹ \\[mocha\\] waiting for changes...$"
 					}
 				}
-			},
-			"isBackground": true
+			}
 		}
 	]
 }

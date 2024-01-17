@@ -1,0 +1,14 @@
+diff --git a/out/bin.mjs b/out/bin.mjs
+index 5282c55bd62d0b77c17f77a173ff848286c0c2f8..857e6d9ca1b6275185c11ab7ebadb1646b5a5afe 100644
+--- a/out/bin.mjs
++++ b/out/bin.mjs
+@@ -11,6 +11,9 @@ import { dirname, isAbsolute, join, resolve } from 'path';
+ import supportsColor from 'supports-color';
+ import { fileURLToPath, pathToFileURL } from 'url';
+ import yargs from 'yargs';
++import { createRequire } from 'node:module';
++
++const require = createRequire(import.meta.url);
+ const rulesAndBehavior = 'Mocha: Rules & Behavior';
+ const reportingAndOutput = 'Mocha: Reporting & Output';
+ const fileHandling = 'Mocha: File Handling';
