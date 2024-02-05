@@ -26,7 +26,7 @@ jobs:
 
       - name: 📥 Cache
         id: cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             node_modules
@@ -61,7 +61,7 @@ jobs:
 
       - name: 📝 Draft Github Release
         if: github.ref == 'refs/heads/main' || github.head_ref == 'ci'
-        uses: release-drafter/release-drafter@v5
+        uses: release-drafter/release-drafter@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
