@@ -140,7 +140,7 @@
 		}
 	],
 	"scripts": {
-		"esbuild-base": "pnpm esbuild --minify --bundle --platform=node --target=node18.15 --format=cjs --sourcemap --sources-content=false --external:mocha --external:vscode",
+		"esbuild-base": "pnpm esbuild --minify --bundle --platform=node --target=node20.16 --format=cjs --sourcemap --sources-content=false --external:mocha --external:vscode",
 		"package": "vsce package --no-update-package-json --no-git-tag-version --no-dependencies",
 		"publish": "pnpm run publishStable --pre-release --no-git-tag-version",
 		"publishStable": "vsce publish --no-update-package-json --no-dependencies",
