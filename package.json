@@ -115,7 +115,6 @@
 		"lookpath": "^1.2.2",
 		"mocha": "^10.2.0",
 		"path": "^0.12.7",
-		"pkgroll": "^2.0.1",
 		"prettier": "^3.1.1",
 		"prettier-eslint": "^16.2.0",
 		"readline-transform": "^1.0.0",
