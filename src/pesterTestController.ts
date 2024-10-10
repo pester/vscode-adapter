@@ -845,7 +845,6 @@ export class PesterTestController implements Disposable {
 			scriptArgs.push('-PipeName')
 			scriptArgs.push(this.returnServer.name)
 			// TODO: Fix non-null assertion
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 			const powershellExtensionClient = await this.powerShellExtensionClientPromise
 			await powershellExtensionClient.RunCommand(
 				scriptPath,
