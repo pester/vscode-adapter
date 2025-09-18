@@ -108,6 +108,21 @@ Describe 'PesterInterface' {
 			$baseMock.Data = @('pester')
 			Expand-TestCaseName $baseMock | Should -Be 'Array TestCase pester'
 		}
+		It 'Works with Array testcase - placeholder only' {
+			$baseMock.Name = '<_>'
+			$baseMock.Data = @('pester')
+			Expand-TestCaseName $baseMock | Should -Be 'pester'
+		}
+		It 'Works with Array testcase - PSCustomObject' {
+			$baseMock.Name = 'Using PropertyName: Returns <Emoji> (<Description>)'
+			$baseMock.Data = [pscustomobject]@{ Emoji = '🦒' ; Description = 'giraffe' }
+			Expand-TestCaseName $baseMock | Should -Be 'Using PropertyName: Returns 🦒 (giraffe)'
+		}
+		It 'Works with Array testcase - PSCustomObject Property' {
+			$baseMock.Name = 'Using _.PropertyName: Returns <_.Emoji> (<_.Description>)'
+			$baseMock.Data = [pscustomobject]@{ Emoji = '🦒' ; Description = 'giraffe' }
+			Expand-TestCaseName $baseMock | Should -Be 'Using _.PropertyName: Returns 🦒 (giraffe)'
+		}
 		It 'Works with Single Hashtable testcase' {
 			$baseMock.Name = 'Array TestCase <Name>'
 			$baseMock.Data = @{Name = 'pester' }
@@ -118,10 +133,46 @@ Describe 'PesterInterface' {
 			$baseMock.Data = @{Name = 'pester'; Data = 'aCoolTest' }
 			Expand-TestCaseName $baseMock | Should -Be 'Array aCoolTest TestCase pester'
 		}
-
+		It 'Works with Multiple Hashtable testcase - Property syntax' {
+			$baseMock.Name = 'Using _.PropertyName: Returns <_.Emoji> (<_.Description>)'
+			$baseMock.Data = @{ Emoji = '🦒' ; Description = 'giraffe' }
+			Expand-TestCaseName $baseMock | Should -Be 'Using _.PropertyName: Returns 🦒 (giraffe)'
+		}
+		It "Works with Multiple Hashtable testcase - dot-navigation" {
+			$baseMock.Name = 'A <animal.emoji> (<Name>) goes <Animal.Sound>'
+			$baseMock.Data = @{ Name = "cow";	Animal = @{	Sound = "Mooo";	Emoji = "🐄"}}
+			Expand-TestCaseName $baseMock | Should -Be 'A 🐄 (cow) goes Mooo'
+		}
 		It 'Works with Pester.Block' {
 			$Block = Import-Clixml $Mocks/Block.clixml
 			Expand-TestCaseName $Block | Should -Be 'Describe Nested Foreach giraffe'
+		}
+		It 'Works with Variable defined in Before-Block' -Skip {
+			$baseMock.Name = '<banana> <giraffe>'
+			# TODO dont know how to test this and get this case working
+			#$baseMock.BeforeAll = { $banana = '🍌' }
+			#$baseMock.BeforeEach = { $giraffe = '🦒' }
+			Expand-TestCaseName $baseMock | Should -Be '🍌 🦒'
+		}
+		It 'Works with Escaping in Single Quotes' {
+			$baseMock.Name = 'x: `<<_>`>'
+			$baseMock.Data = @(1)
+			Expand-TestCaseName $baseMock | Should -Be 'x: <1>'
+		}
+		It 'Works with Escaping in Single Quotes 2' {
+			$baseMock.Name = 'When x `< 4, x: <_>'
+			$baseMock.Data = @(1)
+			Expand-TestCaseName $baseMock | Should -Be 'When x < 4, x: 1'
+		}
+		It 'Works with Escaping in Double Quotes' {
+			$baseMock.Name = "x: ``<<_>``>"
+			$baseMock.Data = @(1)
+			Expand-TestCaseName $baseMock | Should -Be 'x: <1>'
+		}
+		It 'Works with Escaping in Double Quotes 2' {
+			$baseMock.Name = "When x ``< 4, x: <_>"
+			$baseMock.Data = @(1)
+			Expand-TestCaseName $baseMock | Should -Be 'When x < 4, x: 1'
 		}
 	}
 

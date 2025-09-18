@@ -149,15 +149,60 @@ function Expand-TestCaseName {
 	process {
 		[String]$Name = $Test.Name.ToString()
 
-		$Data = Merge-TestData $Test
+		$Data = ([Hashtable] (Merge-TestData $Test))
+
+		$flatData = @{}
+		foreach ($DataItem in $Data) {
+			$flatData += Flatten-Object $DataItem
+		}
 
 		# Array value was stored as _ by Merge-TestData
-		$Data.GetEnumerator().ForEach{
-			$Name = $Name -replace ('<{0}>' -f $PSItem.Key), $PSItem.Value
+		$placeholders = [regex]::Matches($Name, '(^<|[^`]<)([_\.]?[^>]*)>')
+		foreach ($placeholder in $placeholders) {
+			$match = $placeholder.Groups[2].Value
+			$replacement = ""
+			if($match.StartsWith("_.")) {
+					$replacement = $null -ne $flatData[$match] ? $flatData[$match] : $flatData[$match.Trim("_.")]
+			} else {
+					$replacement = $null -ne $flatData[$match] ? $flatData[$match] : $flatData["_." + $match]
+			}
+			$Name = $Name -replace "<(_\.)?$match>", $replacement
 		}
+
+		$Name = $Name -replace '`', ''
 
 		return $Name
 	}
+}
+
+# Inspired by https://gist.github.com/SP3269/fb5b0784bf2cede11ac3a1fa6d5ee1de
+function Flatten-Object ( $object, [string] $prefix = "" ) {
+	[CmdletBinding()]
+
+	$result = @{}
+
+	if ($null -eq $object) {
+		return @{$prefix = "null" }
+	}
+
+	$point = $prefix -eq "" ? "" : "."
+
+	switch -Regex ($object.GetType().Name) {
+		'^(Boolean|String|Int32|Int64|Float|Double|.*\[\])$' {
+			$result += @{$prefix = $object }
+		}
+		"Hashtable" {
+			$object.GetEnumerator() | ForEach-Object {
+				$result += Flatten-Object $PSItem.Value ($prefix + $point + $PSItem.Key)
+			}
+		}
+		"PSCustomObject" {
+			$(Get-Member -InputObject $object -MemberType NoteProperty).GetEnumerator() | ForEach-Object {
+				$result += Flatten-Object ($object | Select-Object -ExpandProperty $PSItem.Name) ($prefix + $point + $PSItem.Name)
+			}
+		}
+	}
+	return $result
 }
 
 function New-TestItemId {
