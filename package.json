@@ -110,7 +110,7 @@
 		"eslint-plugin-import": "^2.29.1",
 		"eslint-plugin-n": "^16.6.0",
 		"eslint-plugin-promise": "^6.1.1",
-		"glob": "^10.3.3",
+		"glob": "^10.5.0",
 		"json-parse-safe": "^2.0.0",
 		"lookpath": "^1.2.2",
 		"mocha": "^10.2.0",
