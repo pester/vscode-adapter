@@ -24,6 +24,7 @@ param(
 	#Specify the path to a PesterConfiguration.psd1 file. The script will also look for a PesterConfiguration.psd1 in the current working directory.
 	[String]$ConfigurationPath
 )
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
 
 try {
     $modulePath = if ($CustomModulePath) { Resolve-Path $CustomModulePath -ErrorAction Stop } else { 'Pester' }
