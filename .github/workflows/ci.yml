@@ -20,13 +20,13 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: 🚚 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: 📥 Cache
         id: cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             node_modules
@@ -34,7 +34,7 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: ➕ Dependencies
-        uses: pnpm/action-setup@v4.0.0
+        uses: pnpm/action-setup@v4.2.0
         with:
           run_install: true
 
@@ -54,7 +54,7 @@ jobs:
           pnpm package ${{steps.version.outputs.version}}
 
       - name: ⬆ Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Pester Tests VSCode Extension
           path: '*.vsix'
