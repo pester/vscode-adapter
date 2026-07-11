@@ -2,8 +2,8 @@
 [![Latest](https://img.shields.io/visual-studio-marketplace/v/pspester.pester-test?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=pspester.pester-test)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/pspester.pester-test?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=pspester.pester-test)
 [![vsix](https://img.shields.io/github/v/release/pester/vscode-adapter?label=vsix&sort=semver&style=flat-square)](https://github.com/pester/vscode-adapter/releases)
-[![Build](https://img.shields.io/github/workflow/status/pester/vscode-adapter/ci.yml?style=flat-square)](https://github.com/pester/vscode-adapter/actions/workflows/ci.yml)
-[![Analysis](https://img.shields.io/github/workflow/status/pester/vscode-adapter/codeql-analysis.yml/main?label=codeQL&style=flat-square)](https://github.com/pester/vscode-adapter/actions/workflows/codeql-analysis.yml)
+[![Build](https://img.shields.io/github/actions/workflow/status/pester/vscode-adapter/ci.yml?branch=main&style=flat-square)](https://github.com/pester/vscode-adapter/actions/workflows/ci.yml)
+[![Analysis](https://img.shields.io/github/actions/workflow/status/pester/vscode-adapter/codeql-analysis.yml?branch=main&style=flat-square)](https://github.com/pester/vscode-adapter/actions/workflows/codeql-analysis.yml)
 
 [![License: MIT](https://img.shields.io/npm/l/tslog?logo=tslog&style=flat-square)](https://tldrlegal.com/license/mit-license)
 [![GitHub stars](https://img.shields.io/github/stars/pester/vscode-adapter?style=social)](https://github.com/pester/vscode-adapter)
