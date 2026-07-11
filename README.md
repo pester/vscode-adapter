@@ -1,6 +1,6 @@
 [![Pester Test Adapter for Visual Studio Code](images/social-preview.png)](https://marketplace.visualstudio.com/items?itemName=pspester.pester-test)
-[![Latest](https://img.shields.io/visual-studio-marketplace/v/pspester.pester-test?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=pspester.pester-test)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/pspester.pester-test?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=pspester.pester-test)
+[![Latest](https://vsmarketplacebadges.dev/version-short/pspester.pester-test.svg)](https://marketplace.visualstudio.com/items?itemName=pspester.pester-test)
+[![Installs](https://vsmarketplacebadges.dev/installs-short/pspester.pester-test.svg)](https://marketplace.visualstudio.com/items?itemName=pspester.pester-test)
 [![vsix](https://img.shields.io/github/v/release/pester/vscode-adapter?label=vsix&sort=semver&style=flat-square)](https://github.com/pester/vscode-adapter/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/pester/vscode-adapter/ci.yml?branch=main&style=flat-square)](https://github.com/pester/vscode-adapter/actions/workflows/ci.yml)
 [![Analysis](https://img.shields.io/github/actions/workflow/status/pester/vscode-adapter/codeql-analysis.yml?branch=main&style=flat-square)](https://github.com/pester/vscode-adapter/actions/workflows/codeql-analysis.yml)
