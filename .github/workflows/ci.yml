@@ -12,21 +12,27 @@ name: 👷‍♂️ Build Visual Studio Code Extension
 jobs:
   build:
     name: 👷‍♂️ Build
+    # Without this block the job runs on the repository default, which was a token with
+    # write access to everything. release-drafter needs to create the draft release and
+    # read merged pull requests to build its notes, and nothing here needs more.
+    permissions:
+      contents: write
+      pull-requests: read
     defaults:
       run:
         shell: pwsh
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: 🚚 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
       - name: 📥 Cache
         id: cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             node_modules
@@ -34,7 +40,7 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: ➕ Dependencies
-        uses: pnpm/action-setup@v4.0.0
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
         with:
           run_install: true
 
@@ -54,14 +60,14 @@ jobs:
           pnpm package ${{steps.version.outputs.version}}
 
       - name: ⬆ Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Pester Tests VSCode Extension
           path: '*.vsix'
 
       - name: 📝 Draft Github Release
         if: github.ref == 'refs/heads/main' || github.head_ref == 'ci'
-        uses: release-drafter/release-drafter@v6
+        uses: release-drafter/release-drafter@6a93d829887aa2e0748befe2e808c66c0ec6e4c7 # v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
